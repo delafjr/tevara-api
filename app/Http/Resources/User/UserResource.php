@@ -10,17 +10,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class UserResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'    => $this['id'] ?? $this->resource['id'] ?? null,
-            'name'  => $this['name'] ?? $this->resource['name'] ?? null,
-            'email' => $this['email'] ?? $this->resource['email'] ?? null,
-            'role'  => $this['role'] ?? $this->resource['role'] ?? 'member',
+            'id'           => $this->id,
+            'name'         => $this->name,
+            'email'        => $this->email,
+            'phone_number' => $this->phone_number,
+            'roles'        => $this->whenLoaded('roles', fn () => $this->getRoleNames()),
+            'created_at'   => $this->created_at,
         ];
     }
 }
