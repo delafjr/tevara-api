@@ -20,5 +20,23 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         });
 
         Route::apiResource('users', UserController::class);
+
+        // ── Mahasiswa only ─────────────────────────────
+        Route::middleware('role:mahasiswa')->prefix('mahasiswa')->name('mahasiswa.')->group(function () {
+            Route::get('dashboard', fn () => response()->json([
+                'success' => true,
+                'message' => 'Mahasiswa dashboard',
+                'data'    => ['role' => 'mahasiswa'],
+            ]))->name('dashboard');
+        });
+
+        // ── Dosen only ─────────────────────────────────
+        Route::middleware('role:dosen')->prefix('dosen')->name('dosen.')->group(function () {
+            Route::get('dashboard', fn () => response()->json([
+                'success' => true,
+                'message' => 'Dosen dashboard',
+                'data'    => ['role' => 'dosen'],
+            ]))->name('dashboard');
+        });
     });
 });
