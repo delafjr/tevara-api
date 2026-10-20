@@ -6,7 +6,23 @@ namespace App\Http\Resources\User;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use OpenApi\Attributes as OA;
 
+#[OA\Schema(
+    schema: 'User',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 1),
+        new OA\Property(property: 'name', type: 'string', example: 'Dela Fajar Mulia'),
+        new OA\Property(property: 'email', type: 'string', format: 'email', example: 'dela.43325207@mhs.polines.ac.id'),
+        new OA\Property(property: 'phone_number', type: 'string', nullable: true, example: '6288228893279'),
+        new OA\Property(
+            property: 'roles',
+            type: 'array',
+            items: new OA\Items(type: 'string', example: 'mahasiswa')
+        ),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2026-10-20T08:00:00.000000Z'),
+    ]
+)]
 class UserResource extends JsonResource
 {
     /**

@@ -11,7 +11,9 @@ class ForceJsonResponse
 {
     public function handle(Request $request, Closure $next)
     {
-        $request->headers->set('Accept', 'application/json');
+        if (! $request->is('api/documentation*') && ! $request->is('docs*')) {
+            $request->headers->set('Accept', 'application/json');
+        }
 
         return $next($request);
     }
