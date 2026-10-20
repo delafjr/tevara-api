@@ -119,4 +119,9 @@ class Proposal extends Model
     {
         return $this->hasMany(Payment::class);
     }
+    
+    public function statusHistories()
+    {
+    return $this->hasMany(ProposalStatusHistory::class);
+    }
 }
