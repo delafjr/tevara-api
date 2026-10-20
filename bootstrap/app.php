@@ -14,8 +14,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->statefulApi();
-
         $middleware->api(prepend: [
             \App\Http\Middleware\ForceJsonResponse::class,
         ]);
