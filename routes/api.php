@@ -1,14 +1,34 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\User\UserController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function () {
-    // User CRUD Endpoints (Auto-generates: index, store, show, update, destroy)
-    Route::apiResource('users', UserController::class);
-});
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+    // ── Public (guest) ─────────────────────────────────
+    Route::prefix('auth')->name('auth.')->group(function () {
+        Route::post('register', [AuthController::class, 'register'])->name('register');
+        Route::post('login',    [AuthController::class, 'login'])->name('login');
+    });
+
+    // ── Protected ──────────────────────────────────────
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::prefix('auth')->name('auth.')->group(function () {
+            Route::post('logout', [AuthController::class, 'logout'])->name('logout');
+            Route::get('me',     [AuthController::class, 'me'])->name('me');
+        });
+
+        Route::apiResource('users', UserController::class);
+
+        // ── Mahasiswa only ─────────────────────────────
+        Route::middleware('role:mahasiswa')->prefix('mahasiswa')->name('mahasiswa.')->group(function () {
+            Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'mahasiswa'])->name('dashboard');
+        });
+
+        // ── Dosen only ─────────────────────────────────
+        Route::middleware('role:dosen')->prefix('dosen')->name('dosen.')->group(function () {
+            Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'dosen'])->name('dashboard');
+        });
+    });
+});
