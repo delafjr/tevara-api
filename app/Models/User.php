@@ -35,6 +35,13 @@ class User extends Authenticatable
         ];
     }
 
+    public function isPm(): bool
+    {
+        return $this->relationLoaded('managedProposals')
+            ? $this->managedProposals->isNotEmpty()
+            : $this->managedProposals()->exists();
+    }
+
     // ── Profile extensions ─────────────────────────────
 
     public function clientProfile()
