@@ -20,6 +20,7 @@ use OpenApi\Attributes as OA;
             type: 'array',
             items: new OA\Items(type: 'string', example: 'mahasiswa')
         ),
+        new OA\Property(property: 'is_pm', type: 'boolean', example: false),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2026-10-20T08:00:00.000000Z'),
     ]
 )]
@@ -36,6 +37,7 @@ class UserResource extends JsonResource
             'email'        => $this->email,
             'phone_number' => $this->phone_number,
             'roles'        => $this->whenLoaded('roles', fn () => $this->getRoleNames()),
+            'is_pm'        => $this->isPm(),
             'created_at'   => $this->created_at,
         ];
     }
