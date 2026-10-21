@@ -79,7 +79,13 @@ class UserSeeder extends Seeder
                     'phone_number' => $d['phone'],
                 ]
             );
-            $user->syncRoles(['dosen']);
+
+            // Kuwat Santoso dapat 2 role
+            $roles = ['dosen'];
+            if ($d['email'] === 'kuwatsantoso@polines.ac.id' || $d['email'] === 'wiktasari@polines.ac.id') {
+                $roles[] = 'pengurus_tefa';
+            }
+            $user->syncRoles($roles);
 
             LecturerProfile::firstOrCreate(
                 ['user_id' => $user->id],
