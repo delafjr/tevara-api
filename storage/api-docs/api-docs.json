@@ -768,6 +768,10 @@
                             "example": "mahasiswa"
                         }
                     },
+                    "is_pm": {
+                        "type": "boolean",
+                        "example": false
+                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
