@@ -15,6 +15,477 @@
         }
     ],
     "paths": {
+        "/proposals": {
+            "get": {
+                "tags": [
+                    "Proposals"
+                ],
+                "summary": "List semua proposal (Pengurus TeFa / Jurusan)",
+                "description": "Mengambil daftar proposal dengan filter status, kategori, dan search. Mendukung paginasi.",
+                "operationId": "ce4e1d19a6b3c01484d7940bc275e005",
+                "parameters": [
+                    {
+                        "name": "status_id",
+                        "in": "query",
+                        "description": "Filter berdasarkan status",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "description": "Filter berdasarkan kategori",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Cari berdasarkan proposal_code, title, atau nama klien",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Jumlah item per halaman (default: 15, max: 100)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Nomor halaman",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar proposal (paginated)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Proposal"
+                                            }
+                                        },
+                                        "last_page": {
+                                            "type": "integer",
+                                            "example": 3
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 15
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 42
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa / jurusan)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Proposals"
+                ],
+                "summary": "Ajukan proposal baru (Klien)",
+                "description": "Membuat proposal proyek baru. Hanya bisa dilakukan oleh user dengan role klien. File attachment opsional (max 10MB, pdf/docx).",
+                "operationId": "0c41d44249543332bae4f674c65dcc1d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "background",
+                                    "category_id",
+                                    "desired_deadline"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Sistem Informasi Inventaris"
+                                    },
+                                    "background": {
+                                        "description": "Minimal 100 karakter",
+                                        "type": "string",
+                                        "example": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam."
+                                    },
+                                    "category_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "desired_deadline": {
+                                        "description": "Minimal H+30 dari hari ini",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2027-02-01"
+                                    },
+                                    "target_audience": {
+                                        "type": "string",
+                                        "example": "Staff gudang",
+                                        "nullable": true
+                                    },
+                                    "estimated_budget": {
+                                        "type": "number",
+                                        "example": 10000000,
+                                        "nullable": true
+                                    },
+                                    "attachment": {
+                                        "description": "File PDF/DOCX, max 10MB",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Proposal berhasil dibuat",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Proposal"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan klien)"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/mine": {
+            "get": {
+                "tags": [
+                    "Proposals"
+                ],
+                "summary": "List proposal milik klien yang login",
+                "description": "Mengambil semua proposal yang diajukan oleh klien yang sedang login, beserta status dan history-nya.",
+                "operationId": "e1c005c39aebb2a1e673000b82e961f6",
+                "responses": {
+                    "200": {
+                        "description": "Daftar proposal klien",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Proposal"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan klien)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}": {
+            "get": {
+                "tags": [
+                    "Proposals"
+                ],
+                "summary": "Detail proposal",
+                "description": "Mengambil detail lengkap proposal beserta relasi (status, category, client, reviewer, PM, team, dll). Klien hanya bisa lihat proposalnya sendiri. Dosen hanya bisa lihat proposal yang dia jadi PM-nya. Field risk_analysis disembunyikan untuk klien.",
+                "operationId": "5e5fe3acf0535efeb1bc00aed8d41af8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Proposal"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (tidak punya akses ke proposal ini)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/review": {
+            "patch": {
+                "tags": [
+                    "Proposal Review"
+                ],
+                "summary": "Review proposal (Pengurus TeFa)",
+                "description": "Melakukan review kelayakan proposal. Hanya bisa dilakukan saat proposal berstatus Submitted (2) atau Under Review (3). Pengurus TeFa mengisi analisis kompleksitas, risiko, estimasi biaya, dan keputusan (approved / rejected / revision_required).",
+                "operationId": "3dd9d5166b2d72be65f53fac7858983b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "complexity_level",
+                                    "risk_analysis",
+                                    "estimated_cost",
+                                    "decision"
+                                ],
+                                "properties": {
+                                    "complexity_level": {
+                                        "type": "string",
+                                        "example": "HIGH",
+                                        "enum": [
+                                            "LOW",
+                                            "MEDIUM",
+                                            "HIGH"
+                                        ]
+                                    },
+                                    "risk_analysis": {
+                                        "type": "string",
+                                        "example": "Risiko integrasi API pihak ketiga cukup tinggi, perlu tim berpengalaman."
+                                    },
+                                    "estimated_cost": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "example": 25000000
+                                    },
+                                    "review_notes": {
+                                        "type": "string",
+                                        "example": "Proposal layak dengan catatan revisi scope modul keuangan.",
+                                        "nullable": true
+                                    },
+                                    "decision": {
+                                        "type": "string",
+                                        "example": "approved",
+                                        "enum": [
+                                            "approved",
+                                            "rejected",
+                                            "revision_required"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Review berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Review submitted successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Proposal tidak dalam status yang bisa di-review / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/status": {
+            "patch": {
+                "tags": [
+                    "Proposal Review"
+                ],
+                "summary": "Update status proposal (Pengurus TeFa)",
+                "description": "Override manual status proposal oleh pengurus TeFa. Setiap perubahan status tercatat di history.",
+                "operationId": "3e38e183650d9e731f263da6c582a8c5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status_id"
+                                ],
+                                "properties": {
+                                    "status_id": {
+                                        "description": "1=Draft, 2=Submitted, 3=Under Review, 4=Revision Required, 5=Approved, 6=Rejected, 7=Active, 8=Testing, 9=Handover, 10=Completed",
+                                        "type": "integer",
+                                        "example": 7
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Kontrak sudah ditandatangani, proyek dimulai.",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Status berhasil diupdate",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Status updated successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/auth/register": {
             "post": {
                 "tags": [
@@ -741,6 +1212,248 @@
     },
     "components": {
         "schemas": {
+            "Proposal": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "proposal_code": {
+                        "type": "string",
+                        "example": "PRO-2026-0001"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Sistem Informasi Manajemen Proyek TeFa"
+                    },
+                    "background": {
+                        "type": "string",
+                        "example": "Latar belakang proyek..."
+                    },
+                    "target_audience": {
+                        "type": "string",
+                        "example": "Mahasiswa dan dosen",
+                        "nullable": true
+                    },
+                    "desired_deadline": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-12-31",
+                        "nullable": true
+                    },
+                    "estimated_budget": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 15000000,
+                        "nullable": true
+                    },
+                    "attachment_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "complexity_level": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "LOW",
+                            "MEDIUM",
+                            "HIGH"
+                        ]
+                    },
+                    "risk_analysis": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "estimated_cost": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "review_notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reviewed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "spk_number": {
+                        "type": "string",
+                        "example": "SPK-2026-001",
+                        "nullable": true
+                    },
+                    "scope_of_work": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "total_amount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "payment_terms_description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "contract_file_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "is_signed": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "signed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "project_code": {
+                        "type": "string",
+                        "example": "PRJ-2026-0001",
+                        "nullable": true
+                    },
+                    "pm_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "target_completion_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "actual_completion_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "bast_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "repository_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "documentation_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "user_manual_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "handover_notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "handover_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "client_signoff_name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "client_approved": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "bast_approved_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "status_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "status": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ProposalStatus"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ]
+                    },
+                    "category": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ProposalCategory"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ]
+                    },
+                    "client": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/User"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "ProposalStatus": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Submitted"
+                    }
+                },
+                "type": "object"
+            },
+            "ProposalCategory": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Web Application"
+                    }
+                },
+                "type": "object"
+            },
             "User": {
                 "properties": {
                     "id": {
@@ -793,6 +1506,14 @@
         }
     },
     "tags": [
+        {
+            "name": "Proposals",
+            "description": "Proposals"
+        },
+        {
+            "name": "Proposal Review",
+            "description": "Proposal Review"
+        },
         {
             "name": "Auth",
             "description": "Auth"
