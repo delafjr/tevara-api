@@ -17,7 +17,7 @@ class ProposalReviewController extends Controller
         summary: 'Review proposal (Pengurus TeFa)',
         description: 'Melakukan review kelayakan proposal. Hanya bisa dilakukan saat proposal berstatus Submitted (2) atau Under Review (3). Pengurus TeFa mengisi analisis kompleksitas, risiko, estimasi biaya, dan keputusan (approved / rejected / revision_required).',
         security: [['bearerAuth' => []]],
-        tags: ['Proposal Review'],
+        tags: ['F-02: Review & Validasi'],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -111,7 +111,7 @@ class ProposalReviewController extends Controller
         summary: 'Update status proposal (Pengurus TeFa)',
         description: 'Override manual status proposal oleh pengurus TeFa. Setiap perubahan status tercatat di history.',
         security: [['bearerAuth' => []]],
-        tags: ['Proposal Review'],
+        tags: ['F-02: Review & Validasi'],
         parameters: [
             new OA\Parameter(
                 name: 'id',

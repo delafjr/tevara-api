@@ -76,7 +76,7 @@ class ProposalController extends Controller
         summary: 'List semua proposal (Pengurus TeFa / Jurusan)',
         description: 'Mengambil daftar proposal dengan filter status, kategori, dan search. Mendukung paginasi.',
         security: [['bearerAuth' => []]],
-        tags: ['Proposals'],
+        tags: ['F-01: Pengajuan Proposal'],
         parameters: [
             new OA\Parameter(name: 'status_id', in: 'query', required: false, description: 'Filter berdasarkan status', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'category_id', in: 'query', required: false, description: 'Filter berdasarkan kategori', schema: new OA\Schema(type: 'integer')),
@@ -133,7 +133,7 @@ class ProposalController extends Controller
         summary: 'List proposal milik klien yang login',
         description: 'Mengambil semua proposal yang diajukan oleh klien yang sedang login, beserta status dan history-nya.',
         security: [['bearerAuth' => []]],
-        tags: ['Proposals'],
+        tags: ['F-01: Pengajuan Proposal'],
         responses: [
             new OA\Response(
                 response: 200,
@@ -162,7 +162,7 @@ class ProposalController extends Controller
         summary: 'Ajukan proposal baru (Klien)',
         description: 'Membuat proposal proyek baru. Hanya bisa dilakukan oleh user dengan role klien. File attachment opsional (max 10MB, pdf/docx).',
         security: [['bearerAuth' => []]],
-        tags: ['Proposals'],
+        tags: ['F-01: Pengajuan Proposal'],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
@@ -222,7 +222,7 @@ class ProposalController extends Controller
         summary: 'Detail proposal',
         description: 'Mengambil detail lengkap proposal beserta relasi (status, category, client, reviewer, PM, team, dll). Klien hanya bisa lihat proposalnya sendiri. Dosen hanya bisa lihat proposal yang dia jadi PM-nya. Field risk_analysis disembunyikan untuk klien.',
         security: [['bearerAuth' => []]],
-        tags: ['Proposals'],
+        tags: ['F-01: Pengajuan Proposal'],
         parameters: [
             new OA\Parameter(
                 name: 'id',

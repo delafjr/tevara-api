@@ -18,7 +18,7 @@
         "/proposals": {
             "get": {
                 "tags": [
-                    "Proposals"
+                    "F-01: Pengajuan Proposal"
                 ],
                 "summary": "List semua proposal (Pengurus TeFa / Jurusan)",
                 "description": "Mengambil daftar proposal dengan filter status, kategori, dan search. Mendukung paginasi.",
@@ -122,7 +122,7 @@
             },
             "post": {
                 "tags": [
-                    "Proposals"
+                    "F-01: Pengajuan Proposal"
                 ],
                 "summary": "Ajukan proposal baru (Klien)",
                 "description": "Membuat proposal proyek baru. Hanya bisa dilakukan oleh user dengan role klien. File attachment opsional (max 10MB, pdf/docx).",
@@ -210,7 +210,7 @@
         "/proposals/mine": {
             "get": {
                 "tags": [
-                    "Proposals"
+                    "F-01: Pengajuan Proposal"
                 ],
                 "summary": "List proposal milik klien yang login",
                 "description": "Mengambil semua proposal yang diajukan oleh klien yang sedang login, beserta status dan history-nya.",
@@ -246,7 +246,7 @@
         "/proposals/{id}": {
             "get": {
                 "tags": [
-                    "Proposals"
+                    "F-01: Pengajuan Proposal"
                 ],
                 "summary": "Detail proposal",
                 "description": "Mengambil detail lengkap proposal beserta relasi (status, category, client, reviewer, PM, team, dll). Klien hanya bisa lihat proposalnya sendiri. Dosen hanya bisa lihat proposal yang dia jadi PM-nya. Field risk_analysis disembunyikan untuk klien.",
@@ -294,7 +294,7 @@
         "/proposals/{id}/review": {
             "patch": {
                 "tags": [
-                    "Proposal Review"
+                    "F-02: Review & Validasi"
                 ],
                 "summary": "Review proposal (Pengurus TeFa)",
                 "description": "Melakukan review kelayakan proposal. Hanya bisa dilakukan saat proposal berstatus Submitted (2) atau Under Review (3). Pengurus TeFa mengisi analisis kompleksitas, risiko, estimasi biaya, dan keputusan (approved / rejected / revision_required).",
@@ -404,7 +404,7 @@
         "/proposals/{id}/status": {
             "patch": {
                 "tags": [
-                    "Proposal Review"
+                    "F-02: Review & Validasi"
                 ],
                 "summary": "Update status proposal (Pengurus TeFa)",
                 "description": "Override manual status proposal oleh pengurus TeFa. Setiap perubahan status tercatat di history.",
@@ -1507,24 +1507,24 @@
     },
     "tags": [
         {
-            "name": "Proposals",
-            "description": "Proposals"
-        },
-        {
-            "name": "Proposal Review",
-            "description": "Proposal Review"
-        },
-        {
             "name": "Auth",
-            "description": "Auth"
-        },
-        {
-            "name": "Dashboard",
-            "description": "Dashboard"
+            "description": "Autentikasi (Register, Login, Logout, Profile)"
         },
         {
             "name": "Users",
-            "description": "Users"
+            "description": "Manajemen User (CRUD)"
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard per Role"
+        },
+        {
+            "name": "F-01: Pengajuan Proposal",
+            "description": "Klien mengajukan proposal proyek baru"
+        },
+        {
+            "name": "F-02: Review & Validasi",
+            "description": "Pengurus TeFa mereview kelayakan proposal"
         }
     ]
 }
