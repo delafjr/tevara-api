@@ -23,6 +23,11 @@ use OpenApi\Attributes as OA;
     scheme: 'bearer',
     description: 'Masukkan token Sanctum dengan format: Bearer <token>'
 )]
+#[OA\Tag(name: 'Auth', description: 'Autentikasi (Register, Login, Logout, Profile)')]
+#[OA\Tag(name: 'Users', description: 'Manajemen User (CRUD)')]
+#[OA\Tag(name: 'Dashboard', description: 'Dashboard per Role')]
+#[OA\Tag(name: 'F-01: Pengajuan Proposal', description: 'Klien mengajukan proposal proyek baru')]
+#[OA\Tag(name: 'F-02: Review & Validasi', description: 'Pengurus TeFa mereview kelayakan proposal')]
 abstract class Controller
 {
     //
