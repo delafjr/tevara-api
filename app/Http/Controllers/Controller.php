@@ -28,6 +28,9 @@ use OpenApi\Attributes as OA;
 #[OA\Tag(name: 'Dashboard', description: 'Dashboard per Role')]
 #[OA\Tag(name: 'F-01: Pengajuan Proposal', description: 'Klien mengajukan proposal proyek baru')]
 #[OA\Tag(name: 'F-02: Review & Validasi', description: 'Pengurus TeFa mereview kelayakan proposal')]
+#[OA\Tag(name: 'F-03: SPK & Kontrak', description: 'Pembuatan dan penandatanganan SPK / kontrak kerja serta assign PM')]
+#[OA\Tag(name: 'F-04: Penugasan Tim', description: 'Penugasan dan manajemen tim mahasiswa proyek')]
+#[OA\Tag(name: 'Master Data', description: 'Data master kategori, status, role tim proyek, dan kategori task')]
 abstract class Controller
 {
     //
