@@ -9,9 +9,15 @@ use Illuminate\Database\Eloquent\Collection;
 
 class UserService
 {
-    public function getAll(): Collection
+    public function getAll(?string $role = null): Collection
     {
-        return User::with('roles')->get();
+        $query = User::with(['roles', 'studentProfile', 'lecturerProfile']);
+
+        if ($role) {
+            $query->role($role);
+        }
+
+        return $query->get();
     }
 
     public function findById(int $id): ?User

@@ -15,6 +15,468 @@
         }
     ],
     "paths": {
+        "/master/project-roles": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "List role tim mahasiswa (F-04)",
+                "description": "Mengambil daftar role teknis untuk tim mahasiswa (UI/UX, Frontend, Backend, Fullstack, QA Tester).",
+                "operationId": "9f04dd49ffa66cea769e580014cdbcbf",
+                "responses": {
+                    "200": {
+                        "description": "Daftar project roles",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Frontend"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/master/proposal-categories": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "List kategori proposal (F-01)",
+                "description": "Mengambil daftar kategori proposal (Web, Mobile, Desktop, IoT, Other).",
+                "operationId": "cbe8a7375471d2226b5f736f3f222a3e",
+                "responses": {
+                    "200": {
+                        "description": "Daftar kategori proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Web"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/master/proposal-statuses": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "List status proposal (F-01 / Timeline)",
+                "description": "Mengambil status proposal terurut.",
+                "operationId": "de1a6bfeb5e03f95ebb2adacde241984",
+                "responses": {
+                    "200": {
+                        "description": "Daftar status proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Draft"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/master/task-categories": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "List kategori task (F-05)",
+                "description": "Mengambil kategori task.",
+                "operationId": "75bf71b49ba2a07f501c298c8de20d62",
+                "responses": {
+                    "200": {
+                        "description": "Daftar kategori task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Frontend"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/contract": {
+            "patch": {
+                "tags": [
+                    "F-03: SPK & Kontrak"
+                ],
+                "summary": "Isi data SPK / Kontrak (Pengurus TeFa)",
+                "description": "Menyimpan rincian SPK/kontrak kerja, scope of work, nilai kontrak, termin pembayaran, serta periode proyek. Otomatis mengenerate spk_number dan project_code jika belum ada, serta mengubah status proposal menjadi Active (id=7).",
+                "operationId": "78c2a7da05667cd9120213cbec3cbbeb",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "scope_of_work",
+                                    "total_amount",
+                                    "payment_terms_description",
+                                    "start_date",
+                                    "target_completion_date"
+                                ],
+                                "properties": {
+                                    "scope_of_work": {
+                                        "type": "string",
+                                        "example": "Pengembangan modul backend REST API, database MySQL, dan integrasi frontend."
+                                    },
+                                    "total_amount": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "example": 25000000
+                                    },
+                                    "payment_terms_description": {
+                                        "type": "string",
+                                        "example": "Termin 1: 50% setelah penandatanganan SPK. Termin 2: 50% setelah BAST disetujui."
+                                    },
+                                    "maintenance_warranty_months": {
+                                        "type": "integer",
+                                        "example": 3,
+                                        "default": 3
+                                    },
+                                    "start_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-11-01"
+                                    },
+                                    "target_completion_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2027-02-28"
+                                    },
+                                    "contract_file": {
+                                        "description": "File SPK/Kontrak (PDF, max 10MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Data SPK berhasil disimpan dan status menjadi Active",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Data SPK/kontrak berhasil disimpan"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/contract/sign": {
+            "patch": {
+                "tags": [
+                    "F-03: SPK & Kontrak"
+                ],
+                "summary": "Tandai kontrak telah ditandatangani (Pengurus TeFa)",
+                "description": "Mengubah status kontrak menjadi sudah ditandatangani (is_signed = true, signed_at = now). Opsi untuk mengunggah berkas kontrak bertandatangan.",
+                "operationId": "0f766566dce117c022b37344bcc4514c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "contract_file": {
+                                        "description": "File kontrak yang sudah di-TTD (PDF, max 10MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Kontrak berhasil ditandatangani",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Kontrak berhasil ditandatangani"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/contract/pm": {
+            "patch": {
+                "tags": [
+                    "F-03: SPK & Kontrak"
+                ],
+                "summary": "Assign Project Manager / Dosen (Pengurus TeFa)",
+                "description": "Menugaskan dosen sebagai Project Manager untuk proposal / proyek. User harus memiliki role dosen.",
+                "operationId": "7bd77932f6b42ec380bddece56cb5a70",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "pm_id"
+                                ],
+                                "properties": {
+                                    "pm_id": {
+                                        "description": "ID user dosen yang menjadi PM",
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Project Manager berhasil ditugaskan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Project Manager (Dosen) berhasil ditugaskan"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "User bukan dosen / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/proposals": {
             "get": {
                 "tags": [
@@ -486,6 +948,385 @@
                 ]
             }
         },
+        "/proposals/{id}/team": {
+            "get": {
+                "tags": [
+                    "F-04: Penugasan Tim"
+                ],
+                "summary": "List anggota tim proyek (Pengurus / PM / Mahasiswa)",
+                "description": "Mengambil daftar anggota tim mahasiswa pada proposal / proyek. Mahasiswa hanya bisa melihat tim proyeknya sendiri. Dosen hanya bisa melihat tim proyek yang ia bimbing sebagai PM.",
+                "operationId": "d2cef124a09fee3f8aeb050f4e1abaec",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar anggota tim",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "proposal_id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "user_id": {
+                                                "type": "integer",
+                                                "example": 5
+                                            },
+                                            "role_id": {
+                                                "type": "integer",
+                                                "example": 2
+                                            },
+                                            "joined_at": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2026-11-01"
+                                            },
+                                            "student": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 5
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Dimas Prasetyo"
+                                                    },
+                                                    "email": {
+                                                        "type": "string",
+                                                        "example": "dimas@mhs.polines.ac.id"
+                                                    },
+                                                    "nim": {
+                                                        "type": "string",
+                                                        "example": "22641181999"
+                                                    },
+                                                    "study_program": {
+                                                        "type": "string",
+                                                        "example": "D3 Teknik Informatika"
+                                                    },
+                                                    "avatar": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "role": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 2
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Backend"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan anggota tim / bukan PM / tidak memiliki akses)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-04: Penugasan Tim"
+                ],
+                "summary": "Tambah anggota tim proyek (Pengurus TeFa)",
+                "description": "Menugaskan mahasiswa ke dalam tim proyek dengan peran tertentu. Mendukung penambahan single (student_id & role_id) maupun batch (array members[]).",
+                "operationId": "1e6a2df548c78528d021c492ba2777c9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "student_id": {
+                                        "description": "ID user mahasiswa (single mode)",
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "role_id": {
+                                        "description": "ID role teknis dari project_roles (single mode)",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "joined_at": {
+                                        "description": "Tanggal bergabung (default: hari ini)",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-11-01"
+                                    },
+                                    "members": {
+                                        "description": "Opsi batch: array anggota tim yang ditambahkan",
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "student_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "role_id": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "joined_at": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-11-01"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Anggota tim berhasil ditambahkan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Anggota tim berhasil ditambahkan"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Mahasiswa sudah terdaftar / bukan role mahasiswa / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/team/{memberId}": {
+            "put": {
+                "tags": [
+                    "F-04: Penugasan Tim"
+                ],
+                "summary": "Ganti role anggota tim (Pengurus TeFa)",
+                "description": "Memperbarui peran teknis anggota tim mahasiswa (misal: UI/UX diubah menjadi Frontend).",
+                "operationId": "e07c1481cb3a2ee0feeaaa2891f08012",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "memberId",
+                        "in": "path",
+                        "description": "ID Project Team Member",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "role_id"
+                                ],
+                                "properties": {
+                                    "role_id": {
+                                        "description": "ID role teknis baru dari project_roles",
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Role anggota tim berhasil diupdate",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Role anggota tim berhasil diperbarui"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Anggota tim / Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "F-04: Penugasan Tim"
+                ],
+                "summary": "Keluarkan anggota dari tim (Pengurus TeFa)",
+                "description": "Menghapus mahasiswa dari keanggotaan tim proyek. Divalidasi jika mahasiswa masih memiliki task yang berstatus selain DONE, maka operasi ditolak dengan status 422.",
+                "operationId": "59dc680984432efe592a0bebf0e445b0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "memberId",
+                        "in": "path",
+                        "description": "ID Project Team Member",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Anggota tim berhasil dikeluarkan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Anggota tim berhasil dikeluarkan dari proyek."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Anggota tim / Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Tidak bisa dikeluarkan karena masih memiliki task yang belum selesai"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/auth/register": {
             "post": {
                 "tags": [
@@ -854,6 +1695,18 @@
                 "summary": "List semua user",
                 "description": "Mengambil seluruh daftar user beserta roles dari database.",
                 "operationId": "1ac7a967d2134b8502ddb9f7a2addc4e",
+                "parameters": [
+                    {
+                        "name": "role",
+                        "in": "query",
+                        "description": "Filter user berdasarkan role (misal: dosen, mahasiswa, klien)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "dosen"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Daftar user berhasil diambil",
@@ -1525,6 +2378,18 @@
         {
             "name": "F-02: Review & Validasi",
             "description": "Pengurus TeFa mereview kelayakan proposal"
+        },
+        {
+            "name": "F-03: SPK & Kontrak",
+            "description": "Pembuatan dan penandatanganan SPK / kontrak kerja serta assign PM"
+        },
+        {
+            "name": "F-04: Penugasan Tim",
+            "description": "Penugasan dan manajemen tim mahasiswa proyek"
+        },
+        {
+            "name": "Master Data",
+            "description": "Data master kategori, status, role tim proyek, dan kategori task"
         }
     ]
 }

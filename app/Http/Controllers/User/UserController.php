@@ -28,6 +28,15 @@ final class UserController extends Controller
         description: 'Mengambil seluruh daftar user beserta roles dari database.',
         security: [['bearerAuth' => []]],
         tags: ['Users'],
+        parameters: [
+            new OA\Parameter(
+                name: 'role',
+                in: 'query',
+                required: false,
+                description: 'Filter user berdasarkan role (misal: dosen, mahasiswa, klien)',
+                schema: new OA\Schema(type: 'string', example: 'dosen')
+            ),
+        ],
         responses: [
             new OA\Response(
                 response: 200,
@@ -47,9 +56,10 @@ final class UserController extends Controller
             new OA\Response(response: 401, description: 'Unauthenticated'),
         ]
     )]
-    public function index(): JsonResponse
+    public function index(\Illuminate\Http\Request $request): JsonResponse
     {
-        $users = $this->userService->getAll();
+        $role = $request->query('role');
+        $users = $this->userService->getAll(is_string($role) ? $role : null);
 
         return $this->ok(
             message: 'Users retrieved successfully',

@@ -1,7 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\MasterDataController;
+use App\Http\Controllers\Api\ProposalContractController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ProposalReviewController;
+use App\Http\Controllers\Api\ProposalTeamController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +25,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         });
 
         Route::apiResource('users', UserController::class);
+
+        // ── Master Data ────────────────────────────────
+        Route::prefix('master')->name('master.')->group(function () {
+            Route::get('project-roles', [MasterDataController::class, 'projectRoles'])->name('project-roles');
+            Route::get('proposal-categories', [MasterDataController::class, 'proposalCategories'])->name('proposal-categories');
+            Route::get('proposal-statuses', [MasterDataController::class, 'proposalStatuses'])->name('proposal-statuses');
+            Route::get('task-categories', [MasterDataController::class, 'taskCategories'])->name('task-categories');
+        });
 
         // ── Mahasiswa only ─────────────────────────────
         Route::middleware('role:mahasiswa')->prefix('mahasiswa')->name('mahasiswa.')->group(function () {
@@ -52,6 +63,24 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::middleware('role:pengurus_tefa')->group(function () {
             Route::patch('proposals/{id}/review', [ProposalReviewController::class, 'review'])->whereNumber('id');
             Route::patch('proposals/{id}/status', [ProposalReviewController::class, 'updateStatus'])->whereNumber('id');
+        });
+
+        // ── F-03: SPK / Kontrak (khusus Pengurus TeFa) ──
+        Route::middleware('role:pengurus_tefa')->group(function () {
+            Route::match(['patch', 'post'], 'proposals/{id}/contract', [ProposalContractController::class, 'updateContract'])->whereNumber('id');
+            Route::match(['patch', 'post'], 'proposals/{id}/contract/sign', [ProposalContractController::class, 'sign'])->whereNumber('id');
+            Route::patch('proposals/{id}/contract/pm', [ProposalContractController::class, 'assignPm'])->whereNumber('id');
+        });
+
+        // ── F-04: Penugasan Tim ─────────────────────────
+        Route::middleware('role:pengurus_tefa|dosen|mahasiswa')->group(function () {
+            Route::get('proposals/{id}/team', [ProposalTeamController::class, 'index'])->whereNumber('id');
+        });
+
+        Route::middleware('role:pengurus_tefa')->group(function () {
+            Route::post('proposals/{id}/team', [ProposalTeamController::class, 'store'])->whereNumber('id');
+            Route::put('proposals/{id}/team/{memberId}', [ProposalTeamController::class, 'update'])->whereNumber('id')->whereNumber('memberId');
+            Route::delete('proposals/{id}/team/{memberId}', [ProposalTeamController::class, 'destroy'])->whereNumber('id')->whereNumber('memberId');
         });
     });
 });
