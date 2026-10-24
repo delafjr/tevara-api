@@ -1589,7 +1589,7 @@
                     "Dashboard"
                 ],
                 "summary": "Dashboard Mahasiswa",
-                "description": "Endpoint dashboard khusus role mahasiswa",
+                "description": "Endpoint ringkasan dashboard khusus role mahasiswa",
                 "operationId": "99fab27f71a9ca50c0db547c3d504bf9",
                 "responses": {
                     "200": {
@@ -1608,9 +1608,102 @@
                                         },
                                         "data": {
                                             "properties": {
-                                                "role": {
-                                                    "type": "string",
-                                                    "example": "mahasiswa"
+                                                "active_projects": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "pending_tasks": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "completed_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "tasks": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Setup project Laravel & Vue.js"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "DONE"
+                                                            },
+                                                            "priority": {
+                                                                "type": "string",
+                                                                "example": "HIGH"
+                                                            },
+                                                            "due_date": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2025-11-30",
+                                                                "nullable": true
+                                                            },
+                                                            "progress_percentage": {
+                                                                "type": "number",
+                                                                "example": 100
+                                                            },
+                                                            "proposal": {
+                                                                "properties": {
+                                                                    "id": {
+                                                                        "type": "integer",
+                                                                        "example": 1
+                                                                    },
+                                                                    "title": {
+                                                                        "type": "string",
+                                                                        "example": "Sistem Informasi Manajemen Teaching Factory"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                                            },
+                                                            "client_name": {
+                                                                "type": "string",
+                                                                "example": "PT. Maju Bersama Sentosa"
+                                                            },
+                                                            "role": {
+                                                                "type": "string",
+                                                                "example": "Fullstack"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Completed"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 100
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2025-11-30",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
                                                 }
                                             },
                                             "type": "object"
