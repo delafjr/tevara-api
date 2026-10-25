@@ -49,6 +49,16 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'klien'])->name('dashboard');
         });
 
+        // ── Pengurus TeFa only ─────────────────────────
+        Route::middleware('role:pengurus_tefa')->prefix('tefa')->name('tefa.')->group(function () {
+            Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'tefa'])->name('dashboard');
+        });
+
+        // ── Jurusan only ───────────────────────────────
+        Route::middleware('role:jurusan')->prefix('jurusan')->name('jurusan.')->group(function () {
+            Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'jurusan'])->name('dashboard');
+        });
+
         // ── F-01: Proposal ─────────────────────────────
         // /proposals/mine HARUS didaftarkan sebelum /proposals/{id}
         Route::middleware('role:klien')->group(function () {

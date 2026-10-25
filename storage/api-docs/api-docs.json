@@ -1944,6 +1944,266 @@
                 ]
             }
         },
+        "/tefa/dashboard": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Dashboard Pengurus TeFa",
+                "description": "Endpoint ringkasan seluruh project untuk role pengurus_tefa. Tidak difilter berdasarkan project yang di-handle; seluruh project yang sudah masuk tahap pengerjaan ditampilkan.",
+                "operationId": "dc2bc58c38bfac34c8834a302f1ac219",
+                "responses": {
+                    "200": {
+                        "description": "Akses berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "TeFa dashboard"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_projects": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "running_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "total_clients": {
+                                                    "type": "integer",
+                                                    "example": 4
+                                                },
+                                                "total_students": {
+                                                    "type": "integer",
+                                                    "example": 18
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Aplikasi Monitoring IoT Pertanian Berbasis Web"
+                                                            },
+                                                            "client_name": {
+                                                                "type": "string",
+                                                                "example": "CV. Teknologi Nusantara"
+                                                            },
+                                                            "pm_name": {
+                                                                "type": "string",
+                                                                "example": "Liliek Triyono, S.T., M.Kom."
+                                                            },
+                                                            "category": {
+                                                                "type": "string",
+                                                                "example": "web"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Active"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 46
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2026-09-30",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "category_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "web": 2
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                },
+                                                "status_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "active": 2
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (User bukan role pengurus_tefa)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/jurusan/dashboard": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Dashboard Jurusan",
+                "description": "Endpoint ringkasan seluruh project untuk role jurusan. Tidak difilter berdasarkan project yang di-handle; seluruh project yang sudah masuk tahap pengerjaan ditampilkan.",
+                "operationId": "3c8ea58293ce17685c0caba31aec6bea",
+                "responses": {
+                    "200": {
+                        "description": "Akses berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Jurusan dashboard"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_projects": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "running_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "total_clients": {
+                                                    "type": "integer",
+                                                    "example": 4
+                                                },
+                                                "total_students": {
+                                                    "type": "integer",
+                                                    "example": 18
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Aplikasi Monitoring IoT Pertanian Berbasis Web"
+                                                            },
+                                                            "client_name": {
+                                                                "type": "string",
+                                                                "example": "CV. Teknologi Nusantara"
+                                                            },
+                                                            "pm_name": {
+                                                                "type": "string",
+                                                                "example": "Liliek Triyono, S.T., M.Kom."
+                                                            },
+                                                            "category": {
+                                                                "type": "string",
+                                                                "example": "web"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Active"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 46
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2026-09-30",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "category_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "web": 2
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                },
+                                                "status_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "active": 2
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (User bukan role jurusan)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/users": {
             "get": {
                 "tags": [
