@@ -70,6 +70,14 @@ class Proposal extends Model
         return $this->belongsTo(User::class, 'client_id');
     }
 
+    public function getClientCompanyNameAttribute(): string
+    {
+        return $this->client?->clientPic?->clientProfile?->user?->name
+            ?? $this->client?->clientProfile?->user?->name
+            ?? $this->client?->name
+            ?? '—';
+    }
+
     public function reviewer()
     {
         return $this->belongsTo(User::class, 'reviewer_id');
