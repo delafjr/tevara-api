@@ -1698,7 +1698,7 @@
                                                             "deadline": {
                                                                 "type": "string",
                                                                 "format": "date",
-                                                                "example": "2025-11-30",
+                                                                "example": "2025-12-15",
                                                                 "nullable": true
                                                             }
                                                         },
@@ -1734,7 +1734,7 @@
                     "Dashboard"
                 ],
                 "summary": "Dashboard Dosen",
-                "description": "Endpoint dashboard khusus role dosen",
+                "description": "Endpoint ringkasan dashboard khusus role dosen",
                 "operationId": "021ec1c4958c9adec8732ae8148b8441",
                 "responses": {
                     "200": {
@@ -1753,9 +1753,67 @@
                                         },
                                         "data": {
                                             "properties": {
-                                                "role": {
-                                                    "type": "string",
-                                                    "example": "dosen"
+                                                "total_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "active_projects": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "completed_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "waiting_review": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                                            },
+                                                            "client_name": {
+                                                                "type": "string",
+                                                                "example": "PT. Maju Bersama Sentosa"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Completed"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 100
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2025-12-15",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "category_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "web": 1
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
                                                 }
                                             },
                                             "type": "object"

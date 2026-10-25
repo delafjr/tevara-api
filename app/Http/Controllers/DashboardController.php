@@ -70,7 +70,7 @@ final class DashboardController extends Controller
                                             new OA\Property(property: 'role', type: 'string', example: 'Fullstack'),
                                             new OA\Property(property: 'status', type: 'string', example: 'Completed'),
                                             new OA\Property(property: 'progress', type: 'number', example: 100),
-                                            new OA\Property(property: 'deadline', type: 'string', format: 'date', nullable: true, example: '2025-11-30'),
+                                            new OA\Property(property: 'deadline', type: 'string', format: 'date', nullable: true, example: '2025-12-15'),
                                         ]
                                     )
                                 ),
@@ -172,7 +172,7 @@ final class DashboardController extends Controller
     #[OA\Get(
         path: '/dosen/dashboard',
         summary: 'Dashboard Dosen',
-        description: 'Endpoint dashboard khusus role dosen',
+        description: 'Endpoint ringkasan dashboard khusus role dosen',
         security: [['bearerAuth' => []]],
         tags: ['Dashboard'],
         responses: [
@@ -187,7 +187,33 @@ final class DashboardController extends Controller
                             property: 'data',
                             type: 'object',
                             properties: [
-                                new OA\Property(property: 'role', type: 'string', example: 'dosen'),
+                                new OA\Property(property: 'total_projects', type: 'integer', example: 1),
+                                new OA\Property(property: 'active_projects', type: 'integer', example: 0),
+                                new OA\Property(property: 'completed_projects', type: 'integer', example: 1),
+                                new OA\Property(property: 'waiting_review', type: 'integer', example: 0),
+                                new OA\Property(
+                                    property: 'projects',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Manajemen Teaching Factory'),
+                                            new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
+                                            new OA\Property(property: 'status', type: 'string', example: 'Completed'),
+                                            new OA\Property(property: 'progress', type: 'number', example: 100),
+                                            new OA\Property(property: 'deadline', type: 'string', format: 'date', nullable: true, example: '2025-12-15'),
+                                        ]
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'category_distribution',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        additionalProperties: new OA\AdditionalProperties(type: 'integer'),
+                                        example: ['web' => 1]
+                                    )
+                                ),
                             ]
                         ),
                     ]
@@ -197,11 +223,74 @@ final class DashboardController extends Controller
             new OA\Response(response: 403, description: 'Forbidden (User bukan role dosen)'),
         ]
     )]
-    public function dosen(): JsonResponse
+    public function dosen(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        $proposals = Proposal::where('pm_id', $user->id)
+            ->orWhere('reviewer_id', $user->id)
+            ->with(['status', 'category', 'client.clientPic.clientProfile.user', 'tasks'])
+            ->get();
+
+        $totalProjects = $proposals->count();
+
+        $activeProjects = $proposals->filter(function ($p) {
+            return in_array(strtolower($p->status?->name ?? ''), ['active', 'testing']);
+        })->count();
+
+        $completedProjects = $proposals->filter(function ($p) {
+            return in_array(strtolower($p->status?->name ?? ''), ['completed', 'handover']);
+        })->count();
+
+        $proposalIds = $proposals->pluck('id');
+
+        $waitingReview = Task::whereIn('proposal_id', $proposalIds)
+            ->where(function ($q) {
+                $q->where('pm_status', 'PENDING')
+                  ->orWhere('status', 'TESTING');
+            })
+            ->count();
+
+        $projects = $proposals->map(function ($proposal) {
+            $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
+            $taskCount = $proposal->tasks->count();
+
+            if ($isCompleted) {
+                $progress = 100;
+            } elseif ($taskCount > 0) {
+                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } else {
+                $progress = 0;
+            }
+
+            $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
+
+            return [
+                'id'          => $proposal->id,
+                'title'       => $proposal->title,
+                'client_name' => $proposal->client_company_name,
+                'status'      => $proposal->status?->name ?? '—',
+                'progress'    => $progress,
+                'deadline'    => $deadlineToUse?->toDateString(),
+            ];
+        })->values();
+
+        $categoryDistribution = $proposals
+            ->groupBy(fn ($p) => strtolower($p->category?->name ?? 'other'))
+            ->map(fn ($group, $key) => [$key => $group->count()])
+            ->values()
+            ->toArray();
+
         return $this->ok(
             message: 'Dosen dashboard',
-            data: ['role' => 'dosen']
+            data: [
+                'total_projects'        => $totalProjects,
+                'active_projects'       => $activeProjects,
+                'completed_projects'    => $completedProjects,
+                'waiting_review'        => $waitingReview,
+                'projects'              => $projects,
+                'category_distribution' => $categoryDistribution,
+            ]
         );
     }
 }
