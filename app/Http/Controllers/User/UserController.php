@@ -11,6 +11,7 @@ use App\Http\Resources\User\UserResource;
 use App\Services\UserService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -64,6 +65,59 @@ final class UserController extends Controller
         return $this->ok(
             message: 'Users retrieved successfully',
             data: UserResource::collection($users)
+        );
+    }
+
+    #[OA\Get(
+        path: '/users/company',
+        summary: 'Data user dan perusahaan',
+        description: 'Mengambil data user yang sedang login dari token (nama, email, no_hp) beserta nama perusahaan. Khusus role klien dan jurusan. Untuk role jurusan, `company_name` diisi nama jurusan.',
+        security: [['bearerAuth' => []]],
+        tags: ['Users'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Data user dan perusahaan berhasil diambil',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Company profile retrieved successfully'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'name', type: 'string', example: 'Budi Santoso'),
+                                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'budi.santoso@majubersamasentosa.co.id'),
+                                new OA\Property(property: 'no_hp', type: 'string', nullable: true, example: '6281234567890'),
+                                new OA\Property(property: 'company_name', type: 'string', nullable: true, example: 'PT. Maju Bersama Sentosa'),
+                                new OA\Property(property: 'role', type: 'string', enum: ['klien', 'jurusan'], example: 'klien'),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan klien/jurusan)'),
+        ]
+    )]
+    public function company(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $companyName = $user->hasRole('jurusan')
+            ? $user->name
+            : $user->clientPic?->clientProfile?->user?->name
+                ?? $user->clientProfile?->user?->name;
+
+        return $this->ok(
+            message: 'Company profile retrieved successfully',
+            data: [
+                'name'         => $user->name,
+                'email'        => $user->email,
+                'no_hp'        => $user->phone_number,
+                'company_name' => $companyName,
+                'role'         => $user->getRoleNames()->first(),
+            ]
         );
     }
 

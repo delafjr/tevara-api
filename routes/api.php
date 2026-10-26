@@ -17,11 +17,18 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('login',    [AuthController::class, 'login'])->name('login');
     });
 
+    Route::get('categories', [MasterDataController::class, 'categories'])->name('categories.index');
+
     // ── Protected ──────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
             Route::post('logout', [AuthController::class, 'logout'])->name('logout');
             Route::get('me',     [AuthController::class, 'me'])->name('me');
+        });
+
+        // Data user + perusahaan (khusus klien & jurusan). Harus sebelum apiResource agar tidak tertangkap /users/{id}
+        Route::middleware('role:klien|jurusan')->group(function () {
+            Route::get('users/company', [UserController::class, 'company'])->name('users.company');
         });
 
         Route::apiResource('users', UserController::class);
@@ -61,7 +68,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // ── F-01: Proposal ─────────────────────────────
         // /proposals/mine HARUS didaftarkan sebelum /proposals/{id}
-        Route::middleware('role:klien')->group(function () {
+        Route::middleware('role:klien|jurusan')->group(function () {
             Route::get('proposals/mine', [ProposalController::class, 'mine']);
             Route::post('proposals', [ProposalController::class, 'store']);
         });

@@ -15,6 +15,50 @@
         }
     ],
     "paths": {
+        "/categories": {
+            "get": {
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "List semua kategori proposal",
+                "description": "Mengambil seluruh kategori proposal. Endpoint publik, tidak memerlukan autentikasi.",
+                "operationId": "fc78a41c718072bc6e97664db48054e1",
+                "responses": {
+                    "200": {
+                        "description": "Daftar kategori proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Web"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/master/project-roles": {
             "get": {
                 "tags": [
@@ -586,31 +630,45 @@
                 "tags": [
                     "F-01: Pengajuan Proposal"
                 ],
-                "summary": "Ajukan proposal baru (Klien)",
-                "description": "Membuat proposal proyek baru. Hanya bisa dilakukan oleh user dengan role klien. File attachment opsional (max 10MB, pdf/docx).",
+                "summary": "Ajukan proposal baru",
+                "description": "Membuat proposal baru sekaligus modulnya dalam satu request. `client_id` harus user dengan role klien (PIC perusahaan) atau jurusan. `proposal_code` (PRSL-{tahun}-{3 digit}) dan status `Submitted` di-generate otomatis oleh server.",
                 "operationId": "0c41d44249543332bae4f674c65dcc1d",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "multipart/form-data": {
+                        "application/json": {
                             "schema": {
                                 "required": [
+                                    "client_id",
                                     "title",
                                     "background",
                                     "category_id",
                                     "desired_deadline"
                                 ],
                                 "properties": {
+                                    "client_id": {
+                                        "description": "User ID dengan role klien (PIC) atau jurusan",
+                                        "type": "integer",
+                                        "example": 6
+                                    },
                                     "title": {
                                         "type": "string",
-                                        "example": "Sistem Informasi Inventaris"
+                                        "example": "Sistem Informasi Inventaris",
+                                        "maxLength": 255
                                     },
                                     "background": {
                                         "description": "Minimal 100 karakter",
                                         "type": "string",
                                         "example": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam."
                                     },
+                                    "target_audience": {
+                                        "description": "Target pengguna/sasaran pengguna sistem",
+                                        "type": "string",
+                                        "example": "Staff gudang dan admin inventory",
+                                        "nullable": true
+                                    },
                                     "category_id": {
+                                        "description": "ID kategori, harus ada di tabel proposal_categories",
                                         "type": "integer",
                                         "example": 1
                                     },
@@ -620,20 +678,33 @@
                                         "format": "date",
                                         "example": "2027-02-01"
                                     },
-                                    "target_audience": {
-                                        "type": "string",
-                                        "example": "Staff gudang",
-                                        "nullable": true
-                                    },
                                     "estimated_budget": {
                                         "type": "number",
+                                        "format": "float",
                                         "example": 10000000,
                                         "nullable": true
                                     },
-                                    "attachment": {
-                                        "description": "File PDF/DOCX, max 10MB",
-                                        "type": "string",
-                                        "format": "binary"
+                                    "modules": {
+                                        "description": "Daftar modul yang diajukan sekaligus",
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "title"
+                                            ],
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "Manajemen Barang"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "CRUD data barang",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -656,7 +727,7 @@
                         "description": "Unauthenticated"
                     },
                     "403": {
-                        "description": "Forbidden (bukan klien)"
+                        "description": "Forbidden (role tidak diizinkan)"
                     },
                     "422": {
                         "description": "Validasi gagal"
@@ -675,7 +746,7 @@
                     "F-01: Pengajuan Proposal"
                 ],
                 "summary": "List proposal milik klien yang login",
-                "description": "Mengambil semua proposal yang diajukan oleh klien yang sedang login, beserta status dan history-nya.",
+                "description": "Mengambil daftar proposal milik klien yang sedang login beserta kategori dan statusnya.",
                 "operationId": "e1c005c39aebb2a1e673000b82e961f6",
                 "responses": {
                     "200": {
@@ -685,7 +756,43 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/Proposal"
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "proposal_code": {
+                                                "type": "string",
+                                                "example": "PRSL-2025-001"
+                                            },
+                                            "title": {
+                                                "type": "string",
+                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                            },
+                                            "category": {
+                                                "type": "string",
+                                                "example": "Web",
+                                                "nullable": true
+                                            },
+                                            "status": {
+                                                "type": "string",
+                                                "example": "Completed",
+                                                "nullable": true
+                                            },
+                                            "start_date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2025-03-25",
+                                                "nullable": true
+                                            },
+                                            "target_completion_date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2025-12-15",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "type": "object"
                                     }
                                 }
                             }
@@ -2358,6 +2465,81 @@
                 ]
             }
         },
+        "/users/company": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Data user dan perusahaan",
+                "description": "Mengambil data user yang sedang login dari token (nama, email, no_hp) beserta nama perusahaan. Khusus role klien dan jurusan. Untuk role jurusan, `company_name` diisi nama jurusan.",
+                "operationId": "13fb1fca82fdfe684ee0a82f322e013a",
+                "responses": {
+                    "200": {
+                        "description": "Data user dan perusahaan berhasil diambil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Company profile retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Budi Santoso"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "format": "email",
+                                                    "example": "budi.santoso@majubersamasentosa.co.id"
+                                                },
+                                                "no_hp": {
+                                                    "type": "string",
+                                                    "example": "6281234567890",
+                                                    "nullable": true
+                                                },
+                                                "company_name": {
+                                                    "type": "string",
+                                                    "example": "PT. Maju Bersama Sentosa",
+                                                    "nullable": true
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "klien",
+                                                    "enum": [
+                                                        "klien",
+                                                        "jurusan"
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan klien/jurusan)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/users/{id}": {
             "get": {
                 "tags": [
@@ -2907,6 +3089,10 @@
         {
             "name": "Master Data",
             "description": "Data master kategori, status, role tim proyek, dan kategori task"
+        },
+        {
+            "name": "Categories",
+            "description": "Categories"
         }
     ]
 }
