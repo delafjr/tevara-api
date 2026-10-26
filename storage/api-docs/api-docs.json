@@ -15,6 +15,50 @@
         }
     ],
     "paths": {
+        "/categories": {
+            "get": {
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "List semua kategori proposal",
+                "description": "Mengambil seluruh kategori proposal. Endpoint publik, tidak memerlukan autentikasi.",
+                "operationId": "fc78a41c718072bc6e97664db48054e1",
+                "responses": {
+                    "200": {
+                        "description": "Daftar kategori proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Web"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/master/project-roles": {
             "get": {
                 "tags": [
@@ -2421,6 +2465,81 @@
                 ]
             }
         },
+        "/users/company": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Data user dan perusahaan",
+                "description": "Mengambil data user yang sedang login dari token (nama, email, no_hp) beserta nama perusahaan. Khusus role klien dan jurusan. Untuk role jurusan, `company_name` diisi nama jurusan.",
+                "operationId": "13fb1fca82fdfe684ee0a82f322e013a",
+                "responses": {
+                    "200": {
+                        "description": "Data user dan perusahaan berhasil diambil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Company profile retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Budi Santoso"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "format": "email",
+                                                    "example": "budi.santoso@majubersamasentosa.co.id"
+                                                },
+                                                "no_hp": {
+                                                    "type": "string",
+                                                    "example": "6281234567890",
+                                                    "nullable": true
+                                                },
+                                                "company_name": {
+                                                    "type": "string",
+                                                    "example": "PT. Maju Bersama Sentosa",
+                                                    "nullable": true
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "klien",
+                                                    "enum": [
+                                                        "klien",
+                                                        "jurusan"
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan klien/jurusan)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/users/{id}": {
             "get": {
                 "tags": [
@@ -2970,6 +3089,10 @@
         {
             "name": "Master Data",
             "description": "Data master kategori, status, role tim proyek, dan kategori task"
+        },
+        {
+            "name": "Categories",
+            "description": "Categories"
         }
     ]
 }
