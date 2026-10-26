@@ -660,6 +660,12 @@
                                         "type": "string",
                                         "example": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam."
                                     },
+                                    "target_audience": {
+                                        "description": "Target pengguna/sasaran pengguna sistem",
+                                        "type": "string",
+                                        "example": "Staff gudang dan admin inventory",
+                                        "nullable": true
+                                    },
                                     "category": {
                                         "description": "Nama kategori (alternatif dari category_id)",
                                         "type": "string",
