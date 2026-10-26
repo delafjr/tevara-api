@@ -15,6 +15,50 @@
         }
     ],
     "paths": {
+        "/categories": {
+            "get": {
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "List semua kategori proposal",
+                "description": "Mengambil seluruh kategori proposal. Endpoint publik, tidak memerlukan autentikasi.",
+                "operationId": "fc78a41c718072bc6e97664db48054e1",
+                "responses": {
+                    "200": {
+                        "description": "Daftar kategori proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Web"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/master/project-roles": {
             "get": {
                 "tags": [
@@ -3045,6 +3089,10 @@
         {
             "name": "Master Data",
             "description": "Data master kategori, status, role tim proyek, dan kategori task"
+        },
+        {
+            "name": "Categories",
+            "description": "Categories"
         }
     ]
 }

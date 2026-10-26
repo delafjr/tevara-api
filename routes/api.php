@@ -17,6 +17,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('login',    [AuthController::class, 'login'])->name('login');
     });
 
+    Route::get('categories', [MasterDataController::class, 'categories'])->name('categories.index');
+
     // ── Protected ──────────────────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
