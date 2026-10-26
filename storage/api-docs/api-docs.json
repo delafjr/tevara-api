@@ -1434,6 +1434,522 @@
                 ]
             }
         },
+        "/proposals/{id}/tasks": {
+            "get": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "List semua task di proyek",
+                "description": "Mengambil daftar task berdasarkan proposal. Mahasiswa auto-scope ke task miliknya saja.",
+                "operationId": "d4bc0afebc1cf410974b4cdbed55d6ce",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "TODO",
+                                "IN_PROGRESS",
+                                "TESTING",
+                                "DONE"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "assigned_to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar task"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Buat task baru",
+                "description": "Membuat task baru untuk proyek. Status awal: TODO, Progress: 0%, PM status: PENDING.",
+                "operationId": "676ce1d60928cbdbaad63d2f76152ebf",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Implementasi Payment Gateway"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "assigned_student_id": {
+                                        "description": "User ID mahasiswa (harus anggota tim)",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "enum": [
+                                            "LOW",
+                                            "MEDIUM",
+                                            "HIGH",
+                                            "CRITICAL"
+                                        ]
+                                    },
+                                    "due_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Task berhasil dibuat"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks/{taskId}": {
+            "get": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Detail satu task",
+                "description": "Mahasiswa hanya bisa akses task miliknya. Include: assignee, category, pm_notes, pm_status.",
+                "operationId": "8ad2347a90331cd8c302b01c97d53adc",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail task"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Edit metadata task",
+                "description": "Dosen PM atau Pengurus TeFa mengubah metadata task (judul, assignee, due date, dll).",
+                "operationId": "3eb40f86312d4f602c33b920dcbf6bf6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "assigned_student_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "enum": [
+                                            "LOW",
+                                            "MEDIUM",
+                                            "HIGH",
+                                            "CRITICAL"
+                                        ]
+                                    },
+                                    "due_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Task berhasil diperbarui"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Hapus task",
+                "description": "Hanya bisa hapus task yang masih TODO atau belum punya progress report (progress_percentage = 0).",
+                "operationId": "421a040f41a524c072f680d63c693386",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task berhasil dihapus"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Task sudah memiliki progress dan tidak bisa dihapus"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks/{taskId}/progress": {
+            "patch": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Submit progress report (Mahasiswa)",
+                "description": "Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update.",
+                "operationId": "53101df59bc7b26a0bc09cfe53d664c7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "achieved_summary": {
+                                        "description": "Pencapaian minggu ini",
+                                        "type": "string"
+                                    },
+                                    "blockers_summary": {
+                                        "description": "Kendala / blocker",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "progress_percentage": {
+                                        "description": "0.00 - 100.00",
+                                        "type": "number"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "TODO",
+                                            "IN_PROGRESS",
+                                            "TESTING",
+                                            "DONE"
+                                        ]
+                                    },
+                                    "report_attachment": {
+                                        "description": "Max 10MB",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Progress berhasil diperbarui"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks/{taskId}/review": {
+            "patch": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Review progress report (Dosen PM)",
+                "description": "Dosen PM mereview laporan progres mahasiswa. Auto-set pm_reviewed_at = now().",
+                "operationId": "19313992efc039bc9a6e6f378d8d52ce",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "pm_notes": {
+                                        "description": "Catatan / feedback",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "pm_status": {
+                                        "description": "Keputusan review",
+                                        "type": "string",
+                                        "enum": [
+                                            "APPROVED",
+                                            "NEEDS_IMPROVEMENT"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Review berhasil disimpan"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks/summary": {
+            "get": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Ringkasan statistik task proyek",
+                "description": "Mengembalikan hitungan task per status dan review untuk stat cards di frontend.",
+                "operationId": "13a266d3d7fe1a70947c569aeb8b6d26",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ringkasan task"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/auth/register": {
             "post": {
                 "tags": [
@@ -3058,6 +3574,10 @@
         }
     },
     "tags": [
+        {
+            "name": "F-05: Tasks & Progress",
+            "description": "Manajemen task + laporan sprint oleh mahasiswa, review oleh dosen PM"
+        },
         {
             "name": "Auth",
             "description": "Autentikasi (Register, Login, Logout, Profile)"

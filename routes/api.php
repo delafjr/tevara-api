@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ProposalContractController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ProposalReviewController;
 use App\Http\Controllers\Api\ProposalTeamController;
+use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Support\Facades\Route;
@@ -103,6 +104,32 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('proposals/{id}/team', [ProposalTeamController::class, 'store'])->whereNumber('id');
             Route::put('proposals/{id}/team/{memberId}', [ProposalTeamController::class, 'update'])->whereNumber('id')->whereNumber('memberId');
             Route::delete('proposals/{id}/team/{memberId}', [ProposalTeamController::class, 'destroy'])->whereNumber('id')->whereNumber('memberId');
+        });
+
+        // ── F-05: Tasks & Progress Report ───────────────
+        Route::middleware('role:pengurus_tefa|dosen|mahasiswa')->group(function () {
+            Route::get('proposals/{id}/tasks', [TaskController::class, 'index'])->whereNumber('id');
+            Route::get('proposals/{id}/tasks/summary', [TaskController::class, 'summary'])->whereNumber('id');
+            Route::get('proposals/{id}/tasks/{taskId}', [TaskController::class, 'show'])->whereNumber('id')->whereNumber('taskId');
+        });
+
+        Route::middleware('role:dosen|pengurus_tefa')->group(function () {
+            Route::post('proposals/{id}/tasks', [TaskController::class, 'store'])->whereNumber('id');
+            Route::put('proposals/{id}/tasks/{taskId}', [TaskController::class, 'update'])->whereNumber('id')->whereNumber('taskId');
+            Route::patch('proposals/{id}/tasks/{taskId}', [TaskController::class, 'update'])->whereNumber('id')->whereNumber('taskId');
+            Route::delete('proposals/{id}/tasks/{taskId}', [TaskController::class, 'destroy'])->whereNumber('id')->whereNumber('taskId');
+        });
+
+        Route::middleware('role:mahasiswa')->group(function () {
+            Route::match(['patch', 'post'], 'proposals/{id}/tasks/{taskId}/progress', [TaskController::class, 'updateProgress'])
+                ->whereNumber('id')
+                ->whereNumber('taskId');
+        });
+
+        Route::middleware('role:dosen')->group(function () {
+            Route::patch('proposals/{id}/tasks/{taskId}/review', [TaskController::class, 'review'])
+                ->whereNumber('id')
+                ->whereNumber('taskId');
         });
     });
 });
