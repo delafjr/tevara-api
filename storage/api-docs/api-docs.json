@@ -586,33 +586,47 @@
                 "tags": [
                     "F-01: Pengajuan Proposal"
                 ],
-                "summary": "Ajukan proposal baru (Klien)",
-                "description": "Membuat proposal proyek baru. Hanya bisa dilakukan oleh user dengan role klien. File attachment opsional (max 10MB, pdf/docx).",
+                "summary": "Ajukan proposal baru",
+                "description": "Membuat proposal baru sekaligus modulnya dalam satu request. `client_id` harus user dengan role klien (PIC perusahaan) atau jurusan. `proposal_code` (PRSL-{tahun}-{3 digit}) dan status `Submitted` di-generate otomatis oleh server.",
                 "operationId": "0c41d44249543332bae4f674c65dcc1d",
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "multipart/form-data": {
+                        "application/json": {
                             "schema": {
                                 "required": [
+                                    "client_id",
                                     "title",
                                     "background",
-                                    "category_id",
                                     "desired_deadline"
                                 ],
                                 "properties": {
+                                    "client_id": {
+                                        "description": "User ID dengan role klien (PIC) atau jurusan",
+                                        "type": "integer",
+                                        "example": 6
+                                    },
                                     "title": {
                                         "type": "string",
-                                        "example": "Sistem Informasi Inventaris"
+                                        "example": "Sistem Informasi Inventaris",
+                                        "maxLength": 255
                                     },
                                     "background": {
                                         "description": "Minimal 100 karakter",
                                         "type": "string",
                                         "example": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam."
                                     },
+                                    "category": {
+                                        "description": "Nama kategori (alternatif dari category_id)",
+                                        "type": "string",
+                                        "example": "Web",
+                                        "nullable": true
+                                    },
                                     "category_id": {
+                                        "description": "ID kategori (alternatif dari category)",
                                         "type": "integer",
-                                        "example": 1
+                                        "example": 1,
+                                        "nullable": true
                                     },
                                     "desired_deadline": {
                                         "description": "Minimal H+30 dari hari ini",
@@ -620,20 +634,33 @@
                                         "format": "date",
                                         "example": "2027-02-01"
                                     },
-                                    "target_audience": {
-                                        "type": "string",
-                                        "example": "Staff gudang",
-                                        "nullable": true
-                                    },
                                     "estimated_budget": {
                                         "type": "number",
+                                        "format": "float",
                                         "example": 10000000,
                                         "nullable": true
                                     },
-                                    "attachment": {
-                                        "description": "File PDF/DOCX, max 10MB",
-                                        "type": "string",
-                                        "format": "binary"
+                                    "modules": {
+                                        "description": "Daftar modul yang diajukan sekaligus",
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "title"
+                                            ],
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "Manajemen Barang"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "CRUD data barang",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -656,7 +683,7 @@
                         "description": "Unauthenticated"
                     },
                     "403": {
-                        "description": "Forbidden (bukan klien)"
+                        "description": "Forbidden (role tidak diizinkan)"
                     },
                     "422": {
                         "description": "Validasi gagal"
@@ -675,7 +702,7 @@
                     "F-01: Pengajuan Proposal"
                 ],
                 "summary": "List proposal milik klien yang login",
-                "description": "Mengambil semua proposal yang diajukan oleh klien yang sedang login, beserta status dan history-nya.",
+                "description": "Mengambil daftar proposal milik klien yang sedang login beserta kategori dan statusnya.",
                 "operationId": "e1c005c39aebb2a1e673000b82e961f6",
                 "responses": {
                     "200": {
@@ -685,7 +712,43 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/Proposal"
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "proposal_code": {
+                                                "type": "string",
+                                                "example": "PRSL-2025-001"
+                                            },
+                                            "title": {
+                                                "type": "string",
+                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                            },
+                                            "category": {
+                                                "type": "string",
+                                                "example": "Web",
+                                                "nullable": true
+                                            },
+                                            "status": {
+                                                "type": "string",
+                                                "example": "Completed",
+                                                "nullable": true
+                                            },
+                                            "start_date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2025-03-25",
+                                                "nullable": true
+                                            },
+                                            "target_completion_date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2025-12-15",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "type": "object"
                                     }
                                 }
                             }
