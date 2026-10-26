@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
-use App\Models\ProposalCategory;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -190,14 +189,13 @@ class ProposalController extends Controller
             content: new OA\MediaType(
                 mediaType: 'application/json',
                 schema: new OA\Schema(
-                    required: ['client_id', 'title', 'background', 'desired_deadline'],
+                    required: ['client_id', 'title', 'background', 'category_id', 'desired_deadline'],
                     properties: [
                         new OA\Property(property: 'client_id', type: 'integer', description: 'User ID dengan role klien (PIC) atau jurusan', example: 6),
                         new OA\Property(property: 'title', type: 'string', maxLength: 255, example: 'Sistem Informasi Inventaris'),
                         new OA\Property(property: 'background', type: 'string', description: 'Minimal 100 karakter', example: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.'),
                         new OA\Property(property: 'target_audience', type: 'string', nullable: true, description: 'Target pengguna/sasaran pengguna sistem', example: 'Staff gudang dan admin inventory'),
-                        new OA\Property(property: 'category', type: 'string', nullable: true, description: 'Nama kategori (alternatif dari category_id)', example: 'Web'),
-                        new OA\Property(property: 'category_id', type: 'integer', nullable: true, description: 'ID kategori (alternatif dari category)', example: 1),
+                        new OA\Property(property: 'category_id', type: 'integer', description: 'ID kategori, harus ada di tabel proposal_categories', example: 1),
                         new OA\Property(property: 'desired_deadline', type: 'string', format: 'date', description: 'Minimal H+30 dari hari ini', example: '2027-02-01'),
                         new OA\Property(property: 'estimated_budget', type: 'number', format: 'float', nullable: true, example: 10000000),
                         new OA\Property(
@@ -236,8 +234,7 @@ class ProposalController extends Controller
             'title'                 => ['required', 'string', 'max:255'],
             'background'            => ['required', 'string', 'min:100'],
             'target_audience'       => ['nullable', 'string'],
-            'category_id'           => ['nullable', 'integer', 'exists:proposal_categories,id', 'required_without:category'],
-            'category'              => ['nullable', 'string', 'exists:proposal_categories,name', 'required_without:category_id'],
+            'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'desired_deadline'      => ['required', 'date', 'after_or_equal:' . now()->addDays(30)->toDateString()],
             'estimated_budget'      => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'modules'               => ['nullable', 'array'],
@@ -252,10 +249,6 @@ class ProposalController extends Controller
                 'client_id' => ['client_id harus user dengan role klien (PIC) atau jurusan.'],
             ]);
         }
-
-        $validated['category_id'] = $validated['category_id']
-            ?? ProposalCategory::where('name', $validated['category'])->value('id');
-        unset($validated['category']);
 
         $modules = $validated['modules'] ?? [];
         unset($validated['modules']);
