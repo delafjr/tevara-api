@@ -24,6 +24,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('me',     [AuthController::class, 'me'])->name('me');
         });
 
+        // Data user + perusahaan (khusus klien & jurusan). Harus sebelum apiResource agar tidak tertangkap /users/{id}
+        Route::middleware('role:klien|jurusan')->group(function () {
+            Route::get('users/company', [UserController::class, 'company'])->name('users.company');
+        });
+
         Route::apiResource('users', UserController::class);
 
         // ── Master Data ────────────────────────────────
