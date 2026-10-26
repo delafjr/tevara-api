@@ -675,7 +675,7 @@
                     "F-01: Pengajuan Proposal"
                 ],
                 "summary": "List proposal milik klien yang login",
-                "description": "Mengambil semua proposal yang diajukan oleh klien yang sedang login, beserta status dan history-nya.",
+                "description": "Mengambil daftar proposal milik klien yang sedang login beserta kategori dan statusnya.",
                 "operationId": "e1c005c39aebb2a1e673000b82e961f6",
                 "responses": {
                     "200": {
@@ -685,7 +685,43 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/Proposal"
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "proposal_code": {
+                                                "type": "string",
+                                                "example": "PRSL-2025-001"
+                                            },
+                                            "title": {
+                                                "type": "string",
+                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                            },
+                                            "category": {
+                                                "type": "string",
+                                                "example": "Web",
+                                                "nullable": true
+                                            },
+                                            "status": {
+                                                "type": "string",
+                                                "example": "Completed",
+                                                "nullable": true
+                                            },
+                                            "start_date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2025-03-25",
+                                                "nullable": true
+                                            },
+                                            "target_completion_date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2025-12-15",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "type": "object"
                                     }
                                 }
                             }

@@ -131,7 +131,7 @@ class ProposalController extends Controller
     #[OA\Get(
         path: '/proposals/mine',
         summary: 'List proposal milik klien yang login',
-        description: 'Mengambil semua proposal yang diajukan oleh klien yang sedang login, beserta status dan history-nya.',
+        description: 'Mengambil daftar proposal milik klien yang sedang login beserta kategori dan statusnya.',
         security: [['bearerAuth' => []]],
         tags: ['F-01: Pengajuan Proposal'],
         responses: [
@@ -140,7 +140,17 @@ class ProposalController extends Controller
                 description: 'Daftar proposal klien',
                 content: new OA\JsonContent(
                     type: 'array',
-                    items: new OA\Items(ref: '#/components/schemas/Proposal')
+                    items: new OA\Items(
+                        properties: [
+                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                            new OA\Property(property: 'proposal_code', type: 'string', example: 'PRSL-2025-001'),
+                            new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Manajemen Teaching Factory'),
+                            new OA\Property(property: 'category', type: 'string', nullable: true, example: 'Web'),
+                            new OA\Property(property: 'status', type: 'string', nullable: true, example: 'Completed'),
+                            new OA\Property(property: 'start_date', type: 'string', format: 'date', nullable: true, example: '2025-03-25'),
+                            new OA\Property(property: 'target_completion_date', type: 'string', format: 'date', nullable: true, example: '2025-12-15'),
+                        ]
+                    )
                 )
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
@@ -149,10 +159,19 @@ class ProposalController extends Controller
     )]
     public function mine(Request $request)
     {
-        $proposals = Proposal::with(['status', 'statusHistories'])
+        $proposals = Proposal::with(['status:id,name', 'category:id,name'])
             ->where('client_id', $request->user()->id)
             ->latest()
-            ->get();
+            ->get()
+            ->map(fn (Proposal $proposal) => [
+                'id'                     => $proposal->id,
+                'proposal_code'          => $proposal->proposal_code,
+                'title'                  => $proposal->title,
+                'category'               => $proposal->category?->name,
+                'status'                 => $proposal->status?->name,
+                'start_date'             => $proposal->start_date?->toDateString(),
+                'target_completion_date' => $proposal->target_completion_date?->toDateString(),
+            ]);
 
         return response()->json($proposals);
     }
