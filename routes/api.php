@@ -61,7 +61,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // ── F-01: Proposal ─────────────────────────────
         // /proposals/mine HARUS didaftarkan sebelum /proposals/{id}
-        Route::middleware('role:klien')->group(function () {
+        Route::middleware('role:klien|jurusan')->group(function () {
             Route::get('proposals/mine', [ProposalController::class, 'mine']);
             Route::post('proposals', [ProposalController::class, 'store']);
         });

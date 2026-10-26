@@ -6,8 +6,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
+use App\Models\ProposalCategory;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
 #[OA\Schema(
@@ -178,24 +181,38 @@ class ProposalController extends Controller
 
     #[OA\Post(
         path: '/proposals',
-        summary: 'Ajukan proposal baru (Klien)',
-        description: 'Membuat proposal proyek baru. Hanya bisa dilakukan oleh user dengan role klien. File attachment opsional (max 10MB, pdf/docx).',
+        summary: 'Ajukan proposal baru',
+        description: 'Membuat proposal baru sekaligus modulnya dalam satu request. `client_id` harus user dengan role klien (PIC perusahaan) atau jurusan. `proposal_code` (PRSL-{tahun}-{3 digit}) dan status `Submitted` di-generate otomatis oleh server.',
         security: [['bearerAuth' => []]],
         tags: ['F-01: Pengajuan Proposal'],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
-                mediaType: 'multipart/form-data',
+                mediaType: 'application/json',
                 schema: new OA\Schema(
-                    required: ['title', 'background', 'category_id', 'desired_deadline'],
+                    required: ['client_id', 'title', 'background', 'desired_deadline'],
                     properties: [
-                        new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Inventaris'),
+                        new OA\Property(property: 'client_id', type: 'integer', description: 'User ID dengan role klien (PIC) atau jurusan', example: 6),
+                        new OA\Property(property: 'title', type: 'string', maxLength: 255, example: 'Sistem Informasi Inventaris'),
                         new OA\Property(property: 'background', type: 'string', description: 'Minimal 100 karakter', example: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.'),
-                        new OA\Property(property: 'category_id', type: 'integer', example: 1),
+                        new OA\Property(property: 'category', type: 'string', nullable: true, description: 'Nama kategori (alternatif dari category_id)', example: 'Web'),
+                        new OA\Property(property: 'category_id', type: 'integer', nullable: true, description: 'ID kategori (alternatif dari category)', example: 1),
                         new OA\Property(property: 'desired_deadline', type: 'string', format: 'date', description: 'Minimal H+30 dari hari ini', example: '2027-02-01'),
-                        new OA\Property(property: 'target_audience', type: 'string', nullable: true, example: 'Staff gudang'),
-                        new OA\Property(property: 'estimated_budget', type: 'number', nullable: true, example: 10000000),
-                        new OA\Property(property: 'attachment', type: 'string', format: 'binary', description: 'File PDF/DOCX, max 10MB'),
+                        new OA\Property(property: 'estimated_budget', type: 'number', format: 'float', nullable: true, example: 10000000),
+                        new OA\Property(
+                            property: 'modules',
+                            type: 'array',
+                            nullable: true,
+                            description: 'Daftar modul yang diajukan sekaligus',
+                            items: new OA\Items(
+                                type: 'object',
+                                required: ['title'],
+                                properties: [
+                                    new OA\Property(property: 'title', type: 'string', example: 'Manajemen Barang'),
+                                    new OA\Property(property: 'description', type: 'string', nullable: true, example: 'CRUD data barang'),
+                                ]
+                            )
+                        ),
                     ]
                 )
             )
@@ -207,33 +224,51 @@ class ProposalController extends Controller
                 content: new OA\JsonContent(ref: '#/components/schemas/Proposal')
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
-            new OA\Response(response: 403, description: 'Forbidden (bukan klien)'),
+            new OA\Response(response: 403, description: 'Forbidden (role tidak diizinkan)'),
             new OA\Response(response: 422, description: 'Validasi gagal'),
         ]
     )]
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'            => 'required|string|max:255',
-            'background'       => 'required|string|min:100',
-            'category_id'      => 'required|exists:proposal_categories,id',
-            'desired_deadline' => 'required|date|after_or_equal:today +30 days',
-            'target_audience'  => 'nullable|string',
-            'estimated_budget' => 'nullable|numeric',
-            'attachment'       => 'nullable|file|mimes:pdf,docx|max:10240',
+            'client_id'             => ['required', 'integer', 'exists:users,id'],
+            'title'                 => ['required', 'string', 'max:255'],
+            'background'            => ['required', 'string', 'min:100'],
+            'category_id'           => ['nullable', 'integer', 'exists:proposal_categories,id', 'required_without:category'],
+            'category'              => ['nullable', 'string', 'exists:proposal_categories,name', 'required_without:category_id'],
+            'desired_deadline'      => ['required', 'date', 'after_or_equal:' . now()->addDays(30)->toDateString()],
+            'estimated_budget'      => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'modules'               => ['nullable', 'array'],
+            'modules.*.title'       => ['required', 'string', 'max:255'],
+            'modules.*.description' => ['nullable', 'string'],
         ]);
 
-        if ($request->hasFile('attachment')) {
-            $validated['attachment_url'] = $request->file('attachment')
-                ->store('proposals/attachments', 'public');
+        $client = User::find($validated['client_id']);
+
+        if (! $client->hasRole('klien') && ! $client->hasRole('jurusan')) {
+            throw ValidationException::withMessages([
+                'client_id' => ['client_id harus user dengan role klien (PIC) atau jurusan.'],
+            ]);
         }
-        unset($validated['attachment']);
 
-        $validated['client_id'] = $request->user()->id;
+        $validated['category_id'] = $validated['category_id']
+            ?? ProposalCategory::where('name', $validated['category'])->value('id');
+        unset($validated['category']);
 
-        $proposal = DB::transaction(fn () => Proposal::create($validated));
+        $modules = $validated['modules'] ?? [];
+        unset($validated['modules']);
 
-        return response()->json($proposal->load('status'), 201);
+        $proposal = DB::transaction(function () use ($validated, $modules) {
+            $proposal = Proposal::create($validated);
+
+            if (! empty($modules)) {
+                $proposal->modules()->createMany($modules);
+            }
+
+            return $proposal;
+        });
+
+        return response()->json($proposal->load(['status', 'category', 'modules']), 201);
     }
 
     #[OA\Get(
