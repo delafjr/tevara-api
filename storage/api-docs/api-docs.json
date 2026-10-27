@@ -718,6 +718,54 @@
                 ]
             }
         },
+        "/proposals/{id}/pending": {
+            "get": {
+                "tags": [
+                    "F-02: Review & Validasi"
+                ],
+                "summary": "Detail proposal pending (Pengurus TeFa)",
+                "description": "Mengambil detail proposal berstatus `Submitted` atau `Revision Required`, termasuk data PIC dan seluruh modul. Hanya dapat diakses oleh pengurus TeFa.",
+                "operationId": "26ff030628ccb3321ef5145609d62342",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 13
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail proposal pending",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProposalPendingDetail"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan atau bukan status pending"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/proposals/mine": {
             "get": {
                 "tags": [
@@ -3546,6 +3594,96 @@
                         "type": "string",
                         "example": "10000000.00",
                         "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ProposalPendingDetail": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 13
+                    },
+                    "proposal_code": {
+                        "type": "string",
+                        "example": "PRSL-2026-490"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Sistem Informasi Inventaris"
+                    },
+                    "background": {
+                        "type": "string",
+                        "example": "Latar belakang proyek..."
+                    },
+                    "target_audience": {
+                        "type": "string",
+                        "example": "Staff gudang dan admin inventory",
+                        "nullable": true
+                    },
+                    "category_name": {
+                        "type": "string",
+                        "example": "Web",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "Submitted"
+                    },
+                    "desired_deadline": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2027-02-01",
+                        "nullable": true
+                    },
+                    "estimated_budget": {
+                        "type": "string",
+                        "example": "10000000.00",
+                        "nullable": true
+                    },
+                    "client_name": {
+                        "type": "string",
+                        "example": "PT. Maju Bersama Sentosa"
+                    },
+                    "pic": {
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "example": "Budi Santoso"
+                            },
+                            "email": {
+                                "type": "string",
+                                "format": "email",
+                                "example": "budi.santoso@majubersamasentosa.co.id"
+                            },
+                            "no_hp": {
+                                "type": "string",
+                                "example": "6281234567890",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "modules": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "integer",
+                                    "example": 1
+                                },
+                                "title": {
+                                    "type": "string",
+                                    "example": "Manajemen Barang"
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "example": "CRUD data barang",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
                     }
                 },
                 "type": "object"

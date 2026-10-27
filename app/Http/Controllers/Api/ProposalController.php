@@ -87,6 +87,41 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'estimated_budget', type: 'string', nullable: true, example: '10000000.00'),
     ]
 )]
+#[OA\Schema(
+    schema: 'ProposalPendingDetail',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 13),
+        new OA\Property(property: 'proposal_code', type: 'string', example: 'PRSL-2026-490'),
+        new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Inventaris'),
+        new OA\Property(property: 'background', type: 'string', example: 'Latar belakang proyek...'),
+        new OA\Property(property: 'target_audience', type: 'string', nullable: true, example: 'Staff gudang dan admin inventory'),
+        new OA\Property(property: 'category_name', type: 'string', nullable: true, example: 'Web'),
+        new OA\Property(property: 'status', type: 'string', example: 'Submitted'),
+        new OA\Property(property: 'desired_deadline', type: 'string', format: 'date', nullable: true, example: '2027-02-01'),
+        new OA\Property(property: 'estimated_budget', type: 'string', nullable: true, example: '10000000.00'),
+        new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
+        new OA\Property(
+            property: 'pic',
+            type: 'object',
+            properties: [
+                new OA\Property(property: 'name', type: 'string', example: 'Budi Santoso'),
+                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'budi.santoso@majubersamasentosa.co.id'),
+                new OA\Property(property: 'no_hp', type: 'string', nullable: true, example: '6281234567890'),
+            ]
+        ),
+        new OA\Property(
+            property: 'modules',
+            type: 'array',
+            items: new OA\Items(
+                properties: [
+                    new OA\Property(property: 'id', type: 'integer', example: 1),
+                    new OA\Property(property: 'title', type: 'string', example: 'Manajemen Barang'),
+                    new OA\Property(property: 'description', type: 'string', nullable: true, example: 'CRUD data barang'),
+                ]
+            )
+        ),
+    ]
+)]
 class ProposalController extends Controller
 {
     #[OA\Get(
@@ -162,6 +197,70 @@ class ProposalController extends Controller
             ->get();
 
         return response()->json($this->toProposalList($proposals));
+    }
+
+    #[OA\Get(
+        path: '/proposals/{id}/pending',
+        summary: 'Detail proposal pending (Pengurus TeFa)',
+        description: 'Mengambil detail proposal berstatus `Submitted` atau `Revision Required`, termasuk data PIC dan seluruh modul. Hanya dapat diakses oleh pengurus TeFa.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-02: Review & Validasi'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'ID Proposal',
+                schema: new OA\Schema(type: 'integer', example: 13)
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Detail proposal pending',
+                content: new OA\JsonContent(ref: '#/components/schemas/ProposalPendingDetail')
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
+            new OA\Response(response: 404, description: 'Proposal tidak ditemukan atau bukan status pending'),
+        ]
+    )]
+    public function pendingDetail(int $id)
+    {
+        $proposal = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'client.clientPic.clientProfile.user',
+            'client.clientProfile.user',
+            'modules:id,proposal_id,title,description',
+        ])->find($id);
+
+        if (! $proposal || ! in_array($proposal->status?->name, ['Submitted', 'Revision Required'], true)) {
+            return response()->json(['message' => 'Proposal pending tidak ditemukan.'], 404);
+        }
+
+        return response()->json([
+            'id'               => $proposal->id,
+            'proposal_code'    => $proposal->proposal_code,
+            'title'            => $proposal->title,
+            'background'       => $proposal->background,
+            'target_audience'  => $proposal->target_audience,
+            'category_name'    => $proposal->category?->name,
+            'status'           => $proposal->status?->name,
+            'desired_deadline' => $proposal->desired_deadline?->toDateString(),
+            'estimated_budget' => $proposal->estimated_budget,
+            'client_name'      => $proposal->client_company_name,
+            'pic'              => [
+                'name'  => $proposal->client?->name,
+                'email' => $proposal->client?->email,
+                'no_hp' => $proposal->client?->phone_number,
+            ],
+            'modules'          => $proposal->modules->map(fn ($module) => [
+                'id'          => $module->id,
+                'title'       => $module->title,
+                'description' => $module->description,
+            ]),
+        ]);
     }
 
     private function proposalListQuery()
