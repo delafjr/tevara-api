@@ -3518,6 +3518,15 @@
                         "type": "string",
                         "example": "Sistem Informasi Inventaris"
                     },
+                    "background": {
+                        "type": "string",
+                        "example": "Latar belakang proyek..."
+                    },
+                    "target_audience": {
+                        "type": "string",
+                        "example": "Staff gudang dan admin inventory",
+                        "nullable": true
+                    },
                     "category_name": {
                         "type": "string",
                         "example": "Web",
