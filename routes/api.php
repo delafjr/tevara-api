@@ -74,8 +74,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('proposals', [ProposalController::class, 'store']);
         });
 
-        Route::middleware('role:pengurus_tefa|jurusan')->group(function () {
+        Route::middleware('role:pengurus_tefa')->group(function () {
             Route::get('proposals', [ProposalController::class, 'index']);
+            Route::get('proposals/pending', [ProposalController::class, 'pending']);
         });
 
         Route::middleware('role:klien|pengurus_tefa|dosen|jurusan')->group(function () {
