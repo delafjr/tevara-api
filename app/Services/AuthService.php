@@ -45,7 +45,7 @@ class AuthService
     private function authenticatedPayload(User $user): array
     {
         return [
-            'user'  => $user->load('roles'),
+            'user'  => $user->load(['roles', 'clientPic.clientProfile.user']),
             'token' => $user->createToken('auth-token')->plainTextToken,
         ];
     }

@@ -12,4 +12,9 @@ class ClientPic extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function clientProfile()
+    {
+        return $this->belongsTo(ClientProfile::class);
+    }
 }
