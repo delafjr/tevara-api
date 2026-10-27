@@ -15,6 +15,1967 @@
         }
     ],
     "paths": {
+        "/categories": {
+            "get": {
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "List semua kategori proposal",
+                "description": "Mengambil seluruh kategori proposal. Endpoint publik, tidak memerlukan autentikasi.",
+                "operationId": "fc78a41c718072bc6e97664db48054e1",
+                "responses": {
+                    "200": {
+                        "description": "Daftar kategori proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Web"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/master/project-roles": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "List role tim mahasiswa (F-04)",
+                "description": "Mengambil daftar role teknis untuk tim mahasiswa (UI/UX, Frontend, Backend, Fullstack, QA Tester).",
+                "operationId": "9f04dd49ffa66cea769e580014cdbcbf",
+                "responses": {
+                    "200": {
+                        "description": "Daftar project roles",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Frontend"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/master/proposal-categories": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "List kategori proposal (F-01)",
+                "description": "Mengambil daftar kategori proposal (Web, Mobile, Desktop, IoT, Other).",
+                "operationId": "cbe8a7375471d2226b5f736f3f222a3e",
+                "responses": {
+                    "200": {
+                        "description": "Daftar kategori proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Web"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/master/proposal-statuses": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "List status proposal (F-01 / Timeline)",
+                "description": "Mengambil status proposal terurut.",
+                "operationId": "de1a6bfeb5e03f95ebb2adacde241984",
+                "responses": {
+                    "200": {
+                        "description": "Daftar status proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Draft"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/master/task-categories": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "List kategori task (F-05)",
+                "description": "Mengambil kategori task.",
+                "operationId": "75bf71b49ba2a07f501c298c8de20d62",
+                "responses": {
+                    "200": {
+                        "description": "Daftar kategori task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Frontend"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/contract": {
+            "patch": {
+                "tags": [
+                    "F-03: SPK & Kontrak"
+                ],
+                "summary": "Isi data SPK / Kontrak (Pengurus TeFa)",
+                "description": "Menyimpan rincian SPK/kontrak kerja, scope of work, nilai kontrak, termin pembayaran, serta periode proyek. Otomatis mengenerate spk_number dan project_code jika belum ada, serta mengubah status proposal menjadi Active (id=7).",
+                "operationId": "78c2a7da05667cd9120213cbec3cbbeb",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "scope_of_work",
+                                    "total_amount",
+                                    "payment_terms_description",
+                                    "start_date",
+                                    "target_completion_date"
+                                ],
+                                "properties": {
+                                    "scope_of_work": {
+                                        "type": "string",
+                                        "example": "Pengembangan modul backend REST API, database MySQL, dan integrasi frontend."
+                                    },
+                                    "total_amount": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "example": 25000000
+                                    },
+                                    "payment_terms_description": {
+                                        "type": "string",
+                                        "example": "Termin 1: 50% setelah penandatanganan SPK. Termin 2: 50% setelah BAST disetujui."
+                                    },
+                                    "maintenance_warranty_months": {
+                                        "type": "integer",
+                                        "example": 3,
+                                        "default": 3
+                                    },
+                                    "start_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-11-01"
+                                    },
+                                    "target_completion_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2027-02-28"
+                                    },
+                                    "contract_file": {
+                                        "description": "File SPK/Kontrak (PDF, max 10MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Data SPK berhasil disimpan dan status menjadi Active",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Data SPK/kontrak berhasil disimpan"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/contract/sign": {
+            "patch": {
+                "tags": [
+                    "F-03: SPK & Kontrak"
+                ],
+                "summary": "Tandai kontrak telah ditandatangani (Pengurus TeFa)",
+                "description": "Mengubah status kontrak menjadi sudah ditandatangani (is_signed = true, signed_at = now). Opsi untuk mengunggah berkas kontrak bertandatangan.",
+                "operationId": "0f766566dce117c022b37344bcc4514c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "contract_file": {
+                                        "description": "File kontrak yang sudah di-TTD (PDF, max 10MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Kontrak berhasil ditandatangani",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Kontrak berhasil ditandatangani"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/contract/pm": {
+            "patch": {
+                "tags": [
+                    "F-03: SPK & Kontrak"
+                ],
+                "summary": "Assign Project Manager / Dosen (Pengurus TeFa)",
+                "description": "Menugaskan dosen sebagai Project Manager untuk proposal / proyek. User harus memiliki role dosen.",
+                "operationId": "7bd77932f6b42ec380bddece56cb5a70",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "pm_id"
+                                ],
+                                "properties": {
+                                    "pm_id": {
+                                        "description": "ID user dosen yang menjadi PM",
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Project Manager berhasil ditugaskan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Project Manager (Dosen) berhasil ditugaskan"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "User bukan dosen / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals": {
+            "get": {
+                "tags": [
+                    "F-02: Review & Validasi"
+                ],
+                "summary": "List semua proposal (Pengurus TeFa)",
+                "description": "Mengambil seluruh proposal. Gunakan `status_id` untuk memfilter status tertentu. Hanya dapat diakses oleh pengurus TeFa.",
+                "operationId": "ce4e1d19a6b3c01484d7940bc275e005",
+                "parameters": [
+                    {
+                        "name": "status_id",
+                        "in": "query",
+                        "description": "Filter status tertentu (mis. 2 = Submitted, 5 = Approved).",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 2
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ProposalListItem"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-01: Pengajuan Proposal"
+                ],
+                "summary": "Ajukan proposal baru",
+                "description": "Membuat proposal baru sekaligus modulnya dalam satu request. `client_id` harus user dengan role klien (PIC perusahaan) atau jurusan. `proposal_code` (PRSL-{tahun}-{3 digit}) dan status `Submitted` di-generate otomatis oleh server.",
+                "operationId": "0c41d44249543332bae4f674c65dcc1d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "client_id",
+                                    "title",
+                                    "background",
+                                    "category_id",
+                                    "desired_deadline"
+                                ],
+                                "properties": {
+                                    "client_id": {
+                                        "description": "User ID dengan role klien (PIC) atau jurusan",
+                                        "type": "integer",
+                                        "example": 6
+                                    },
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Sistem Informasi Inventaris",
+                                        "maxLength": 255
+                                    },
+                                    "background": {
+                                        "description": "Minimal 100 karakter",
+                                        "type": "string",
+                                        "example": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam."
+                                    },
+                                    "target_audience": {
+                                        "description": "Target pengguna/sasaran pengguna sistem",
+                                        "type": "string",
+                                        "example": "Staff gudang dan admin inventory",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "description": "ID kategori, harus ada di tabel proposal_categories",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "desired_deadline": {
+                                        "description": "Minimal H+30 dari hari ini",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2027-02-01"
+                                    },
+                                    "estimated_budget": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 10000000,
+                                        "nullable": true
+                                    },
+                                    "modules": {
+                                        "description": "Daftar modul yang diajukan sekaligus",
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "title"
+                                            ],
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string",
+                                                    "example": "Manajemen Barang"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "example": "CRUD data barang",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Proposal berhasil dibuat",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Proposal"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (role tidak diizinkan)"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/pending": {
+            "get": {
+                "tags": [
+                    "F-02: Review & Validasi"
+                ],
+                "summary": "List proposal pending review (Pengurus TeFa)",
+                "description": "Mengambil proposal yang belum disetujui, yaitu status `Submitted` dan `Revision Required`. Hanya dapat diakses oleh pengurus TeFa.",
+                "operationId": "35ccfaa6010da192c20af47e8119204f",
+                "responses": {
+                    "200": {
+                        "description": "Daftar proposal pending",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ProposalListItem"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/pending": {
+            "get": {
+                "tags": [
+                    "F-02: Review & Validasi"
+                ],
+                "summary": "Detail proposal pending (Pengurus TeFa)",
+                "description": "Mengambil detail proposal berstatus `Submitted` atau `Revision Required`, termasuk data PIC dan seluruh modul. Hanya dapat diakses oleh pengurus TeFa.",
+                "operationId": "26ff030628ccb3321ef5145609d62342",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 13
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail proposal pending",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProposalPendingDetail"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan atau bukan status pending"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/mine": {
+            "get": {
+                "tags": [
+                    "F-01: Pengajuan Proposal"
+                ],
+                "summary": "List proposal milik klien yang login",
+                "description": "Mengambil daftar proposal milik klien yang sedang login beserta kategori dan statusnya.",
+                "operationId": "e1c005c39aebb2a1e673000b82e961f6",
+                "responses": {
+                    "200": {
+                        "description": "Daftar proposal klien",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "proposal_code": {
+                                                "type": "string",
+                                                "example": "PRSL-2025-001"
+                                            },
+                                            "title": {
+                                                "type": "string",
+                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                            },
+                                            "category": {
+                                                "type": "string",
+                                                "example": "Web",
+                                                "nullable": true
+                                            },
+                                            "status": {
+                                                "type": "string",
+                                                "example": "Completed",
+                                                "nullable": true
+                                            },
+                                            "start_date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2025-03-25",
+                                                "nullable": true
+                                            },
+                                            "target_completion_date": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2025-12-15",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan klien)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}": {
+            "get": {
+                "tags": [
+                    "F-01: Pengajuan Proposal"
+                ],
+                "summary": "Detail proposal",
+                "description": "Mengambil detail lengkap proposal beserta relasi (status, category, client, reviewer, PM, team, dll). Klien hanya bisa lihat proposalnya sendiri. Dosen hanya bisa lihat proposal yang dia jadi PM-nya. Field risk_analysis disembunyikan untuk klien.",
+                "operationId": "5e5fe3acf0535efeb1bc00aed8d41af8",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Proposal"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (tidak punya akses ke proposal ini)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/review": {
+            "patch": {
+                "tags": [
+                    "F-02: Review & Validasi"
+                ],
+                "summary": "Review proposal (Pengurus TeFa)",
+                "description": "Melakukan review kelayakan proposal. Hanya bisa dilakukan saat proposal berstatus Submitted (2) atau Under Review (3). Pengurus TeFa mengisi analisis kompleksitas, risiko, estimasi biaya, dan keputusan (approved / rejected / revision_required).",
+                "operationId": "3dd9d5166b2d72be65f53fac7858983b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "complexity_level",
+                                    "risk_analysis",
+                                    "estimated_cost",
+                                    "decision"
+                                ],
+                                "properties": {
+                                    "complexity_level": {
+                                        "type": "string",
+                                        "example": "HIGH",
+                                        "enum": [
+                                            "LOW",
+                                            "MEDIUM",
+                                            "HIGH"
+                                        ]
+                                    },
+                                    "risk_analysis": {
+                                        "type": "string",
+                                        "example": "Risiko integrasi API pihak ketiga cukup tinggi, perlu tim berpengalaman."
+                                    },
+                                    "estimated_cost": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "example": 25000000
+                                    },
+                                    "review_notes": {
+                                        "type": "string",
+                                        "example": "Proposal layak dengan catatan revisi scope modul keuangan.",
+                                        "nullable": true
+                                    },
+                                    "decision": {
+                                        "type": "string",
+                                        "example": "approved",
+                                        "enum": [
+                                            "approved",
+                                            "rejected",
+                                            "revision_required"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Review berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Review submitted successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Proposal tidak dalam status yang bisa di-review / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/status": {
+            "patch": {
+                "tags": [
+                    "F-02: Review & Validasi"
+                ],
+                "summary": "Update status proposal (Pengurus TeFa)",
+                "description": "Override manual status proposal oleh pengurus TeFa. Setiap perubahan status tercatat di history.",
+                "operationId": "3e38e183650d9e731f263da6c582a8c5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status_id"
+                                ],
+                                "properties": {
+                                    "status_id": {
+                                        "description": "1=Draft, 2=Submitted, 3=Under Review, 4=Revision Required, 5=Approved, 6=Rejected, 7=Active, 8=Testing, 9=Handover, 10=Completed",
+                                        "type": "integer",
+                                        "example": 7
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Kontrak sudah ditandatangani, proyek dimulai.",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Status berhasil diupdate",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Status updated successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/team": {
+            "get": {
+                "tags": [
+                    "F-04: Penugasan Tim"
+                ],
+                "summary": "List anggota tim proyek (Pengurus / PM / Mahasiswa)",
+                "description": "Mengambil daftar anggota tim mahasiswa pada proposal / proyek. Mahasiswa hanya bisa melihat tim proyeknya sendiri. Dosen hanya bisa melihat tim proyek yang ia bimbing sebagai PM.",
+                "operationId": "d2cef124a09fee3f8aeb050f4e1abaec",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar anggota tim",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "proposal_id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "user_id": {
+                                                "type": "integer",
+                                                "example": 5
+                                            },
+                                            "role_id": {
+                                                "type": "integer",
+                                                "example": 2
+                                            },
+                                            "joined_at": {
+                                                "type": "string",
+                                                "format": "date",
+                                                "example": "2026-11-01"
+                                            },
+                                            "student": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 5
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Dimas Prasetyo"
+                                                    },
+                                                    "email": {
+                                                        "type": "string",
+                                                        "example": "dimas@mhs.polines.ac.id"
+                                                    },
+                                                    "nim": {
+                                                        "type": "string",
+                                                        "example": "22641181999"
+                                                    },
+                                                    "study_program": {
+                                                        "type": "string",
+                                                        "example": "D3 Teknik Informatika"
+                                                    },
+                                                    "avatar": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "role": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 2
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Backend"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan anggota tim / bukan PM / tidak memiliki akses)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-04: Penugasan Tim"
+                ],
+                "summary": "Tambah anggota tim proyek (Pengurus TeFa)",
+                "description": "Menugaskan mahasiswa ke dalam tim proyek dengan peran tertentu. Mendukung penambahan single (student_id & role_id) maupun batch (array members[]).",
+                "operationId": "1e6a2df548c78528d021c492ba2777c9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "student_id": {
+                                        "description": "ID user mahasiswa (single mode)",
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "role_id": {
+                                        "description": "ID role teknis dari project_roles (single mode)",
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "joined_at": {
+                                        "description": "Tanggal bergabung (default: hari ini)",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-11-01"
+                                    },
+                                    "members": {
+                                        "description": "Opsi batch: array anggota tim yang ditambahkan",
+                                        "type": "array",
+                                        "items": {
+                                            "properties": {
+                                                "student_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "role_id": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "joined_at": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-11-01"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Anggota tim berhasil ditambahkan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Anggota tim berhasil ditambahkan"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Mahasiswa sudah terdaftar / bukan role mahasiswa / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/team/{memberId}": {
+            "put": {
+                "tags": [
+                    "F-04: Penugasan Tim"
+                ],
+                "summary": "Ganti role anggota tim (Pengurus TeFa)",
+                "description": "Memperbarui peran teknis anggota tim mahasiswa (misal: UI/UX diubah menjadi Frontend).",
+                "operationId": "e07c1481cb3a2ee0feeaaa2891f08012",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "memberId",
+                        "in": "path",
+                        "description": "ID Project Team Member",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "role_id"
+                                ],
+                                "properties": {
+                                    "role_id": {
+                                        "description": "ID role teknis baru dari project_roles",
+                                        "type": "integer",
+                                        "example": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Role anggota tim berhasil diupdate",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Role anggota tim berhasil diperbarui"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Anggota tim / Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "F-04: Penugasan Tim"
+                ],
+                "summary": "Keluarkan anggota dari tim (Pengurus TeFa)",
+                "description": "Menghapus mahasiswa dari keanggotaan tim proyek. Divalidasi jika mahasiswa masih memiliki task yang berstatus selain DONE, maka operasi ditolak dengan status 422.",
+                "operationId": "59dc680984432efe592a0bebf0e445b0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "memberId",
+                        "in": "path",
+                        "description": "ID Project Team Member",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Anggota tim berhasil dikeluarkan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Anggota tim berhasil dikeluarkan dari proyek."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Anggota tim / Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Tidak bisa dikeluarkan karena masih memiliki task yang belum selesai"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks": {
+            "get": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "List semua task di proyek",
+                "description": "Mengambil daftar task berdasarkan proposal. Mahasiswa auto-scope ke task miliknya saja.",
+                "operationId": "d4bc0afebc1cf410974b4cdbed55d6ce",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "TODO",
+                                "IN_PROGRESS",
+                                "TESTING",
+                                "DONE"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "assigned_to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar task"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Buat task baru",
+                "description": "Membuat task baru untuk proyek. Status awal: TODO, Progress: 0%, PM status: PENDING.",
+                "operationId": "676ce1d60928cbdbaad63d2f76152ebf",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Implementasi Payment Gateway"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "assigned_student_id": {
+                                        "description": "User ID mahasiswa (harus anggota tim)",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "enum": [
+                                            "LOW",
+                                            "MEDIUM",
+                                            "HIGH",
+                                            "CRITICAL"
+                                        ]
+                                    },
+                                    "due_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Task berhasil dibuat"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks/{taskId}": {
+            "get": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Detail satu task",
+                "description": "Mahasiswa hanya bisa akses task miliknya. Include: assignee, category, pm_notes, pm_status.",
+                "operationId": "8ad2347a90331cd8c302b01c97d53adc",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail task"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Edit metadata task",
+                "description": "Dosen PM atau Pengurus TeFa mengubah metadata task (judul, assignee, due date, dll).",
+                "operationId": "3eb40f86312d4f602c33b920dcbf6bf6",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "assigned_student_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "enum": [
+                                            "LOW",
+                                            "MEDIUM",
+                                            "HIGH",
+                                            "CRITICAL"
+                                        ]
+                                    },
+                                    "due_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Task berhasil diperbarui"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Hapus task",
+                "description": "Hanya bisa hapus task yang masih TODO atau belum punya progress report (progress_percentage = 0).",
+                "operationId": "421a040f41a524c072f680d63c693386",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task berhasil dihapus"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Task sudah memiliki progress dan tidak bisa dihapus"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks/{taskId}/progress": {
+            "patch": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Submit progress report (Mahasiswa)",
+                "description": "Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update.",
+                "operationId": "53101df59bc7b26a0bc09cfe53d664c7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "achieved_summary": {
+                                        "description": "Pencapaian minggu ini",
+                                        "type": "string"
+                                    },
+                                    "blockers_summary": {
+                                        "description": "Kendala / blocker",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "progress_percentage": {
+                                        "description": "0.00 - 100.00",
+                                        "type": "number"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "TODO",
+                                            "IN_PROGRESS",
+                                            "TESTING",
+                                            "DONE"
+                                        ]
+                                    },
+                                    "report_attachment": {
+                                        "description": "Max 10MB",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Progress berhasil diperbarui"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks/{taskId}/review": {
+            "patch": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Review progress report (Dosen PM)",
+                "description": "Dosen PM mereview laporan progres mahasiswa. Auto-set pm_reviewed_at = now().",
+                "operationId": "19313992efc039bc9a6e6f378d8d52ce",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "pm_notes": {
+                                        "description": "Catatan / feedback",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "pm_status": {
+                                        "description": "Keputusan review",
+                                        "type": "string",
+                                        "enum": [
+                                            "APPROVED",
+                                            "NEEDS_IMPROVEMENT"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Review berhasil disimpan"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/tasks/summary": {
+            "get": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Ringkasan statistik task proyek",
+                "description": "Mengembalikan hitungan task per status dan review untuk stat cards di frontend.",
+                "operationId": "13a266d3d7fe1a70947c569aeb8b6d26",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ringkasan task"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/auth/register": {
             "post": {
                 "tags": [
@@ -277,7 +2238,7 @@
                     "Dashboard"
                 ],
                 "summary": "Dashboard Mahasiswa",
-                "description": "Endpoint dashboard khusus role mahasiswa",
+                "description": "Endpoint ringkasan dashboard khusus role mahasiswa",
                 "operationId": "99fab27f71a9ca50c0db547c3d504bf9",
                 "responses": {
                     "200": {
@@ -296,9 +2257,102 @@
                                         },
                                         "data": {
                                             "properties": {
-                                                "role": {
-                                                    "type": "string",
-                                                    "example": "mahasiswa"
+                                                "active_projects": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "pending_tasks": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "completed_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "tasks": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Setup project Laravel & Vue.js"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "DONE"
+                                                            },
+                                                            "priority": {
+                                                                "type": "string",
+                                                                "example": "HIGH"
+                                                            },
+                                                            "due_date": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2025-11-30",
+                                                                "nullable": true
+                                                            },
+                                                            "progress_percentage": {
+                                                                "type": "number",
+                                                                "example": 100
+                                                            },
+                                                            "proposal": {
+                                                                "properties": {
+                                                                    "id": {
+                                                                        "type": "integer",
+                                                                        "example": 1
+                                                                    },
+                                                                    "title": {
+                                                                        "type": "string",
+                                                                        "example": "Sistem Informasi Manajemen Teaching Factory"
+                                                                    }
+                                                                },
+                                                                "type": "object"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                                            },
+                                                            "client_name": {
+                                                                "type": "string",
+                                                                "example": "PT. Maju Bersama Sentosa"
+                                                            },
+                                                            "role": {
+                                                                "type": "string",
+                                                                "example": "Fullstack"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Completed"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 100
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2025-12-15",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
                                                 }
                                             },
                                             "type": "object"
@@ -329,7 +2383,7 @@
                     "Dashboard"
                 ],
                 "summary": "Dashboard Dosen",
-                "description": "Endpoint dashboard khusus role dosen",
+                "description": "Endpoint ringkasan dashboard khusus role dosen",
                 "operationId": "021ec1c4958c9adec8732ae8148b8441",
                 "responses": {
                     "200": {
@@ -348,9 +2402,67 @@
                                         },
                                         "data": {
                                             "properties": {
-                                                "role": {
-                                                    "type": "string",
-                                                    "example": "dosen"
+                                                "total_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "active_projects": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "completed_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "waiting_review": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                                            },
+                                                            "client_name": {
+                                                                "type": "string",
+                                                                "example": "PT. Maju Bersama Sentosa"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Completed"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 100
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2025-12-15",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "category_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "web": 1
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
                                                 }
                                             },
                                             "type": "object"
@@ -375,6 +2487,372 @@
                 ]
             }
         },
+        "/klien/dashboard": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Dashboard Klien",
+                "description": "Endpoint ringkasan dashboard khusus role klien (pemilik perusahaan / PIC)",
+                "operationId": "5d60e9040fd3c4810408983195bce080",
+                "responses": {
+                    "200": {
+                        "description": "Akses berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Klien dashboard"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "active_projects": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "completed_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "waiting_review": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Completed"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 100
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2025-12-15",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "category_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "web": 1
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (User bukan role klien)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/tefa/dashboard": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Dashboard Pengurus TeFa",
+                "description": "Endpoint ringkasan seluruh project untuk role pengurus_tefa. Tidak difilter berdasarkan project yang di-handle; seluruh project yang sudah masuk tahap pengerjaan ditampilkan.",
+                "operationId": "dc2bc58c38bfac34c8834a302f1ac219",
+                "responses": {
+                    "200": {
+                        "description": "Akses berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "TeFa dashboard"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_projects": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "running_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "total_clients": {
+                                                    "type": "integer",
+                                                    "example": 4
+                                                },
+                                                "total_students": {
+                                                    "type": "integer",
+                                                    "example": 18
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Aplikasi Monitoring IoT Pertanian Berbasis Web"
+                                                            },
+                                                            "client_name": {
+                                                                "type": "string",
+                                                                "example": "CV. Teknologi Nusantara"
+                                                            },
+                                                            "pm_name": {
+                                                                "type": "string",
+                                                                "example": "Liliek Triyono, S.T., M.Kom."
+                                                            },
+                                                            "category": {
+                                                                "type": "string",
+                                                                "example": "web"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Active"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 46
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2026-09-30",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "category_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "web": 2
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                },
+                                                "status_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "active": 2
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (User bukan role pengurus_tefa)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/jurusan/dashboard": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Dashboard Jurusan",
+                "description": "Endpoint ringkasan seluruh project untuk role jurusan. Tidak difilter berdasarkan project yang di-handle; seluruh project yang sudah masuk tahap pengerjaan ditampilkan.",
+                "operationId": "3c8ea58293ce17685c0caba31aec6bea",
+                "responses": {
+                    "200": {
+                        "description": "Akses berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Jurusan dashboard"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "total_projects": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "running_projects": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "total_clients": {
+                                                    "type": "integer",
+                                                    "example": 4
+                                                },
+                                                "total_students": {
+                                                    "type": "integer",
+                                                    "example": 18
+                                                },
+                                                "projects": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 2
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Aplikasi Monitoring IoT Pertanian Berbasis Web"
+                                                            },
+                                                            "client_name": {
+                                                                "type": "string",
+                                                                "example": "CV. Teknologi Nusantara"
+                                                            },
+                                                            "pm_name": {
+                                                                "type": "string",
+                                                                "example": "Liliek Triyono, S.T., M.Kom."
+                                                            },
+                                                            "category": {
+                                                                "type": "string",
+                                                                "example": "web"
+                                                            },
+                                                            "status": {
+                                                                "type": "string",
+                                                                "example": "Active"
+                                                            },
+                                                            "progress": {
+                                                                "type": "number",
+                                                                "example": 46
+                                                            },
+                                                            "deadline": {
+                                                                "type": "string",
+                                                                "format": "date",
+                                                                "example": "2026-09-30",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "category_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "web": 2
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                },
+                                                "status_distribution": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "example": {
+                                                            "active": 2
+                                                        },
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (User bukan role jurusan)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/users": {
             "get": {
                 "tags": [
@@ -383,6 +2861,18 @@
                 "summary": "List semua user",
                 "description": "Mengambil seluruh daftar user beserta roles dari database.",
                 "operationId": "1ac7a967d2134b8502ddb9f7a2addc4e",
+                "parameters": [
+                    {
+                        "name": "role",
+                        "in": "query",
+                        "description": "Filter user berdasarkan role (misal: dosen, mahasiswa, klien)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "dosen"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Daftar user berhasil diambil",
@@ -508,6 +2998,81 @@
                     },
                     "422": {
                         "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/users/company": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Data user dan perusahaan",
+                "description": "Mengambil data user yang sedang login dari token (nama, email, no_hp) beserta nama perusahaan. Khusus role klien dan jurusan. Untuk role jurusan, `company_name` diisi nama jurusan.",
+                "operationId": "13fb1fca82fdfe684ee0a82f322e013a",
+                "responses": {
+                    "200": {
+                        "description": "Data user dan perusahaan berhasil diambil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Company profile retrieved successfully"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Budi Santoso"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "format": "email",
+                                                    "example": "budi.santoso@majubersamasentosa.co.id"
+                                                },
+                                                "no_hp": {
+                                                    "type": "string",
+                                                    "example": "6281234567890",
+                                                    "nullable": true
+                                                },
+                                                "company_name": {
+                                                    "type": "string",
+                                                    "example": "PT. Maju Bersama Sentosa",
+                                                    "nullable": true
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "klien",
+                                                    "enum": [
+                                                        "klien",
+                                                        "jurusan"
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan klien/jurusan)"
                     }
                 },
                 "security": [
@@ -741,6 +3306,388 @@
     },
     "components": {
         "schemas": {
+            "Proposal": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "proposal_code": {
+                        "type": "string",
+                        "example": "PRO-2026-0001"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Sistem Informasi Manajemen Proyek TeFa"
+                    },
+                    "background": {
+                        "type": "string",
+                        "example": "Latar belakang proyek..."
+                    },
+                    "target_audience": {
+                        "type": "string",
+                        "example": "Mahasiswa dan dosen",
+                        "nullable": true
+                    },
+                    "desired_deadline": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-12-31",
+                        "nullable": true
+                    },
+                    "estimated_budget": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 15000000,
+                        "nullable": true
+                    },
+                    "attachment_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "complexity_level": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "LOW",
+                            "MEDIUM",
+                            "HIGH"
+                        ]
+                    },
+                    "risk_analysis": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "estimated_cost": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "review_notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reviewed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "spk_number": {
+                        "type": "string",
+                        "example": "SPK-2026-001",
+                        "nullable": true
+                    },
+                    "scope_of_work": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "total_amount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "payment_terms_description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "contract_file_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "is_signed": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "signed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "project_code": {
+                        "type": "string",
+                        "example": "PRJ-2026-0001",
+                        "nullable": true
+                    },
+                    "pm_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "target_completion_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "actual_completion_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "bast_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "repository_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "documentation_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "user_manual_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "handover_notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "handover_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "client_signoff_name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "client_approved": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "bast_approved_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "status_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "status": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ProposalStatus"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ]
+                    },
+                    "category": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ProposalCategory"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ]
+                    },
+                    "client": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/User"
+                            },
+                            {
+                                "type": "object",
+                                "nullable": true,
+                                "enum": [
+                                    null
+                                ]
+                            }
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "ProposalStatus": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Submitted"
+                    }
+                },
+                "type": "object"
+            },
+            "ProposalCategory": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Web Application"
+                    }
+                },
+                "type": "object"
+            },
+            "ProposalListItem": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "proposal_code": {
+                        "type": "string",
+                        "example": "PRSL-2026-001"
+                    },
+                    "client_name": {
+                        "type": "string",
+                        "example": "PT. Maju Bersama Sentosa"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Sistem Informasi Inventaris"
+                    },
+                    "background": {
+                        "type": "string",
+                        "example": "Latar belakang proyek..."
+                    },
+                    "target_audience": {
+                        "type": "string",
+                        "example": "Staff gudang dan admin inventory",
+                        "nullable": true
+                    },
+                    "category_name": {
+                        "type": "string",
+                        "example": "Web",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "Submitted"
+                    },
+                    "desired_deadline": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2027-02-01",
+                        "nullable": true
+                    },
+                    "estimated_budget": {
+                        "type": "string",
+                        "example": "10000000.00",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ProposalPendingDetail": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 13
+                    },
+                    "proposal_code": {
+                        "type": "string",
+                        "example": "PRSL-2026-490"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Sistem Informasi Inventaris"
+                    },
+                    "background": {
+                        "type": "string",
+                        "example": "Latar belakang proyek..."
+                    },
+                    "target_audience": {
+                        "type": "string",
+                        "example": "Staff gudang dan admin inventory",
+                        "nullable": true
+                    },
+                    "category_name": {
+                        "type": "string",
+                        "example": "Web",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "Submitted"
+                    },
+                    "desired_deadline": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2027-02-01",
+                        "nullable": true
+                    },
+                    "estimated_budget": {
+                        "type": "string",
+                        "example": "10000000.00",
+                        "nullable": true
+                    },
+                    "client_name": {
+                        "type": "string",
+                        "example": "PT. Maju Bersama Sentosa"
+                    },
+                    "pic": {
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "example": "Budi Santoso"
+                            },
+                            "email": {
+                                "type": "string",
+                                "format": "email",
+                                "example": "budi.santoso@majubersamasentosa.co.id"
+                            },
+                            "no_hp": {
+                                "type": "string",
+                                "example": "6281234567890",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "modules": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "integer",
+                                    "example": 1
+                                },
+                                "title": {
+                                    "type": "string",
+                                    "example": "Manajemen Barang"
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "example": "CRUD data barang",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
             "User": {
                 "properties": {
                     "id": {
@@ -794,16 +3741,44 @@
     },
     "tags": [
         {
-            "name": "Auth",
-            "description": "Auth"
+            "name": "F-05: Tasks & Progress",
+            "description": "Manajemen task + laporan sprint oleh mahasiswa, review oleh dosen PM"
         },
         {
-            "name": "Dashboard",
-            "description": "Dashboard"
+            "name": "Auth",
+            "description": "Autentikasi (Register, Login, Logout, Profile)"
         },
         {
             "name": "Users",
-            "description": "Users"
+            "description": "Manajemen User (CRUD)"
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard per Role"
+        },
+        {
+            "name": "F-01: Pengajuan Proposal",
+            "description": "Klien mengajukan proposal proyek baru"
+        },
+        {
+            "name": "F-02: Review & Validasi",
+            "description": "Pengurus TeFa mereview kelayakan proposal"
+        },
+        {
+            "name": "F-03: SPK & Kontrak",
+            "description": "Pembuatan dan penandatanganan SPK / kontrak kerja serta assign PM"
+        },
+        {
+            "name": "F-04: Penugasan Tim",
+            "description": "Penugasan dan manajemen tim mahasiswa proyek"
+        },
+        {
+            "name": "Master Data",
+            "description": "Data master kategori, status, role tim proyek, dan kategori task"
+        },
+        {
+            "name": "Categories",
+            "description": "Categories"
         }
     ]
 }

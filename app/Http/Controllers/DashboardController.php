@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\ClientProfile;
+use App\Models\ProjectTeam;
+use App\Models\Proposal;
+use App\Models\Task;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 final class DashboardController extends Controller
@@ -15,7 +20,7 @@ final class DashboardController extends Controller
     #[OA\Get(
         path: '/mahasiswa/dashboard',
         summary: 'Dashboard Mahasiswa',
-        description: 'Endpoint dashboard khusus role mahasiswa',
+        description: 'Endpoint ringkasan dashboard khusus role mahasiswa',
         security: [['bearerAuth' => []]],
         tags: ['Dashboard'],
         responses: [
@@ -30,7 +35,46 @@ final class DashboardController extends Controller
                             property: 'data',
                             type: 'object',
                             properties: [
-                                new OA\Property(property: 'role', type: 'string', example: 'mahasiswa'),
+                                new OA\Property(property: 'active_projects', type: 'integer', example: 0),
+                                new OA\Property(property: 'pending_tasks', type: 'integer', example: 0),
+                                new OA\Property(property: 'completed_projects', type: 'integer', example: 1),
+                                new OA\Property(
+                                    property: 'tasks',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Setup project Laravel & Vue.js'),
+                                            new OA\Property(property: 'status', type: 'string', example: 'DONE'),
+                                            new OA\Property(property: 'priority', type: 'string', example: 'HIGH'),
+                                            new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true, example: '2025-11-30'),
+                                            new OA\Property(property: 'progress_percentage', type: 'number', example: 100),
+                                            new OA\Property(
+                                                property: 'proposal',
+                                                type: 'object',
+                                                properties: [
+                                                    new OA\Property(property: 'id', type: 'integer', example: 1),
+                                                    new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Manajemen Teaching Factory'),
+                                                ]
+                                            ),
+                                        ]
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'projects',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Manajemen Teaching Factory'),
+                                            new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
+                                            new OA\Property(property: 'role', type: 'string', example: 'Fullstack'),
+                                            new OA\Property(property: 'status', type: 'string', example: 'Completed'),
+                                            new OA\Property(property: 'progress', type: 'number', example: 100),
+                                            new OA\Property(property: 'deadline', type: 'string', format: 'date', nullable: true, example: '2025-12-15'),
+                                        ]
+                                    )
+                                ),
                             ]
                         ),
                     ]
@@ -40,18 +84,96 @@ final class DashboardController extends Controller
             new OA\Response(response: 403, description: 'Forbidden (User bukan role mahasiswa)'),
         ]
     )]
-    public function mahasiswa(): JsonResponse
+    public function mahasiswa(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        $projectTeams = ProjectTeam::where('user_id', $user->id)
+            ->with([
+                'role',
+                'proposal.status',
+                'proposal.client.clientPic.clientProfile.user',
+                'proposal.tasks',
+            ])
+            ->get();
+
+        $teamIds = $projectTeams->pluck('id');
+        $proposalIds = $projectTeams->pluck('proposal_id')->unique();
+
+        $activeProjects = Proposal::whereIn('id', $proposalIds)
+            ->whereHas('status', fn ($s) => $s->whereIn('name', ['Active', 'Testing']))
+            ->count();
+
+        $completedProjects = Proposal::whereIn('id', $proposalIds)
+            ->whereHas('status', fn ($s) => $s->whereIn('name', ['Completed', 'Handover']))
+            ->count();
+
+        $tasksQuery = Task::whereIn('project_team_id', $teamIds);
+        $pendingTasks = (clone $tasksQuery)->whereIn('status', ['TODO', 'IN_PROGRESS', 'TESTING'])->count();
+
+        $tasks = (clone $tasksQuery)
+            ->with('proposal:id,title')
+            ->latest('updated_at')
+            ->get()
+            ->map(fn ($t) => [
+                'id'                  => $t->id,
+                'title'               => $t->title,
+                'status'              => $t->status,
+                'priority'            => $t->priority,
+                'due_date'            => $t->due_date?->toDateString(),
+                'progress_percentage' => (float) $t->progress_percentage,
+                'proposal'            => $t->proposal ? [
+                    'id'    => $t->proposal->id,
+                    'title' => $t->proposal->title,
+                ] : null,
+            ]);
+
+        $projects = $projectTeams->map(function ($team) {
+            $proposal = $team->proposal;
+            if (! $proposal) {
+                return null;
+            }
+
+            $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
+            $taskCount = $proposal->tasks->count();
+
+            if ($isCompleted) {
+                $progress = 100;
+            } elseif ($taskCount > 0) {
+                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } else {
+                $progress = 0;
+            }
+
+            $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
+
+            return [
+                'id'          => $proposal->id,
+                'title'       => $proposal->title,
+                'client_name' => $proposal->client_company_name,
+                'role'        => $team->role?->name ?? '—',
+                'status'      => $proposal->status?->name ?? '—',
+                'progress'    => $progress,
+                'deadline'    => $deadlineToUse?->toDateString(),
+            ];
+        })->filter()->values();
+
         return $this->ok(
             message: 'Mahasiswa dashboard',
-            data: ['role' => 'mahasiswa']
+            data: [
+                'active_projects'    => $activeProjects,
+                'pending_tasks'      => $pendingTasks,
+                'completed_projects' => $completedProjects,
+                'tasks'              => $tasks,
+                'projects'           => $projects,
+            ]
         );
     }
 
     #[OA\Get(
         path: '/dosen/dashboard',
         summary: 'Dashboard Dosen',
-        description: 'Endpoint dashboard khusus role dosen',
+        description: 'Endpoint ringkasan dashboard khusus role dosen',
         security: [['bearerAuth' => []]],
         tags: ['Dashboard'],
         responses: [
@@ -66,7 +188,33 @@ final class DashboardController extends Controller
                             property: 'data',
                             type: 'object',
                             properties: [
-                                new OA\Property(property: 'role', type: 'string', example: 'dosen'),
+                                new OA\Property(property: 'total_projects', type: 'integer', example: 1),
+                                new OA\Property(property: 'active_projects', type: 'integer', example: 0),
+                                new OA\Property(property: 'completed_projects', type: 'integer', example: 1),
+                                new OA\Property(property: 'waiting_review', type: 'integer', example: 0),
+                                new OA\Property(
+                                    property: 'projects',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Manajemen Teaching Factory'),
+                                            new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
+                                            new OA\Property(property: 'status', type: 'string', example: 'Completed'),
+                                            new OA\Property(property: 'progress', type: 'number', example: 100),
+                                            new OA\Property(property: 'deadline', type: 'string', format: 'date', nullable: true, example: '2025-12-15'),
+                                        ]
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'category_distribution',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        additionalProperties: new OA\AdditionalProperties(type: 'integer'),
+                                        example: ['web' => 1]
+                                    )
+                                ),
                             ]
                         ),
                     ]
@@ -76,11 +224,434 @@ final class DashboardController extends Controller
             new OA\Response(response: 403, description: 'Forbidden (User bukan role dosen)'),
         ]
     )]
-    public function dosen(): JsonResponse
+    public function dosen(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        $proposals = Proposal::where('pm_id', $user->id)
+            ->orWhere('reviewer_id', $user->id)
+            ->with(['status', 'category', 'client.clientPic.clientProfile.user', 'tasks'])
+            ->get();
+
+        $totalProjects = $proposals->count();
+
+        $activeProjects = $proposals->filter(function ($p) {
+            return in_array(strtolower($p->status?->name ?? ''), ['active', 'testing']);
+        })->count();
+
+        $completedProjects = $proposals->filter(function ($p) {
+            return in_array(strtolower($p->status?->name ?? ''), ['completed', 'handover']);
+        })->count();
+
+        $proposalIds = $proposals->pluck('id');
+
+        $waitingReview = Task::whereIn('proposal_id', $proposalIds)
+            ->where(function ($q) {
+                $q->where('pm_status', 'PENDING')
+                  ->orWhere('status', 'TESTING');
+            })
+            ->count();
+
+        $projects = $proposals->map(function ($proposal) {
+            $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
+            $taskCount = $proposal->tasks->count();
+
+            if ($isCompleted) {
+                $progress = 100;
+            } elseif ($taskCount > 0) {
+                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } else {
+                $progress = 0;
+            }
+
+            $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
+
+            return [
+                'id'          => $proposal->id,
+                'title'       => $proposal->title,
+                'client_name' => $proposal->client_company_name,
+                'status'      => $proposal->status?->name ?? '—',
+                'progress'    => $progress,
+                'deadline'    => $deadlineToUse?->toDateString(),
+            ];
+        })->values();
+
+        $categoryDistribution = $proposals
+            ->groupBy(fn ($p) => strtolower($p->category?->name ?? 'other'))
+            ->map(fn ($group, $key) => [$key => $group->count()])
+            ->values()
+            ->toArray();
+
         return $this->ok(
             message: 'Dosen dashboard',
-            data: ['role' => 'dosen']
+            data: [
+                'total_projects'        => $totalProjects,
+                'active_projects'       => $activeProjects,
+                'completed_projects'    => $completedProjects,
+                'waiting_review'        => $waitingReview,
+                'projects'              => $projects,
+                'category_distribution' => $categoryDistribution,
+            ]
+        );
+    }
+
+    #[OA\Get(
+        path: '/klien/dashboard',
+        summary: 'Dashboard Klien',
+        description: 'Endpoint ringkasan dashboard khusus role klien (pemilik perusahaan / PIC)',
+        security: [['bearerAuth' => []]],
+        tags: ['Dashboard'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Akses berhasil',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Klien dashboard'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'total_projects', type: 'integer', example: 1),
+                                new OA\Property(property: 'active_projects', type: 'integer', example: 0),
+                                new OA\Property(property: 'completed_projects', type: 'integer', example: 1),
+                                new OA\Property(property: 'waiting_review', type: 'integer', example: 0),
+                                new OA\Property(
+                                    property: 'projects',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Manajemen Teaching Factory'),
+                                            new OA\Property(property: 'status', type: 'string', example: 'Completed'),
+                                            new OA\Property(property: 'progress', type: 'number', example: 100),
+                                            new OA\Property(property: 'deadline', type: 'string', format: 'date', nullable: true, example: '2025-12-15'),
+                                        ]
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'category_distribution',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        additionalProperties: new OA\AdditionalProperties(type: 'integer'),
+                                        example: ['web' => 1]
+                                    )
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (User bukan role klien)'),
+        ]
+    )]
+    public function klien(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Cakupan perusahaan: pemilik (client_profiles.user_id) + seluruh PIC pada perusahaan yang sama
+        $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+
+        $proposalsQuery = Proposal::query()->with(['status', 'category', 'tasks']);
+
+        if ($clientProfile) {
+            $clientUserIds = $clientProfile->pics()
+                ->pluck('user_id')
+                ->push($clientProfile->user_id)
+                ->unique()
+                ->values();
+
+            $proposals = $proposalsQuery
+                ->whereIn('client_id', $clientUserIds)
+                ->latest('updated_at')
+                ->get();
+        } else {
+            // Fallback: user klien tanpa profil perusahaan
+            $proposals = $proposalsQuery
+                ->where('client_id', $user->id)
+                ->latest('updated_at')
+                ->get();
+        }
+
+        $totalProjects = $proposals->count();
+
+        $activeProjects = $proposals->filter(
+            fn ($p) => in_array(strtolower($p->status?->name ?? ''), ['active', 'testing'])
+        )->count();
+
+        $completedProjects = $proposals->filter(
+            fn ($p) => in_array(strtolower($p->status?->name ?? ''), ['completed', 'handover'])
+        )->count();
+
+        // Proposal yang sedang menunggu review Pengurus TeFa
+        $waitingReview = $proposals->filter(
+            fn ($p) => in_array(strtolower($p->status?->name ?? ''), ['submitted', 'under review'])
+        )->count();
+
+        $projects = $proposals->map(function ($proposal) {
+            $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
+            $taskCount = $proposal->tasks->count();
+
+            if ($isCompleted) {
+                $progress = 100;
+            } elseif ($taskCount > 0) {
+                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } else {
+                $progress = 0;
+            }
+
+            $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
+
+            return [
+                'id'       => $proposal->id,
+                'title'    => $proposal->title,
+                'status'   => $proposal->status?->name ?? '—',
+                'progress' => $progress,
+                'deadline' => $deadlineToUse?->toDateString(),
+            ];
+        })->values();
+
+        $categoryDistribution = $proposals
+            ->groupBy(fn ($p) => strtolower($p->category?->name ?? 'other'))
+            ->map(fn ($group, $key) => [$key => $group->count()])
+            ->values()
+            ->toArray();
+
+        return $this->ok(
+            message: 'Klien dashboard',
+            data: [
+                'total_projects'        => $totalProjects,
+                'active_projects'       => $activeProjects,
+                'completed_projects'    => $completedProjects,
+                'waiting_review'        => $waitingReview,
+                'projects'              => $projects,
+                'category_distribution' => $categoryDistribution,
+            ]
+        );
+    }
+
+    #[OA\Get(
+        path: '/tefa/dashboard',
+        summary: 'Dashboard Pengurus TeFa',
+        description: 'Endpoint ringkasan seluruh project untuk role pengurus_tefa. Tidak difilter berdasarkan project yang di-handle; seluruh project yang sudah masuk tahap pengerjaan ditampilkan.',
+        security: [['bearerAuth' => []]],
+        tags: ['Dashboard'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Akses berhasil',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'TeFa dashboard'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'total_projects', type: 'integer', example: 3),
+                                new OA\Property(property: 'running_projects', type: 'integer', example: 1),
+                                new OA\Property(property: 'total_clients', type: 'integer', example: 4),
+                                new OA\Property(property: 'total_students', type: 'integer', example: 18),
+                                new OA\Property(
+                                    property: 'projects',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 2),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Aplikasi Monitoring IoT Pertanian Berbasis Web'),
+                                            new OA\Property(property: 'client_name', type: 'string', example: 'CV. Teknologi Nusantara'),
+                                            new OA\Property(property: 'pm_name', type: 'string', example: 'Liliek Triyono, S.T., M.Kom.'),
+                                            new OA\Property(property: 'category', type: 'string', example: 'web'),
+                                            new OA\Property(property: 'status', type: 'string', example: 'Active'),
+                                            new OA\Property(property: 'progress', type: 'number', example: 46),
+                                            new OA\Property(property: 'deadline', type: 'string', format: 'date', nullable: true, example: '2026-09-30'),
+                                        ]
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'category_distribution',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        additionalProperties: new OA\AdditionalProperties(type: 'integer'),
+                                        example: ['web' => 2]
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'status_distribution',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        additionalProperties: new OA\AdditionalProperties(type: 'integer'),
+                                        example: ['active' => 2]
+                                    )
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (User bukan role pengurus_tefa)'),
+        ]
+    )]
+    public function tefa(): JsonResponse
+    {
+        return $this->adminDashboard('TeFa dashboard');
+    }
+
+    #[OA\Get(
+        path: '/jurusan/dashboard',
+        summary: 'Dashboard Jurusan',
+        description: 'Endpoint ringkasan seluruh project untuk role jurusan. Tidak difilter berdasarkan project yang di-handle; seluruh project yang sudah masuk tahap pengerjaan ditampilkan.',
+        security: [['bearerAuth' => []]],
+        tags: ['Dashboard'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Akses berhasil',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Jurusan dashboard'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'total_projects', type: 'integer', example: 3),
+                                new OA\Property(property: 'running_projects', type: 'integer', example: 1),
+                                new OA\Property(property: 'total_clients', type: 'integer', example: 4),
+                                new OA\Property(property: 'total_students', type: 'integer', example: 18),
+                                new OA\Property(
+                                    property: 'projects',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 2),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Aplikasi Monitoring IoT Pertanian Berbasis Web'),
+                                            new OA\Property(property: 'client_name', type: 'string', example: 'CV. Teknologi Nusantara'),
+                                            new OA\Property(property: 'pm_name', type: 'string', example: 'Liliek Triyono, S.T., M.Kom.'),
+                                            new OA\Property(property: 'category', type: 'string', example: 'web'),
+                                            new OA\Property(property: 'status', type: 'string', example: 'Active'),
+                                            new OA\Property(property: 'progress', type: 'number', example: 46),
+                                            new OA\Property(property: 'deadline', type: 'string', format: 'date', nullable: true, example: '2026-09-30'),
+                                        ]
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'category_distribution',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        additionalProperties: new OA\AdditionalProperties(type: 'integer'),
+                                        example: ['web' => 2]
+                                    )
+                                ),
+                                new OA\Property(
+                                    property: 'status_distribution',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        type: 'object',
+                                        additionalProperties: new OA\AdditionalProperties(type: 'integer'),
+                                        example: ['active' => 2]
+                                    )
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (User bukan role jurusan)'),
+        ]
+    )]
+    public function jurusan(): JsonResponse
+    {
+        return $this->adminDashboard('Jurusan dashboard');
+    }
+
+    /**
+     * Ringkasan project global untuk Pengurus TeFa & Jurusan.
+     * Tidak difilter berdasarkan project yang di-handle user.
+     */
+    private function adminDashboard(string $message): JsonResponse
+    {
+        // Project yang sudah masuk tahap pengerjaan
+        $executedStatuses = ['Active', 'Testing', 'Handover', 'Completed'];
+
+        $proposals = Proposal::with([
+            'status',
+            'category',
+            'pm',
+            'client.clientPic.clientProfile.user',
+            'tasks',
+        ])
+            ->whereHas('status', fn ($q) => $q->whereIn('name', $executedStatuses))
+            ->latest('updated_at')
+            ->get();
+
+        $totalProjects = $proposals->count();
+
+        $runningProjects = $proposals->filter(
+            fn ($p) => in_array(strtolower($p->status?->name ?? ''), ['active', 'testing'])
+        )->count();
+
+        $totalClients = ClientProfile::count();
+
+        $totalStudents = ProjectTeam::distinct('user_id')->count('user_id');
+
+        $projects = $proposals->map(function ($proposal) {
+            $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
+            $taskCount = $proposal->tasks->count();
+
+            if ($isCompleted) {
+                $progress = 100;
+            } elseif ($taskCount > 0) {
+                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } else {
+                $progress = 0;
+            }
+
+            $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
+
+            return [
+                'id'          => $proposal->id,
+                'title'       => $proposal->title,
+                'client_name' => $proposal->client_company_name,
+                'pm_name'     => $proposal->pm?->name ?? '—',
+                'category'    => strtolower($proposal->category?->name ?? 'other'),
+                'status'      => $proposal->status?->name ?? '—',
+                'progress'    => $progress,
+                'deadline'    => $deadlineToUse?->toDateString(),
+            ];
+        })->values();
+
+        $categoryDistribution = $proposals
+            ->groupBy(fn ($p) => strtolower($p->category?->name ?? 'other'))
+            ->map(fn ($group, $key) => [$key => $group->count()])
+            ->values()
+            ->toArray();
+
+        $statusDistribution = $proposals
+            ->groupBy(fn ($p) => strtolower($p->status?->name ?? 'other'))
+            ->map(fn ($group, $key) => [$key => $group->count()])
+            ->values()
+            ->toArray();
+
+        return $this->ok(
+            message: $message,
+            data: [
+                'total_projects'        => $totalProjects,
+                'running_projects'      => $runningProjects,
+                'total_clients'         => $totalClients,
+                'total_students'        => $totalStudents,
+                'projects'              => $projects,
+                'category_distribution' => $categoryDistribution,
+                'status_distribution'   => $statusDistribution,
+            ]
         );
     }
 }
