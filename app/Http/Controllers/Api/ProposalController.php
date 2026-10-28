@@ -230,6 +230,7 @@ class ProposalController extends Controller
         $proposal = Proposal::with([
             'status:id,name',
             'category:id,name',
+            'reviewer:id,name',
             'client.clientPic.clientProfile.user',
             'client.clientProfile.user',
             'modules:id,proposal_id,title,description',
@@ -245,11 +246,18 @@ class ProposalController extends Controller
             'title'            => $proposal->title,
             'background'       => $proposal->background,
             'target_audience'  => $proposal->target_audience,
+            'category_id'      => $proposal->category_id,
             'category_name'    => $proposal->category?->name,
             'status'           => $proposal->status?->name,
+            'status_id'        => $proposal->status_id,
             'desired_deadline' => $proposal->desired_deadline?->toDateString(),
             'estimated_budget' => $proposal->estimated_budget,
             'client_name'      => $proposal->client_company_name,
+            'review_notes'     => $proposal->review_notes,
+            'reviewer'         => $proposal->reviewer ? [
+                'id'   => $proposal->reviewer->id,
+                'name' => $proposal->reviewer->name,
+            ] : null,
             'pic'              => [
                 'name'  => $proposal->client?->name,
                 'email' => $proposal->client?->email,
@@ -320,8 +328,24 @@ class ProposalController extends Controller
     )]
     public function mine(Request $request)
     {
-        $proposals = Proposal::with(['status:id,name', 'category:id,name'])
-            ->where('client_id', $request->user()->id)
+        $user = $request->user();
+        $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+
+        $query = Proposal::with(['status:id,name', 'category:id,name']);
+
+        if ($clientProfile) {
+            $clientUserIds = $clientProfile->pics()
+                ->pluck('user_id')
+                ->push($clientProfile->user_id)
+                ->unique()
+                ->values();
+
+            $query->whereIn('client_id', $clientUserIds);
+        } else {
+            $query->where('client_id', $user->id);
+        }
+
+        $proposals = $query
             ->latest()
             ->get()
             ->map(fn (Proposal $proposal) => [
@@ -468,8 +492,17 @@ class ProposalController extends Controller
 
         $user = $request->user();
 
-        if ($user->hasRole('klien') && $proposal->client_id !== $user->id) {
-            abort(403, 'Unauthorized access to this proposal.');
+        if ($user->hasRole('klien')) {
+            $allowed = $proposal->client_id === $user->id;
+            if (! $allowed) {
+                $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+                if ($clientProfile) {
+                    $allowed = $clientProfile->pics()->pluck('user_id')->push($clientProfile->user_id)->contains($proposal->client_id);
+                }
+            }
+            if (! $allowed) {
+                abort(403, 'Unauthorized access to this proposal.');
+            }
         }
         if ($user->hasRole('dosen') && $proposal->pm_id !== $user->id) {
             abort(403, 'Unauthorized access to this proposal.');
@@ -540,7 +573,14 @@ class ProposalController extends Controller
         $user = $request->user();
 
         if ($user->hasRole('klien') || $user->hasRole('jurusan')) {
-            if ($proposal->client_id !== $user->id) {
+            $allowed = $proposal->client_id === $user->id;
+            if (! $allowed && $user->hasRole('klien')) {
+                $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+                if ($clientProfile) {
+                    $allowed = $clientProfile->pics()->pluck('user_id')->push($clientProfile->user_id)->contains($proposal->client_id);
+                }
+            }
+            if (! $allowed) {
                 return response()->json(['message' => 'Unauthorized access to this proposal.'], 403);
             }
         }
