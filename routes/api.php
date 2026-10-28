@@ -130,6 +130,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         });
 
         Route::middleware('role:dosen')->group(function () {
+            Route::get('proposals/{id}/tasks/overview', [TaskController::class, 'overview'])->whereNumber('id');
             Route::patch('proposals/{id}/tasks/{taskId}/review', [TaskController::class, 'review'])
                 ->whereNumber('id')
                 ->whereNumber('taskId');
