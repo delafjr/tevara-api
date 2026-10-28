@@ -16,6 +16,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::prefix('auth')->name('auth.')->group(function () {
         Route::post('register', [AuthController::class, 'register'])->name('register');
         Route::post('login',    [AuthController::class, 'login'])->name('login');
+        Route::post('google',   [AuthController::class, 'google'])->name('google');
     });
 
     Route::get('categories', [MasterDataController::class, 'categories'])->name('categories.index');
@@ -74,8 +75,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('proposals', [ProposalController::class, 'store']);
         });
 
-        Route::middleware('role:pengurus_tefa|jurusan')->group(function () {
+        Route::middleware('role:pengurus_tefa')->group(function () {
             Route::get('proposals', [ProposalController::class, 'index']);
+            Route::get('proposals/pending', [ProposalController::class, 'pending']);
+            Route::get('proposals/{id}/pending', [ProposalController::class, 'pendingDetail'])->whereNumber('id');
         });
 
         Route::middleware('role:klien|pengurus_tefa|dosen|jurusan')->group(function () {
