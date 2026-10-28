@@ -42,10 +42,16 @@ class AuthService
     public function loginWithGoogle(string $idToken): array
     {
         try {
-            $response = Http::timeout(10)->get('https://oauth2.googleapis.com/tokeninfo', [
+            $request = Http::timeout(10);
+            if (app()->environment('local', 'testing') || config('services.google.verify_ssl') === false) {
+                $request = $request->withoutVerifying();
+            }
+
+            $response = $request->get('https://oauth2.googleapis.com/tokeninfo', [
                 'id_token' => $idToken,
             ]);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Google Auth verification error: ' . $e->getMessage());
             throw ValidationException::withMessages([
                 'id_token' => ['Gagal menghubungi server verifikasi Google.'],
             ]);
