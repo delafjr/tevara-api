@@ -127,6 +127,62 @@ final class AuthController extends Controller
     }
 
     #[OA\Post(
+        path: '/auth/google',
+        summary: 'Login / Register dengan Google',
+        description: 'Autentikasi menggunakan ID Token (credential) dari Google Identity Services. Jika email belum terdaftar, akun otomatis dibuat dengan role mahasiswa.',
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['id_token'],
+                properties: [
+                    new OA\Property(property: 'id_token', type: 'string', description: 'Google ID Token / credential JWT', example: 'eyJhbGciOiJSUzI1NiIsImtpZCI...'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Login berhasil',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Login Google berhasil'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'user', ref: '#/components/schemas/User'),
+                                new OA\Property(property: 'token', type: 'string', example: '1|raNd0mToKenStr1ng...'),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(response: 422, description: 'Token Google tidak valid atau format request salah'),
+        ]
+    )]
+    public function google(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'id_token'   => ['nullable', 'string', 'required_without:credential'],
+            'credential' => ['nullable', 'string', 'required_without:id_token'],
+        ]);
+
+        $token = $validated['id_token'] ?? $validated['credential'];
+
+        $result = $this->authService->loginWithGoogle($token);
+
+        return $this->ok(
+            message: 'Login Google berhasil',
+            data: [
+                'user'  => new UserResource($result['user']),
+                'token' => $result['token'],
+            ]
+        );
+    }
+
+    #[OA\Post(
         path: '/auth/logout',
         summary: 'Logout user',
         description: 'Mencabut (menghapus) token Sanctum yang sedang aktif digunakan.',

@@ -61,19 +61,25 @@ class ProposalReviewController extends Controller
     {
         $proposal = Proposal::findOrFail($id);
 
-        if (! in_array($proposal->status_id, [2, 3])) {
+        if (! in_array($proposal->status_id, [2, 3, 4])) {
             return response()->json([
                 'message' => 'Proposal tidak dalam status yang bisa di-review.',
             ], 422);
         }
 
         $validated = $request->validate([
-            'complexity_level' => 'required|in:LOW,MEDIUM,HIGH',
-            'risk_analysis'    => 'required|string',
-            'estimated_cost'   => 'required|numeric',
-            'review_notes'     => 'nullable|string',
             'decision'         => 'required|in:approved,rejected,revision_required',
+            'complexity_level' => 'required_if:decision,approved|nullable|in:LOW,MEDIUM,HIGH',
+            'risk_analysis'    => 'required_if:decision,approved|nullable|string',
+            'estimated_cost'   => 'required_if:decision,approved|nullable|numeric',
+            'review_notes'     => 'required_if:decision,revision_required|nullable|string',
         ]);
+
+        if ($proposal->status_id === 4 && in_array($validated['decision'], ['approved', 'rejected'])) {
+            return response()->json([
+                'message' => 'Proposal sedang menunggu revisi dari klien, keputusan hanya bisa berupa catatan revisi.',
+            ], 422);
+        }
 
         $statusMap = [
             'approved'          => 5,
@@ -82,16 +88,25 @@ class ProposalReviewController extends Controller
         ];
         $newStatusId = $statusMap[$validated['decision']];
 
-        DB::transaction(function () use ($proposal, $validated, $newStatusId, $request) {
-            $proposal->update([
-                'complexity_level' => $validated['complexity_level'],
-                'risk_analysis'    => $validated['risk_analysis'],
-                'estimated_cost'   => $validated['estimated_cost'],
-                'review_notes'     => $validated['review_notes'] ?? null,
-                'status_id'        => $newStatusId,
-                'reviewer_id'      => $request->user()->id,
-                'reviewed_at'      => now(),
-            ]);
+        $updateData = [
+            'status_id'    => $newStatusId,
+            'reviewer_id'  => $request->user()->id,
+            'reviewed_at'  => now(),
+            'review_notes' => $validated['review_notes'] ?? $proposal->review_notes,
+        ];
+
+        if (array_key_exists('complexity_level', $validated)) {
+            $updateData['complexity_level'] = $validated['complexity_level'];
+        }
+        if (array_key_exists('risk_analysis', $validated)) {
+            $updateData['risk_analysis'] = $validated['risk_analysis'];
+        }
+        if (array_key_exists('estimated_cost', $validated)) {
+            $updateData['estimated_cost'] = $validated['estimated_cost'];
+        }
+
+        DB::transaction(function () use ($proposal, $updateData, $newStatusId, $validated, $request) {
+            $proposal->update($updateData);
 
             $proposal->statusHistories()->create([
                 'status_id'  => $newStatusId,

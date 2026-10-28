@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class UatResult extends Model
 {
     protected $fillable = [
+        'proposal_id',
         'project_team_id',
         'session_date',
         'overall_result',
@@ -19,6 +20,11 @@ class UatResult extends Model
         'session_date'  => 'date',
         'signed_off_at' => 'datetime',
     ];
+
+    public function proposal()
+    {
+        return $this->belongsTo(Proposal::class);
+    }
 
     public function projectTeam()
     {

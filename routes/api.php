@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\MasterDataController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProposalContractController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ProposalReviewController;
 use App\Http\Controllers\Api\ProposalTeamController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\UatController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +18,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
     Route::prefix('auth')->name('auth.')->group(function () {
         Route::post('register', [AuthController::class, 'register'])->name('register');
         Route::post('login',    [AuthController::class, 'login'])->name('login');
+        Route::post('google',   [AuthController::class, 'google'])->name('google');
     });
 
     Route::get('categories', [MasterDataController::class, 'categories'])->name('categories.index');
@@ -72,6 +75,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::middleware('role:klien|jurusan')->group(function () {
             Route::get('proposals/mine', [ProposalController::class, 'mine']);
             Route::post('proposals', [ProposalController::class, 'store']);
+            Route::match(['put', 'patch', 'post'], 'proposals/{id}', [ProposalController::class, 'update'])->whereNumber('id');
         });
 
         Route::middleware('role:pengurus_tefa')->group(function () {
@@ -86,7 +90,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // ── F-02: Review (khusus Pengurus TeFa) ────────
         Route::middleware('role:pengurus_tefa')->group(function () {
-            Route::patch('proposals/{id}/review', [ProposalReviewController::class, 'review'])->whereNumber('id');
+            Route::match(['patch', 'post'], 'proposals/{id}/review', [ProposalReviewController::class, 'review'])->whereNumber('id');
             Route::patch('proposals/{id}/status', [ProposalReviewController::class, 'updateStatus'])->whereNumber('id');
         });
 
@@ -129,9 +133,43 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         });
 
         Route::middleware('role:dosen')->group(function () {
+            Route::get('proposals/{id}/tasks/overview', [TaskController::class, 'overview'])->whereNumber('id');
             Route::patch('proposals/{id}/tasks/{taskId}/review', [TaskController::class, 'review'])
                 ->whereNumber('id')
                 ->whereNumber('taskId');
+        });
+
+        // ── F-06: UAT ──────────────────────────────────
+        // GET: klien, dosen, pengurus_tefa dapat melihat UAT
+        Route::middleware('role:klien|dosen|pengurus_tefa')->group(function () {
+            Route::get('proposals/{id}/uat', [UatController::class, 'show'])->whereNumber('id');
+        });
+
+        // POST/PUT/setTesting: hanya dosen/pm yang membuat & merevisi UAT
+        Route::middleware('role:dosen|pengurus_tefa')->group(function () {
+            Route::post('proposals/{id}/uat', [UatController::class, 'store'])->whereNumber('id');
+            Route::put('proposals/{id}/uat', [UatController::class, 'update'])->whereNumber('id');
+            Route::patch('proposals/{id}/status/testing', [UatController::class, 'setTesting'])->whereNumber('id');
+        });
+
+        // PATCH signoff: hanya klien
+        Route::middleware('role:klien')->group(function () {
+            Route::patch('proposals/{id}/uat/signoff', [UatController::class, 'signoff'])->whereNumber('id');
+        });
+
+        // ── F-09: Pembayaran ────────────────────────────
+        // GET payments/pending HARUS didaftarkan sebelum route dengan {paymentId}
+        Route::middleware('role:dosen|pengurus_tefa')->group(function () {
+            Route::get('payments/pending', [PaymentController::class, 'pending']);
+            Route::post('proposals/{id}/payments', [PaymentController::class, 'store'])->whereNumber('id');
+            Route::patch('proposals/{id}/payments/{paymentId}/verify', [PaymentController::class, 'verify'])
+                ->whereNumber('id')->whereNumber('paymentId');
+        });
+
+        // PATCH upload bukti: hanya klien
+        Route::middleware('role:klien')->group(function () {
+            Route::patch('proposals/{id}/payments/{paymentId}/proof', [PaymentController::class, 'uploadProof'])
+                ->whereNumber('id')->whereNumber('paymentId');
         });
     });
 });
