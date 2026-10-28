@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\MasterDataController;
 use App\Http\Controllers\Api\ProposalContractController;
+use App\Http\Controllers\Api\ProposalHandoverController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ProposalReviewController;
 use App\Http\Controllers\Api\ProposalTeamController;
@@ -66,6 +67,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // ── Jurusan only ───────────────────────────────
         Route::middleware('role:jurusan')->prefix('jurusan')->name('jurusan.')->group(function () {
             Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'jurusan'])->name('dashboard');
+        });
+
+        // ── F-07: BAST (khusus klien pemilik proposal) ──
+        Route::middleware('role:klien')->group(function () {
+            Route::get('proposals/{id}/handover', [ProposalHandoverController::class, 'show'])->whereNumber('id');
+            Route::post('proposals/{id}/handover', [ProposalHandoverController::class, 'store'])->whereNumber('id');
         });
 
         // ── F-01: Proposal ─────────────────────────────
