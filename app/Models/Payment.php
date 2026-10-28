@@ -10,6 +10,7 @@ class Payment extends Model
         'proposal_id',
         'term_sequence',
         'amount',
+        'due_date',
         'payment_date',
         'payment_method',
         'transfer_reference',
@@ -21,6 +22,7 @@ class Payment extends Model
     ];
 
     protected $casts = [
+        'due_date'     => 'date',
         'payment_date' => 'date',
         'verified_at'  => 'datetime',
         'amount'       => 'decimal:2',

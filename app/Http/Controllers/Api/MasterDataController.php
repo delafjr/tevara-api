@@ -15,37 +15,6 @@ use OpenApi\Attributes as OA;
 class MasterDataController extends Controller
 {
     #[OA\Get(
-        path: '/categories',
-        summary: 'List semua kategori proposal',
-        description: 'Mengambil seluruh kategori proposal. Endpoint publik, tidak memerlukan autentikasi.',
-        tags: ['Categories'],
-        responses: [
-            new OA\Response(
-                response: 200,
-                description: 'Daftar kategori proposal',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'success', type: 'boolean', example: true),
-                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(
-                            properties: [
-                                new OA\Property(property: 'id', type: 'integer', example: 1),
-                                new OA\Property(property: 'name', type: 'string', example: 'Web'),
-                            ]
-                        )),
-                    ]
-                )
-            ),
-        ]
-    )]
-    public function categories(): JsonResponse
-    {
-        return response()->json([
-            'success' => true,
-            'data'    => ProposalCategory::orderBy('id')->get(['id', 'name']),
-        ]);
-    }
-
-    #[OA\Get(
         path: '/master/project-roles',
         summary: 'List role tim mahasiswa (F-04)',
         description: 'Mengambil daftar role teknis untuk tim mahasiswa (UI/UX, Frontend, Backend, Fullstack, QA Tester).',

@@ -1976,6 +1976,47 @@
                 ]
             }
         },
+        "/proposals/{id}/tasks/overview": {
+            "get": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Monitoring seluruh task proposal (Dosen PM)",
+                "description": "Menampilkan seluruh task dari satu proposal beserta ringkasan status (TODO, in progress, testing, done, pending review, approved, needs improvement). Hanya bisa diakses dosen yang menjadi PM pada proposal tersebut.",
+                "operationId": "a2424dc084a07dee2280ef0caaab5d7b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Data monitoring task proyek"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan dosen PM proyek ini)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/auth/register": {
             "post": {
                 "tags": [

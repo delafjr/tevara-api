@@ -579,6 +579,70 @@ final class TaskController extends Controller
     }
 
     // ──────────────────────────────────────────────────────
+    //  8. GET /proposals/{id}/tasks/overview  — Monitoring dosen PM
+    // ──────────────────────────────────────────────────────
+    #[OA\Get(
+        path: '/proposals/{id}/tasks/overview',
+        summary: 'Monitoring seluruh task proposal (Dosen PM)',
+        description: 'Menampilkan seluruh task dari satu proposal beserta ringkasan status (TODO, in progress, testing, done, pending review, approved, needs improvement). Hanya bisa diakses dosen yang menjadi PM pada proposal tersebut.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-05: Tasks & Progress'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Data monitoring task proyek'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan dosen PM proyek ini)'),
+            new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),
+        ]
+    )]
+    public function overview(Request $request, int|string $id): JsonResponse
+    {
+        $proposal = Proposal::with(['status:id,name', 'category:id,name'])->findOrFail($id);
+        $user     = $request->user();
+
+        if (! $user->hasRole('dosen') || $proposal->pm_id !== $user->id) {
+            abort(403, 'Akses ditolak: Anda bukan PM untuk proyek ini.');
+        }
+
+        $tasks = $proposal->tasks()
+            ->with(['projectTeam.user.studentProfile', 'category'])
+            ->orderBy('due_date')
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $summary = [
+            'total'             => $tasks->count(),
+            'todo'              => $tasks->where('status', 'TODO')->count(),
+            'in_progress'       => $tasks->where('status', 'IN_PROGRESS')->count(),
+            'testing'           => $tasks->where('status', 'TESTING')->count(),
+            'done'              => $tasks->where('status', 'DONE')->count(),
+            'pending_review'    => $tasks->where('pm_status', 'PENDING')->count(),
+            'approved'          => $tasks->where('pm_status', 'APPROVED')->count(),
+            'needs_improvement' => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
+            'overall_progress'  => $tasks->count() > 0
+                ? round($tasks->avg('progress_percentage'), 2)
+                : 0,
+        ];
+
+        return $this->ok('Data monitoring task proyek', [
+            'proposal' => [
+                'id'                     => $proposal->id,
+                'proposal_code'          => $proposal->proposal_code,
+                'title'                  => $proposal->title,
+                'status'                 => $proposal->status?->name,
+                'category'               => $proposal->category?->name,
+                'start_date'             => $proposal->start_date?->toDateString(),
+                'target_completion_date' => $proposal->target_completion_date?->toDateString(),
+                'pm_id'                  => $proposal->pm_id,
+            ],
+            'summary' => $summary,
+            'tasks'   => $tasks->map(fn (Task $task) => $this->formatTask($task)),
+        ]);
+    }
+
+    // ──────────────────────────────────────────────────────
     //  PRIVATE: Authorization & Formatting helpers
     // ──────────────────────────────────────────────────────
 
