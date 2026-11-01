@@ -44,4 +44,28 @@ class Task extends Model
     {
         return $this->belongsTo(TaskCategory::class, 'category_id');
     }
+
+    /**
+     * True bila mahasiswa sudah pernah mengirim laporan progres.
+     */
+    public function hasSubmittedReport(): bool
+    {
+        return filled($this->achieved_summary)
+            || filled($this->report_attachment_url)
+            || (float) $this->progress_percentage > 0;
+    }
+
+    /**
+     * Scope untuk task yang sudah punya laporan progres.
+     */
+    public function scopeWithSubmittedReport($query)
+    {
+        return $query->where(function ($q) {
+            $q->where(function ($q2) {
+                $q2->whereNotNull('achieved_summary')->where('achieved_summary', '!=', '');
+            })->orWhere(function ($q2) {
+                $q2->whereNotNull('report_attachment_url')->where('report_attachment_url', '!=', '');
+            })->orWhere('progress_percentage', '>', 0);
+        });
+    }
 }

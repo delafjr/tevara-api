@@ -217,7 +217,7 @@ final class TaskController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/tasks/{taskId}/progress',
         summary: 'Submit progress report (Mahasiswa)',
-        description: 'Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update.',
+        description: 'Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update. Progress 100% otomatis menjadi TESTING (menunggu review PM); status DONE tidak bisa ditetapkan mahasiswa.',
         security: [['bearerAuth' => []]],
         tags: ['F-05: Tasks & Progress'],
         parameters: [
@@ -272,6 +272,20 @@ final class TaskController extends Controller
             'report_attachment'   => ['nullable', 'file', 'max:10240'], // Max 10MB
         ]);
 
+        $progress = (float) $validated['progress_percentage'];
+        $status   = $validated['status'];
+
+        // DONE adalah keputusan PM setelah review, bukan status yang bisa
+        // ditetapkan mahasiswa saat submit laporan.
+        if ($status === 'DONE' && $progress < 100) {
+            return $this->error('Status DONE hanya boleh jika progress mencapai 100%.', 422);
+        }
+
+        // Progress 100% berarti laporan siap direview, bukan otomatis selesai.
+        if ($progress >= 100) {
+            $status = 'TESTING';
+        }
+
         // Handle file upload
         $attachmentUrl = $task->report_attachment_url;
         if ($request->hasFile('report_attachment')) {
@@ -286,10 +300,11 @@ final class TaskController extends Controller
         $task->update([
             'achieved_summary'      => $validated['achieved_summary'],
             'blockers_summary'      => $validated['blockers_summary'] ?? null,
-            'progress_percentage'   => $validated['progress_percentage'],
-            'status'                => $validated['status'],
+            'progress_percentage'   => $progress,
+            'status'                => $status,
             'report_attachment_url' => $attachmentUrl,
             'pm_status'             => 'PENDING', // Reset setiap mahasiswa update
+            'pm_reviewed_at'        => null,      // Laporan baru belum direview
         ]);
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
@@ -343,16 +358,32 @@ final class TaskController extends Controller
 
         $task = Task::where('proposal_id', $proposal->id)->findOrFail($taskId);
 
+        if (! $task->hasSubmittedReport()) {
+            return $this->error('Task belum memiliki laporan progres yang bisa direview.', 422);
+        }
+
         $validated = $request->validate([
             'pm_notes'  => ['nullable', 'string'],
             'pm_status' => ['required', 'string', Rule::in(['APPROVED', 'NEEDS_IMPROVEMENT'])],
         ]);
 
-        $task->update([
+        $updateData = [
             'pm_notes'       => $validated['pm_notes'] ?? null,
             'pm_status'      => $validated['pm_status'],
             'pm_reviewed_at' => now(),
-        ]);
+        ];
+
+        // Rule: Progress 100% + PM APPROVED => status = DONE otomatis.
+        if ($validated['pm_status'] === 'APPROVED' && (float) $task->progress_percentage >= 100) {
+            $updateData['status'] = 'DONE';
+        }
+
+        // Rule: PM minta perbaikan (NEEDS_IMPROVEMENT) => task kembali ke IN_PROGRESS
+        if ($validated['pm_status'] === 'NEEDS_IMPROVEMENT') {
+            $updateData['status'] = 'IN_PROGRESS';
+        }
+
+        $task->update($updateData);
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
 
@@ -567,7 +598,7 @@ final class TaskController extends Controller
             'in_progress'        => $tasks->where('status', 'IN_PROGRESS')->count(),
             'testing'            => $tasks->where('status', 'TESTING')->count(),
             'done'               => $tasks->where('status', 'DONE')->count(),
-            'pending_review'     => $tasks->where('pm_status', 'PENDING')->count(),
+            'pending_review'     => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
             'approved'           => $tasks->where('pm_status', 'APPROVED')->count(),
             'needs_improvement'  => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
             'overall_progress'   => $tasks->count() > 0
