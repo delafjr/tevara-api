@@ -378,6 +378,11 @@ final class TaskController extends Controller
             $updateData['status'] = 'DONE';
         }
 
+        // Rule: PM minta perbaikan (NEEDS_IMPROVEMENT) => task kembali ke IN_PROGRESS
+        if ($validated['pm_status'] === 'NEEDS_IMPROVEMENT') {
+            $updateData['status'] = 'IN_PROGRESS';
+        }
+
         $task->update($updateData);
 
         $task->load(['projectTeam.user.studentProfile', 'category']);

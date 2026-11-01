@@ -546,7 +546,7 @@ class TaskTest extends TestCase
         ]);
     }
 
-    public function test_pm_needs_improvement_keeps_current_status(): void
+    public function test_pm_needs_improvement_moves_task_back_to_in_progress(): void
     {
         $task = Task::create([
             'proposal_id'         => $this->proposal->id,
@@ -566,12 +566,42 @@ class TaskTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonPath('data.status', 'TESTING')
+            ->assertJsonPath('data.status', 'IN_PROGRESS')
             ->assertJsonPath('data.pm_status', 'NEEDS_IMPROVEMENT');
 
         $this->assertDatabaseHas('tasks', [
             'id'        => $task->id,
-            'status'    => 'TESTING',
+            'status'    => 'IN_PROGRESS',
+            'pm_status' => 'NEEDS_IMPROVEMENT',
+        ]);
+    }
+
+    public function test_pm_needs_improvement_on_done_task_moves_it_back_to_in_progress(): void
+    {
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Sudah Done tapi Ditemukan Masalah',
+            'status'              => 'DONE',
+            'progress_percentage' => 100,
+            'achieved_summary'    => 'Selesai sebelumnya',
+            'pm_status'           => 'APPROVED',
+        ]);
+
+        Sanctum::actingAs($this->dosenPm);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/review", [
+            'pm_status' => 'NEEDS_IMPROVEMENT',
+            'pm_notes'  => 'Ada regresi fungsi, perbaiki segera.',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'IN_PROGRESS')
+            ->assertJsonPath('data.pm_status', 'NEEDS_IMPROVEMENT');
+
+        $this->assertDatabaseHas('tasks', [
+            'id'        => $task->id,
+            'status'    => 'IN_PROGRESS',
             'pm_status' => 'NEEDS_IMPROVEMENT',
         ]);
     }
