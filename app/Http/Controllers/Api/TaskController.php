@@ -265,11 +265,12 @@ final class TaskController extends Controller
         }
 
         $validated = $request->validate([
-            'achieved_summary'    => ['required', 'string'],
-            'blockers_summary'    => ['nullable', 'string'],
-            'progress_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
-            'status'              => ['required', 'string', Rule::in(['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'])],
-            'report_attachment'   => ['nullable', 'file', 'max:10240'], // Max 10MB
+            'achieved_summary'      => ['required', 'string'],
+            'blockers_summary'      => ['nullable', 'string'],
+            'progress_percentage'   => ['required', 'numeric', 'min:0', 'max:100'],
+            'status'                => ['required', 'string', Rule::in(['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'])],
+            'report_attachment'     => ['nullable'], // File atau string URL (GitHub, GitLab, dsb)
+            'report_attachment_url' => ['nullable', 'string', 'max:500'],
         ]);
 
         $progress = (float) $validated['progress_percentage'];
@@ -286,15 +287,19 @@ final class TaskController extends Controller
             $status = 'TESTING';
         }
 
-        // Handle file upload
+        // Handle attachment: file upload atau string URL (misal: GitHub repo/PR)
         $attachmentUrl = $task->report_attachment_url;
         if ($request->hasFile('report_attachment')) {
-            // Hapus file lama jika ada
-            if ($attachmentUrl && Storage::disk('public')->exists($attachmentUrl)) {
+            // Hapus file lama jika ada di storage lokal
+            if ($attachmentUrl && !str_starts_with($attachmentUrl, 'http') && Storage::disk('public')->exists($attachmentUrl)) {
                 Storage::disk('public')->delete($attachmentUrl);
             }
             $attachmentUrl = $request->file('report_attachment')
                 ->store('task-attachments/' . $proposal->id, 'public');
+        } elseif ($request->filled('report_attachment_url')) {
+            $attachmentUrl = $request->input('report_attachment_url');
+        } elseif (is_string($request->input('report_attachment')) && filled($request->input('report_attachment'))) {
+            $attachmentUrl = $request->input('report_attachment');
         }
 
         $task->update([
@@ -649,7 +654,7 @@ final class TaskController extends Controller
             'in_progress'       => $tasks->where('status', 'IN_PROGRESS')->count(),
             'testing'           => $tasks->where('status', 'TESTING')->count(),
             'done'              => $tasks->where('status', 'DONE')->count(),
-            'pending_review'    => $tasks->where('pm_status', 'PENDING')->count(),
+            'pending_review'    => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
             'approved'          => $tasks->where('pm_status', 'APPROVED')->count(),
             'needs_improvement' => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
             'overall_progress'  => $tasks->count() > 0
@@ -740,7 +745,9 @@ final class TaskController extends Controller
             'achieved_summary'      => $task->achieved_summary,
             'blockers_summary'      => $task->blockers_summary,
             'report_attachment_url' => $task->report_attachment_url
-                ? asset('storage/' . $task->report_attachment_url)
+                ? (str_starts_with($task->report_attachment_url, 'http://') || str_starts_with($task->report_attachment_url, 'https://')
+                    ? $task->report_attachment_url
+                    : asset('storage/' . $task->report_attachment_url))
                 : null,
             'pm_notes'              => $task->pm_notes,
             'pm_status'             => $task->pm_status,
