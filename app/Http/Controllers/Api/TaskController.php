@@ -649,7 +649,7 @@ final class TaskController extends Controller
             'in_progress'       => $tasks->where('status', 'IN_PROGRESS')->count(),
             'testing'           => $tasks->where('status', 'TESTING')->count(),
             'done'              => $tasks->where('status', 'DONE')->count(),
-            'pending_review'    => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
+            'pending_review'    => $tasks->where('pm_status', 'PENDING')->count(),
             'approved'          => $tasks->where('pm_status', 'APPROVED')->count(),
             'needs_improvement' => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
             'overall_progress'  => $tasks->count() > 0

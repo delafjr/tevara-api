@@ -63,6 +63,10 @@ class Proposal extends Model
         'total_amount'           => 'decimal:2',
     ];
 
+    protected $appends = [
+        'client_company_name',
+    ];
+
     // ── Relationships ──────────────────────────────────
 
     public function client()
