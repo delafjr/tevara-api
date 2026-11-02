@@ -77,6 +77,7 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
         new OA\Property(property: 'proposal_code', type: 'string', example: 'PRSL-2026-001'),
+        new OA\Property(property: 'project_code', type: 'string', nullable: true, example: 'PRJ-2026/001'),
         new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
         new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Inventaris'),
         new OA\Property(property: 'background', type: 'string', example: 'Latar belakang proyek...'),
@@ -328,6 +329,7 @@ class ProposalController extends Controller
     )]
     public function mine(Request $request)
     {
+<<<<<<< HEAD
         $user = $request->user();
         $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
 
@@ -346,11 +348,29 @@ class ProposalController extends Controller
         }
 
         $proposals = $query
+=======
+        $proposals = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'projectTeams.uatResults' => fn ($query) => $query
+                ->select('id', 'project_team_id', 'session_date', 'overall_result')
+                ->orderByDesc('session_date')
+                ->orderByDesc('id'),
+        ])
+            ->where('client_id', $request->user()->id)
+>>>>>>> 0076f90274ac44816eb5260f35f6f62faa33669a
             ->latest()
             ->get()
-            ->map(fn (Proposal $proposal) => [
+            ->map(function (Proposal $proposal) {
+                $latestUat = $proposal->projectTeams
+                    ->flatMap(fn ($team) => $team->uatResults)
+                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
+                    ->first();
+
+                return [
                 'id'                     => $proposal->id,
                 'proposal_code'          => $proposal->proposal_code,
+                'project_code'           => $proposal->project_code,
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
                 'status'                 => $proposal->status?->name,
@@ -360,7 +380,11 @@ class ProposalController extends Controller
                 'desired_deadline'       => $proposal->desired_deadline?->toDateString(),
                 'start_date'             => $proposal->start_date?->toDateString(),
                 'target_completion_date' => $proposal->target_completion_date?->toDateString(),
-            ]);
+                'latest_uat_result'      => $latestUat?->overall_result,
+                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && !$proposal->client_approved,
+                'client_approved'        => $proposal->client_approved,
+                ];
+            });
 
         return response()->json($proposals);
     }

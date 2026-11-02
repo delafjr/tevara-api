@@ -246,6 +246,7 @@ final class DashboardController extends Controller
         $proposalIds = $proposals->pluck('id');
 
         $waitingReview = Task::whereIn('proposal_id', $proposalIds)
+            ->withSubmittedReport()
             ->where(function ($q) {
                 $q->where('pm_status', 'PENDING')
                   ->orWhere('status', 'TESTING');
