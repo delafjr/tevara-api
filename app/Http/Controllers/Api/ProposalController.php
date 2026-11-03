@@ -77,6 +77,7 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
         new OA\Property(property: 'proposal_code', type: 'string', example: 'PRSL-2026-001'),
+        new OA\Property(property: 'project_code', type: 'string', nullable: true, example: 'PRJ-2026/001'),
         new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
         new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Inventaris'),
         new OA\Property(property: 'background', type: 'string', example: 'Latar belakang proyek...'),
@@ -230,6 +231,7 @@ class ProposalController extends Controller
         $proposal = Proposal::with([
             'status:id,name',
             'category:id,name',
+            'reviewer:id,name',
             'client.clientPic.clientProfile.user',
             'client.clientProfile.user',
             'modules:id,proposal_id,title,description',
@@ -245,11 +247,18 @@ class ProposalController extends Controller
             'title'            => $proposal->title,
             'background'       => $proposal->background,
             'target_audience'  => $proposal->target_audience,
+            'category_id'      => $proposal->category_id,
             'category_name'    => $proposal->category?->name,
             'status'           => $proposal->status?->name,
+            'status_id'        => $proposal->status_id,
             'desired_deadline' => $proposal->desired_deadline?->toDateString(),
             'estimated_budget' => $proposal->estimated_budget,
             'client_name'      => $proposal->client_company_name,
+            'review_notes'     => $proposal->review_notes,
+            'reviewer'         => $proposal->reviewer ? [
+                'id'   => $proposal->reviewer->id,
+                'name' => $proposal->reviewer->name,
+            ] : null,
             'pic'              => [
                 'name'  => $proposal->client?->name,
                 'email' => $proposal->client?->email,
@@ -320,13 +329,48 @@ class ProposalController extends Controller
     )]
     public function mine(Request $request)
     {
-        $proposals = Proposal::with(['status:id,name', 'category:id,name'])
+<<<<<<< HEAD
+        $user = $request->user();
+        $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+
+        $query = Proposal::with(['status:id,name', 'category:id,name']);
+
+        if ($clientProfile) {
+            $clientUserIds = $clientProfile->pics()
+                ->pluck('user_id')
+                ->push($clientProfile->user_id)
+                ->unique()
+                ->values();
+
+            $query->whereIn('client_id', $clientUserIds);
+        } else {
+            $query->where('client_id', $user->id);
+        }
+
+        $proposals = $query
+=======
+        $proposals = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'projectTeams.uatResults' => fn ($query) => $query
+                ->select('id', 'project_team_id', 'session_date', 'overall_result')
+                ->orderByDesc('session_date')
+                ->orderByDesc('id'),
+        ])
             ->where('client_id', $request->user()->id)
+>>>>>>> 0076f90274ac44816eb5260f35f6f62faa33669a
             ->latest()
             ->get()
-            ->map(fn (Proposal $proposal) => [
+            ->map(function (Proposal $proposal) {
+                $latestUat = $proposal->projectTeams
+                    ->flatMap(fn ($team) => $team->uatResults)
+                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
+                    ->first();
+
+                return [
                 'id'                     => $proposal->id,
                 'proposal_code'          => $proposal->proposal_code,
+                'project_code'           => $proposal->project_code,
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
                 'status'                 => $proposal->status?->name,
@@ -336,7 +380,11 @@ class ProposalController extends Controller
                 'desired_deadline'       => $proposal->desired_deadline?->toDateString(),
                 'start_date'             => $proposal->start_date?->toDateString(),
                 'target_completion_date' => $proposal->target_completion_date?->toDateString(),
-            ]);
+                'latest_uat_result'      => $latestUat?->overall_result,
+                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && !$proposal->client_approved,
+                'client_approved'        => $proposal->client_approved,
+                ];
+            });
 
         return response()->json($proposals);
     }
@@ -468,8 +516,17 @@ class ProposalController extends Controller
 
         $user = $request->user();
 
-        if ($user->hasRole('klien') && $proposal->client_id !== $user->id) {
-            abort(403, 'Unauthorized access to this proposal.');
+        if ($user->hasRole('klien')) {
+            $allowed = $proposal->client_id === $user->id;
+            if (! $allowed) {
+                $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+                if ($clientProfile) {
+                    $allowed = $clientProfile->pics()->pluck('user_id')->push($clientProfile->user_id)->contains($proposal->client_id);
+                }
+            }
+            if (! $allowed) {
+                abort(403, 'Unauthorized access to this proposal.');
+            }
         }
         if ($user->hasRole('dosen') && $proposal->pm_id !== $user->id) {
             abort(403, 'Unauthorized access to this proposal.');
@@ -540,7 +597,14 @@ class ProposalController extends Controller
         $user = $request->user();
 
         if ($user->hasRole('klien') || $user->hasRole('jurusan')) {
-            if ($proposal->client_id !== $user->id) {
+            $allowed = $proposal->client_id === $user->id;
+            if (! $allowed && $user->hasRole('klien')) {
+                $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+                if ($clientProfile) {
+                    $allowed = $clientProfile->pics()->pluck('user_id')->push($clientProfile->user_id)->contains($proposal->client_id);
+                }
+            }
+            if (! $allowed) {
                 return response()->json(['message' => 'Unauthorized access to this proposal.'], 403);
             }
         }

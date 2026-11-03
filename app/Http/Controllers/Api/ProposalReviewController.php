@@ -61,7 +61,7 @@ class ProposalReviewController extends Controller
     {
         $proposal = Proposal::findOrFail($id);
 
-        if (! in_array($proposal->status_id, [2, 3])) {
+        if (! in_array($proposal->status_id, [2, 3, 4])) {
             return response()->json([
                 'message' => 'Proposal tidak dalam status yang bisa di-review.',
             ], 422);
@@ -74,6 +74,12 @@ class ProposalReviewController extends Controller
             'estimated_cost'   => 'required_if:decision,approved|nullable|numeric',
             'review_notes'     => 'required_if:decision,revision_required|nullable|string',
         ]);
+
+        if ($proposal->status_id === 4 && in_array($validated['decision'], ['approved', 'rejected'])) {
+            return response()->json([
+                'message' => 'Proposal sedang menunggu revisi dari klien, keputusan hanya bisa berupa catatan revisi.',
+            ], 422);
+        }
 
         $statusMap = [
             'approved'          => 5,
