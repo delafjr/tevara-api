@@ -329,11 +329,17 @@ class ProposalController extends Controller
     )]
     public function mine(Request $request)
     {
-<<<<<<< HEAD
         $user = $request->user();
         $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
 
-        $query = Proposal::with(['status:id,name', 'category:id,name']);
+        $query = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'projectTeams.uatResults' => fn ($query) => $query
+                ->select('id', 'project_team_id', 'session_date', 'overall_result')
+                ->orderByDesc('session_date')
+                ->orderByDesc('id'),
+        ]);
 
         if ($clientProfile) {
             $clientUserIds = $clientProfile->pics()
@@ -348,17 +354,6 @@ class ProposalController extends Controller
         }
 
         $proposals = $query
-=======
-        $proposals = Proposal::with([
-            'status:id,name',
-            'category:id,name',
-            'projectTeams.uatResults' => fn ($query) => $query
-                ->select('id', 'project_team_id', 'session_date', 'overall_result')
-                ->orderByDesc('session_date')
-                ->orderByDesc('id'),
-        ])
-            ->where('client_id', $request->user()->id)
->>>>>>> 0076f90274ac44816eb5260f35f6f62faa33669a
             ->latest()
             ->get()
             ->map(function (Proposal $proposal) {
