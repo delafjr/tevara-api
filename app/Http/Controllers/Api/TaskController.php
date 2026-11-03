@@ -287,7 +287,7 @@ final class TaskController extends Controller
             $status = 'TESTING';
         }
 
-        // Handle attachment: file upload atau string URL (misal: GitHub repo/PR)
+        // Handle file upload
         $attachmentUrl = $task->report_attachment_url;
         if ($request->hasFile('report_attachment')) {
             // Hapus file lama jika ada di storage lokal
