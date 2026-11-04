@@ -29,7 +29,7 @@ class UserSeeder extends Seeder
         // JURUSAN
         // ──────────────────────────────────────────
         $jurusan = User::firstOrCreate(
-            ['email' => 'jurusan.ti@polines.ac.id'],
+            ['email' => ''jurusan.ti@polines.ac.id],
             [
                 'name'         => 'Jurusan Teknik Informatika',
                 'password'     => Hash::make('password'),
