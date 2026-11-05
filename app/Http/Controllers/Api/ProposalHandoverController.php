@@ -15,11 +15,80 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
-#[OA\Tag(name: 'F-07: BAST', description: 'Berita Acara Serah Terima dan persetujuan klien setelah UAT PASSED')]
 final class ProposalHandoverController extends Controller
 {
     use ApiResponse;
 
+    #[OA\Get(
+        path: '/proposals/{id}/handover',
+        summary: 'Detail BAST proyek (Klien)',
+        description: 'Melihat rincian BAST dan status kelayakan serah terima berdasarkan hasil UAT terakhir (eligible_for_handover = true jika UAT PASSED). Hanya klien pemilik proposal yang dapat mengakses.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-07: BAST'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Detail BAST proyek',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Detail BAST proyek'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'proposal', ref: '#/components/schemas/Proposal'),
+                                new OA\Property(
+                                    property: 'latest_uat',
+                                    type: 'object',
+                                    nullable: true,
+                                    properties: [
+                                        new OA\Property(property: 'id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'proposal_id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'session_date', type: 'string', format: 'date', example: '2026-11-04'),
+                                        new OA\Property(property: 'overall_result', type: 'string', enum: ['PASSED', 'FAILED', 'PARTIAL'], example: 'PASSED'),
+                                        new OA\Property(property: 'client_signoff_name', type: 'string', example: 'Budi Santoso'),
+                                        new OA\Property(property: 'signed_off_at', type: 'string', format: 'date-time', example: '2026-11-04T10:00:00Z'),
+                                    ]
+                                ),
+                                new OA\Property(property: 'eligible_for_handover', type: 'boolean', example: true),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Bukan klien pemilik proposal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Akses ditolak: Anda bukan klien pemilik proyek ini.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Proposal tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model [App\\Models\\Proposal] 999'),
+                    ]
+                )
+            ),
+        ]
+    )]
     public function show(Request $request, int|string $id): JsonResponse
     {
         $proposal = Proposal::with(['status', 'maintenance'])->findOrFail($id);
@@ -62,11 +131,74 @@ final class ProposalHandoverController extends Controller
             )
         ),
         responses: [
-            new OA\Response(response: 200, description: 'BAST berhasil disetujui'),
-            new OA\Response(response: 403, description: 'Bukan klien pemilik proposal'),
-            new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),
-            new OA\Response(response: 409, description: 'BAST telah disetujui'),
-            new OA\Response(response: 422, description: 'UAT belum PASSED atau validasi gagal'),
+            new OA\Response(
+                response: 200,
+                description: 'BAST berhasil disetujui',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'BAST berhasil disetujui'),
+                        new OA\Property(property: 'data', ref: '#/components/schemas/Proposal'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Bukan klien pemilik proposal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Akses ditolak: Anda bukan klien pemilik proyek ini.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Proposal tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model [App\\Models\\Proposal] 999'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: 'BAST telah disetujui',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'BAST proyek ini sudah disetujui.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'UAT belum PASSED atau validasi gagal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED.'),
+                        new OA\Property(
+                            property: 'errors',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(
+                                    property: 'uat',
+                                    type: 'array',
+                                    items: new OA\Items(type: 'string', example: 'BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED.')
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
         ]
     )]
     public function store(Request $request, int|string $id): JsonResponse

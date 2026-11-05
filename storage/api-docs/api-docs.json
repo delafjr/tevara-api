@@ -18,7 +18,7 @@
         "/categories": {
             "get": {
                 "tags": [
-                    "Categories"
+                    "Master Data"
                 ],
                 "summary": "List semua kategori proposal",
                 "description": "Mengambil seluruh kategori proposal. Endpoint publik, tidak memerlukan autentikasi.",
@@ -240,6 +240,701 @@
                                                 },
                                                 "type": "object"
                                             }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/payments": {
+            "post": {
+                "tags": [
+                    "F-09: Pembayaran"
+                ],
+                "summary": "Buat record termin pembayaran (Dosen PM / Pengurus TeFa)",
+                "description": "Membuat jadwal termin pembayaran baru untuk proyek. Status awal selalu PENDING. Nomor urut termin (term_sequence) harus unik per proposal.",
+                "operationId": "980f3e63204527f1b84c6c97c912d178",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "term_sequence",
+                                    "amount"
+                                ],
+                                "properties": {
+                                    "term_sequence": {
+                                        "description": "Urutan termin (1, 2, dst)",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "amount": {
+                                        "description": "Nominal pembayaran",
+                                        "type": "number",
+                                        "format": "double",
+                                        "example": 7500000
+                                    },
+                                    "due_date": {
+                                        "description": "Batas akhir pembayaran",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-12-01",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Termin pembayaran berhasil dibuat",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Termin pembayaran berhasil dibuat."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "proposal_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "term_sequence": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "amount": {
+                                                    "type": "number",
+                                                    "example": 7500000
+                                                },
+                                                "due_date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-12-01"
+                                                },
+                                                "payment_date": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "payment_method": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "transfer_reference": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "proof_url": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "PENDING"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Akses ditolak (bukan dosen/PM/pengurus)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Hanya Dosen/PM yang dapat membuat termin pembayaran."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\Models\\Proposal] 999"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validasi gagal (termin sudah ada / field salah)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The term sequence has already been taken."
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "term_sequence": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "The term sequence has already been taken."
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/payments/{paymentId}/proof": {
+            "patch": {
+                "tags": [
+                    "F-09: Pembayaran"
+                ],
+                "summary": "Upload bukti transfer (Klien)",
+                "description": "Mengunggah file bukti transfer untuk termin pembayaran tertentu. Hanya klien pemilik proposal yang dapat mengunggah dan hanya dapat dilakukan saat payment berstatus PENDING atau REJECTED.",
+                "operationId": "29799f6d6e32e639b47cca810bb9ffb5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "description": "ID Payment",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "payment_date",
+                                    "payment_method",
+                                    "proof"
+                                ],
+                                "properties": {
+                                    "payment_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-11-04"
+                                    },
+                                    "payment_method": {
+                                        "type": "string",
+                                        "example": "BANK_TRANSFER",
+                                        "enum": [
+                                            "BANK_TRANSFER",
+                                            "VIRTUAL_ACCOUNT",
+                                            "CASH",
+                                            "OTHER"
+                                        ]
+                                    },
+                                    "transfer_reference": {
+                                        "type": "string",
+                                        "example": "TRX-123456789",
+                                        "nullable": true
+                                    },
+                                    "proof": {
+                                        "description": "File bukti pembayaran (JPG, PNG, PDF, max 5MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Bukti transfer berhasil diupload",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Bukti pembayaran berhasil diupload."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Akses ditolak (bukan klien pemilik)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Anda bukan klien dari proyek ini."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Proposal atau Payment tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Data termin pembayaran tidak ditemukan."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Status pembayaran tidak valid atau validasi form gagal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Bukti hanya dapat diupload untuk pembayaran berstatus PENDING atau REJECTED."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/payments/{paymentId}/verify": {
+            "patch": {
+                "tags": [
+                    "F-09: Pembayaran"
+                ],
+                "summary": "Verifikasi bukti bayar (Dosen PM / Pengurus TeFa)",
+                "description": "Memverifikasi atau menolak bukti pembayaran termin. Otomatis merekam verified_by dan verified_at=now().",
+                "operationId": "df51ca9f7e5e3b4df1803659bb9a42bc",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "description": "ID Payment",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status"
+                                ],
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "example": "VERIFIED",
+                                        "enum": [
+                                            "VERIFIED",
+                                            "REJECTED"
+                                        ]
+                                    },
+                                    "verification_notes": {
+                                        "type": "string",
+                                        "example": "Pembayaran telah dicek di mutasi rekening.",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Verifikasi berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Verifikasi pembayaran berhasil."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Akses ditolak (bukan dosen/PM/pengurus)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Hanya Dosen/PM yang dapat memverifikasi pembayaran."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Payment tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Data termin pembayaran tidak ditemukan."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Tidak ada bukti atau validasi gagal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Bukti pembayaran belum diupload oleh klien."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/payments/pending": {
+            "get": {
+                "tags": [
+                    "F-09: Pembayaran"
+                ],
+                "summary": "List semua pembayaran yang butuh verifikasi (Dosen PM / Pengurus TeFa)",
+                "description": "Mengambil daftar pembayaran dengan status PENDING yang telah diunggah bukti pembayarannya oleh klien, dilengkapi data relasi proposal dan klien.",
+                "operationId": "8162b6e6f2a822e44d5c673e5c481593",
+                "responses": {
+                    "200": {
+                        "description": "Daftar pembayaran pending",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Daftar pembayaran yang menunggu verifikasi"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "proposal_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "term_sequence": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "amount": {
+                                                        "type": "number",
+                                                        "example": 7500000
+                                                    },
+                                                    "due_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2026-12-01"
+                                                    },
+                                                    "payment_date": {
+                                                        "type": "string",
+                                                        "format": "date",
+                                                        "example": "2026-11-04"
+                                                    },
+                                                    "payment_method": {
+                                                        "type": "string",
+                                                        "example": "BANK_TRANSFER"
+                                                    },
+                                                    "transfer_reference": {
+                                                        "type": "string",
+                                                        "example": "TRX-123456"
+                                                    },
+                                                    "proof_url": {
+                                                        "type": "string",
+                                                        "example": "http://localhost:8000/storage/payments/proofs/abc.jpg"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "example": "PENDING"
+                                                    },
+                                                    "proposal": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "title": {
+                                                                "type": "string",
+                                                                "example": "Sistem Informasi Manajemen Teaching Factory"
+                                                            },
+                                                            "proposal_code": {
+                                                                "type": "string",
+                                                                "example": "PRSL-2025-001"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Akses ditolak",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Akses ditolak."
                                         }
                                     },
                                     "type": "object"
@@ -877,6 +1572,462 @@
                     },
                     "404": {
                         "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "F-01: Pengajuan Proposal"
+                ],
+                "summary": "Update / kirim revisi proposal (Klien)",
+                "description": "Memperbarui data proposal yang diminta revisi oleh pengurus TEFA. Hanya bisa dilakukan jika proposal berstatus Revision Required (4) atau Draft (1). Setelah diupdate, status otomatis kembali menjadi Submitted (2) agar dicek kembali oleh pengurus TEFA.",
+                "operationId": "dad2d3f93fadedf6bfc79c98ef245f08",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "background",
+                                    "category_id",
+                                    "desired_deadline"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "background": {
+                                        "description": "Minimal 100 karakter",
+                                        "type": "string"
+                                    },
+                                    "target_audience": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "type": "integer"
+                                    },
+                                    "desired_deadline": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "estimated_budget": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "modules": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "title"
+                                            ],
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Revisi proposal berhasil disimpan dan disubmit ke pengurus TEFA"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "description": "Proposal tidak dalam status revisi / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/handover": {
+            "get": {
+                "tags": [
+                    "F-07: BAST"
+                ],
+                "summary": "Detail BAST proyek (Klien)",
+                "description": "Melihat rincian BAST dan status kelayakan serah terima berdasarkan hasil UAT terakhir (eligible_for_handover = true jika UAT PASSED). Hanya klien pemilik proposal yang dapat mengakses.",
+                "operationId": "f7b6d373155b7aa055dd79877b196644",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail BAST proyek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Detail BAST proyek"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "proposal": {
+                                                    "$ref": "#/components/schemas/Proposal"
+                                                },
+                                                "latest_uat": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "proposal_id": {
+                                                            "type": "integer",
+                                                            "example": 1
+                                                        },
+                                                        "session_date": {
+                                                            "type": "string",
+                                                            "format": "date",
+                                                            "example": "2026-11-04"
+                                                        },
+                                                        "overall_result": {
+                                                            "type": "string",
+                                                            "example": "PASSED",
+                                                            "enum": [
+                                                                "PASSED",
+                                                                "FAILED",
+                                                                "PARTIAL"
+                                                            ]
+                                                        },
+                                                        "client_signoff_name": {
+                                                            "type": "string",
+                                                            "example": "Budi Santoso"
+                                                        },
+                                                        "signed_off_at": {
+                                                            "type": "string",
+                                                            "format": "date-time",
+                                                            "example": "2026-11-04T10:00:00Z"
+                                                        }
+                                                    },
+                                                    "type": "object",
+                                                    "nullable": true
+                                                },
+                                                "eligible_for_handover": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Bukan klien pemilik proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Akses ditolak: Anda bukan klien pemilik proyek ini."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\Models\\Proposal] 999"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-07: BAST"
+                ],
+                "summary": "Setujui dan simpan BAST oleh klien",
+                "description": "Hanya klien pemilik proposal yang dapat menyetujui BAST setelah hasil UAT terakhir PASSED. Nomor BAST dibuat otomatis dan status proposal menjadi Handover.",
+                "operationId": "ebb6756f06ab99673d771424dcaa330d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "handover_date",
+                                    "repository_url",
+                                    "documentation_url",
+                                    "user_manual_url",
+                                    "client_signoff_name",
+                                    "client_approved",
+                                    "maintenance_warranty_months",
+                                    "maintenance_start_date",
+                                    "maintenance_end_date"
+                                ],
+                                "properties": {
+                                    "handover_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "repository_url": {
+                                        "type": "string",
+                                        "format": "uri"
+                                    },
+                                    "documentation_url": {
+                                        "type": "string",
+                                        "format": "uri"
+                                    },
+                                    "user_manual_url": {
+                                        "type": "string",
+                                        "format": "uri"
+                                    },
+                                    "handover_notes": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "client_signoff_name": {
+                                        "type": "string"
+                                    },
+                                    "client_approved": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "maintenance_warranty_months": {
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "maintenance_start_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "maintenance_end_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "maintenance_notes": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "BAST berhasil disetujui",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "BAST berhasil disetujui"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Proposal"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Bukan klien pemilik proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Akses ditolak: Anda bukan klien pemilik proyek ini."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\Models\\Proposal] 999"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "BAST telah disetujui",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "BAST proyek ini sudah disetujui."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "UAT belum PASSED atau validasi gagal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED."
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "uat": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED."
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -1788,7 +2939,7 @@
                     "F-05: Tasks & Progress"
                 ],
                 "summary": "Submit progress report (Mahasiswa)",
-                "description": "Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update.",
+                "description": "Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update. Progress 100% otomatis menjadi TESTING (menunggu review PM); status DONE tidak bisa ditetapkan mahasiswa.",
                 "operationId": "53101df59bc7b26a0bc09cfe53d664c7",
                 "parameters": [
                     {
@@ -2008,6 +3159,905 @@
                     },
                     "404": {
                         "description": "Proposal tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/uat": {
+            "get": {
+                "tags": [
+                    "F-06: UAT"
+                ],
+                "summary": "Detail UAT proyek + semua item",
+                "description": "Mengambil data UAT result beserta seluruh test scenario/item. Dapat diakses oleh Klien pemilik, Dosen PM, dan Pengurus TeFa. Jika belum ada UAT, mengembalikan 404.",
+                "operationId": "819dbac6e7796f8f0a5a76f35947358e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Data UAT proyek",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Data UAT proyek"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "proposal_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "session_date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2026-11-04"
+                                                },
+                                                "overall_result": {
+                                                    "type": "string",
+                                                    "example": "PASSED",
+                                                    "enum": [
+                                                        "PASSED",
+                                                        "FAILED",
+                                                        "PARTIAL"
+                                                    ]
+                                                },
+                                                "client_notes": {
+                                                    "type": "string",
+                                                    "example": "Semua fungsi utama berjalan dengan baik.",
+                                                    "nullable": true
+                                                },
+                                                "client_signoff_name": {
+                                                    "type": "string",
+                                                    "example": "Budi Santoso",
+                                                    "nullable": true
+                                                },
+                                                "signed_off_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-11-04T10:00:00Z",
+                                                    "nullable": true
+                                                },
+                                                "uat_items": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "uat_result_id": {
+                                                                "type": "integer",
+                                                                "example": 1
+                                                            },
+                                                            "feature_name": {
+                                                                "type": "string",
+                                                                "example": "Login & Autentikasi"
+                                                            },
+                                                            "test_scenario": {
+                                                                "type": "string",
+                                                                "example": "Login dengan kredensial valid dan invalid",
+                                                                "nullable": true
+                                                            },
+                                                            "result": {
+                                                                "type": "string",
+                                                                "example": "PASSED",
+                                                                "enum": [
+                                                                    "PASSED",
+                                                                    "FAILED",
+                                                                    "BUG_FOUND"
+                                                                ]
+                                                            },
+                                                            "bug_severity": {
+                                                                "type": "string",
+                                                                "nullable": true,
+                                                                "enum": [
+                                                                    "MINOR",
+                                                                    "MAJOR",
+                                                                    "CRITICAL"
+                                                                ]
+                                                            },
+                                                            "bug_description": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "client_feedback": {
+                                                                "type": "string",
+                                                                "example": "UI login responsif dan jelas",
+                                                                "nullable": true
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Akses ditolak",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Akses ditolak."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Proposal atau UAT tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "UAT belum tersedia untuk proyek ini."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "F-06: UAT"
+                ],
+                "summary": "Update UAT (revisi item)",
+                "description": "Memperbarui hasil UAT dan mengganti seluruh item pengujian (replace dalam satu transaksi). Hanya bisa dilakukan jika UAT belum di-sign-off klien.",
+                "operationId": "f0f5f4062ca2118b7940e1de324d71d4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "session_date",
+                                    "overall_result",
+                                    "items"
+                                ],
+                                "properties": {
+                                    "session_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-11-04"
+                                    },
+                                    "overall_result": {
+                                        "type": "string",
+                                        "example": "PASSED",
+                                        "enum": [
+                                            "PASSED",
+                                            "FAILED",
+                                            "PARTIAL"
+                                        ]
+                                    },
+                                    "client_notes": {
+                                        "type": "string",
+                                        "example": "Revisi minor bug sudah selesai diuji.",
+                                        "nullable": true
+                                    },
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "feature_name",
+                                                "result"
+                                            ],
+                                            "properties": {
+                                                "feature_name": {
+                                                    "type": "string",
+                                                    "example": "Manajemen Proposal"
+                                                },
+                                                "test_scenario": {
+                                                    "type": "string",
+                                                    "example": "Pengajuan proposal dengan lampiran dokumen",
+                                                    "nullable": true
+                                                },
+                                                "result": {
+                                                    "type": "string",
+                                                    "example": "PASSED",
+                                                    "enum": [
+                                                        "PASSED",
+                                                        "FAILED",
+                                                        "BUG_FOUND"
+                                                    ]
+                                                },
+                                                "bug_severity": {
+                                                    "type": "string",
+                                                    "nullable": true,
+                                                    "enum": [
+                                                        "MINOR",
+                                                        "MAJOR",
+                                                        "CRITICAL"
+                                                    ]
+                                                },
+                                                "bug_description": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "client_feedback": {
+                                                    "type": "string",
+                                                    "example": "Semua lulus uji coba",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "UAT berhasil diperbarui",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "UAT berhasil diperbarui"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Akses ditolak",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Hanya Dosen/PM yang dapat mengelola UAT."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "UAT tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "UAT tidak ditemukan untuk proyek ini."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "UAT sudah di-sign-off oleh klien",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "UAT sudah di-sign-off oleh klien dan tidak dapat diubah."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validasi input gagal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The overall result field is required."
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-06: UAT"
+                ],
+                "summary": "Buat sesi UAT + item sekaligus (Dosen PM / Pengurus TeFa)",
+                "description": "Proposal harus berstatus Testing (id=8). Relasi one-to-one: satu proposal satu hasil UAT. Simpan header sesi dan item-item pengujian dalam satu transaksi DB.",
+                "operationId": "46ab6b17de05c921666d3405ff1642c7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "session_date",
+                                    "overall_result",
+                                    "items"
+                                ],
+                                "properties": {
+                                    "session_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-11-04"
+                                    },
+                                    "overall_result": {
+                                        "type": "string",
+                                        "example": "PASSED",
+                                        "enum": [
+                                            "PASSED",
+                                            "FAILED",
+                                            "PARTIAL"
+                                        ]
+                                    },
+                                    "client_notes": {
+                                        "type": "string",
+                                        "example": "Pengujian modul utama telah selesai.",
+                                        "nullable": true
+                                    },
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "feature_name",
+                                                "result"
+                                            ],
+                                            "properties": {
+                                                "feature_name": {
+                                                    "type": "string",
+                                                    "example": "Manajemen Proposal"
+                                                },
+                                                "test_scenario": {
+                                                    "type": "string",
+                                                    "example": "Pengajuan proposal dengan lampiran dokumen",
+                                                    "nullable": true
+                                                },
+                                                "result": {
+                                                    "type": "string",
+                                                    "example": "PASSED",
+                                                    "enum": [
+                                                        "PASSED",
+                                                        "FAILED",
+                                                        "BUG_FOUND"
+                                                    ]
+                                                },
+                                                "bug_severity": {
+                                                    "type": "string",
+                                                    "nullable": true,
+                                                    "enum": [
+                                                        "MINOR",
+                                                        "MAJOR",
+                                                        "CRITICAL"
+                                                    ]
+                                                },
+                                                "bug_description": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "client_feedback": {
+                                                    "type": "string",
+                                                    "example": "Fitur sesuai kebutuhan",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "UAT berhasil dibuat",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "UAT berhasil dibuat"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Akses ditolak (bukan dosen/PM/pengurus)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Hanya Dosen/PM yang dapat mengelola UAT."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "UAT sudah ada",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "UAT untuk proyek ini sudah ada. Gunakan endpoint PUT untuk memperbarui."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validasi gagal atau status proposal bukan Testing",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Proposal harus berstatus Testing untuk membuat UAT."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/uat/signoff": {
+            "patch": {
+                "tags": [
+                    "F-06: UAT"
+                ],
+                "summary": "Sign-off UAT oleh klien",
+                "description": "Menandatangani persetujuan UAT oleh klien. Otomatis mengisi signed_off_at=now(). Jika overall_result=PASSED, status proposal otomatis beralih ke Handover (id=9).",
+                "operationId": "9cbc5aa335462fa0710183ffa88ba913",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "client_signoff_name"
+                                ],
+                                "properties": {
+                                    "client_signoff_name": {
+                                        "type": "string",
+                                        "example": "Budi Santoso"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Sign-off berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Sign-off UAT berhasil."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Bukan klien pemilik proposal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Anda bukan klien dari proyek ini."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "UAT tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "UAT tidak ditemukan untuk proyek ini."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "UAT sudah di-sign-off sebelumnya",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "UAT sudah di-sign-off sebelumnya."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validasi gagal",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "The client signoff name field is required."
+                                        },
+                                        "errors": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/status/testing": {
+            "patch": {
+                "tags": [
+                    "F-06: UAT"
+                ],
+                "summary": "Tandai proyek masuk fase Testing (Dosen PM / Pengurus TeFa)",
+                "description": "Mengubah status proposal menjadi Testing (id=8) agar sesi UAT dapat dibuat.",
+                "operationId": "b8911513cbbef66c1e34f5998577c5be",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Status berhasil diperbarui ke Testing",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Status proyek berhasil diperbarui ke Testing."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "status_id": {
+                                                    "type": "integer",
+                                                    "example": 8
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Akses ditolak",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Hanya Dosen/PM yang dapat mengelola UAT."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\Models\\Proposal] 999"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -3666,6 +5716,11 @@
                         "type": "string",
                         "example": "PRSL-2026-001"
                     },
+                    "project_code": {
+                        "type": "string",
+                        "example": "PRJ-2026/001",
+                        "nullable": true
+                    },
                     "client_name": {
                         "type": "string",
                         "example": "PT. Maju Bersama Sentosa"
@@ -3816,6 +5871,16 @@
                         "example": "6288228893279",
                         "nullable": true
                     },
+                    "company_name": {
+                        "type": "string",
+                        "example": "PT. Maju Bersama Sentosa",
+                        "nullable": true
+                    },
+                    "position": {
+                        "type": "string",
+                        "example": "IT Manager",
+                        "nullable": true
+                    },
                     "roles": {
                         "type": "array",
                         "items": {
@@ -3849,10 +5914,6 @@
     },
     "tags": [
         {
-            "name": "F-05: Tasks & Progress",
-            "description": "Manajemen task + laporan sprint oleh mahasiswa, review oleh dosen PM"
-        },
-        {
             "name": "Auth",
             "description": "Autentikasi (Register, Login, Logout, Profile)"
         },
@@ -3863,6 +5924,10 @@
         {
             "name": "Dashboard",
             "description": "Dashboard per Role"
+        },
+        {
+            "name": "Master Data",
+            "description": "Data master kategori proposal, status, role tim proyek, dan kategori task"
         },
         {
             "name": "F-01: Pengajuan Proposal",
@@ -3881,12 +5946,20 @@
             "description": "Penugasan dan manajemen tim mahasiswa proyek"
         },
         {
-            "name": "Master Data",
-            "description": "Data master kategori, status, role tim proyek, dan kategori task"
+            "name": "F-05: Tasks & Progress",
+            "description": "Manajemen task dan laporan progres sprint oleh mahasiswa, review oleh dosen PM"
         },
         {
-            "name": "Categories",
-            "description": "Categories"
+            "name": "F-06: UAT",
+            "description": "User Acceptance Testing — buat sesi, isi item, sign-off klien"
+        },
+        {
+            "name": "F-07: BAST",
+            "description": "Berita Acara Serah Terima dan persetujuan klien setelah UAT PASSED"
+        },
+        {
+            "name": "F-09: Pembayaran",
+            "description": "Catat termin pembayaran, upload bukti transfer oleh klien, verifikasi oleh dosen/PM"
         }
     ]
 }

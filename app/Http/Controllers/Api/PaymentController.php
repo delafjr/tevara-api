@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
-#[OA\Tag(name: 'F-09: Pembayaran', description: 'Catat termin, upload bukti (klien), verifikasi (dosen/pm)')]
 final class PaymentController extends Controller
 {
     use ApiResponse;
@@ -24,17 +23,99 @@ final class PaymentController extends Controller
     // ──────────────────────────────────────────────────────
     #[OA\Post(
         path: '/proposals/{id}/payments',
-        summary: 'Buat record termin pembayaran',
-        description: 'Status awal: PENDING. Dibuat oleh Dosen/PM sebelum klien upload bukti.',
+        summary: 'Buat record termin pembayaran (Dosen PM / Pengurus TeFa)',
+        description: 'Membuat jadwal termin pembayaran baru untuk proyek. Status awal selalu PENDING. Nomor urut termin (term_sequence) harus unik per proposal.',
         security: [['bearerAuth' => []]],
         tags: ['F-09: Pembayaran'],
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['term_sequence', 'amount'],
+                properties: [
+                    new OA\Property(property: 'term_sequence', type: 'integer', example: 1, description: 'Urutan termin (1, 2, dst)'),
+                    new OA\Property(property: 'amount', type: 'number', format: 'double', example: 7500000, description: 'Nominal pembayaran'),
+                    new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true, example: '2026-12-01', description: 'Batas akhir pembayaran'),
+                ]
+            )
+        ),
         responses: [
-            new OA\Response(response: 201, description: 'Termin pembayaran berhasil dibuat'),
-            new OA\Response(response: 409, description: 'Nomor termin sudah ada'),
-            new OA\Response(response: 422, description: 'Validasi gagal'),
+            new OA\Response(
+                response: 201,
+                description: 'Termin pembayaran berhasil dibuat',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Termin pembayaran berhasil dibuat.'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                new OA\Property(property: 'proposal_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'term_sequence', type: 'integer', example: 1),
+                                new OA\Property(property: 'amount', type: 'number', example: 7500000),
+                                new OA\Property(property: 'due_date', type: 'string', format: 'date', example: '2026-12-01'),
+                                new OA\Property(property: 'payment_date', type: 'string', nullable: true),
+                                new OA\Property(property: 'payment_method', type: 'string', nullable: true),
+                                new OA\Property(property: 'transfer_reference', type: 'string', nullable: true),
+                                new OA\Property(property: 'proof_url', type: 'string', nullable: true),
+                                new OA\Property(property: 'status', type: 'string', example: 'PENDING'),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Akses ditolak (bukan dosen/PM/pengurus)',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Dosen/PM yang dapat membuat termin pembayaran.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Proposal tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model [App\\Models\\Proposal] 999'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validasi gagal (termin sudah ada / field salah)',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'The term sequence has already been taken.'),
+                        new OA\Property(
+                            property: 'errors',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(
+                                    property: 'term_sequence',
+                                    type: 'array',
+                                    items: new OA\Items(type: 'string', example: 'The term sequence has already been taken.')
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
         ]
     )]
     public function store(Request $request, int|string $id): JsonResponse
@@ -73,19 +154,80 @@ final class PaymentController extends Controller
     // ──────────────────────────────────────────────────────
     #[OA\Patch(
         path: '/proposals/{id}/payments/{paymentId}/proof',
-        summary: 'Upload bukti transfer (klien)',
-        description: 'Klien hanya bisa upload ke payment milik proposalnya sendiri. Hanya bisa upload jika status PENDING atau REJECTED.',
+        summary: 'Upload bukti transfer (Klien)',
+        description: 'Mengunggah file bukti transfer untuk termin pembayaran tertentu. Hanya klien pemilik proposal yang dapat mengunggah dan hanya dapat dilakukan saat payment berstatus PENDING atau REJECTED.',
         security: [['bearerAuth' => []]],
         tags: ['F-09: Pembayaran'],
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'paymentId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+            new OA\Parameter(name: 'paymentId', in: 'path', required: true, description: 'ID Payment', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['payment_date', 'payment_method', 'proof'],
+                    properties: [
+                        new OA\Property(property: 'payment_date', type: 'string', format: 'date', example: '2026-11-04'),
+                        new OA\Property(property: 'payment_method', type: 'string', enum: ['BANK_TRANSFER', 'VIRTUAL_ACCOUNT', 'CASH', 'OTHER'], example: 'BANK_TRANSFER'),
+                        new OA\Property(property: 'transfer_reference', type: 'string', nullable: true, example: 'TRX-123456789'),
+                        new OA\Property(property: 'proof', type: 'string', format: 'binary', description: 'File bukti pembayaran (JPG, PNG, PDF, max 5MB)'),
+                    ]
+                )
+            )
+        ),
         responses: [
-            new OA\Response(response: 200, description: 'Bukti transfer berhasil diupload'),
-            new OA\Response(response: 403, description: 'Akses ditolak'),
-            new OA\Response(response: 404, description: 'Payment tidak ditemukan'),
-            new OA\Response(response: 422, description: 'Status tidak valid atau validasi gagal'),
+            new OA\Response(
+                response: 200,
+                description: 'Bukti transfer berhasil diupload',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Bukti pembayaran berhasil diupload.'),
+                        new OA\Property(property: 'data', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Akses ditolak (bukan klien pemilik)',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Anda bukan klien dari proyek ini.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Proposal atau Payment tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Data termin pembayaran tidak ditemukan.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Status pembayaran tidak valid atau validasi form gagal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Bukti hanya dapat diupload untuk pembayaran berstatus PENDING atau REJECTED.'),
+                    ]
+                )
+            ),
         ]
     )]
     public function uploadProof(Request $request, int|string $id, int|string $paymentId): JsonResponse
@@ -150,19 +292,75 @@ final class PaymentController extends Controller
     // ──────────────────────────────────────────────────────
     #[OA\Patch(
         path: '/proposals/{id}/payments/{paymentId}/verify',
-        summary: 'Verifikasi bukti bayar (dosen/pm)',
-        description: 'Auto-set verified_by=auth()->id(), verified_at=now().',
+        summary: 'Verifikasi bukti bayar (Dosen PM / Pengurus TeFa)',
+        description: 'Memverifikasi atau menolak bukti pembayaran termin. Otomatis merekam verified_by dan verified_at=now().',
         security: [['bearerAuth' => []]],
         tags: ['F-09: Pembayaran'],
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'paymentId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+            new OA\Parameter(name: 'paymentId', in: 'path', required: true, description: 'ID Payment', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['status'],
+                properties: [
+                    new OA\Property(property: 'status', type: 'string', enum: ['VERIFIED', 'REJECTED'], example: 'VERIFIED'),
+                    new OA\Property(property: 'verification_notes', type: 'string', nullable: true, example: 'Pembayaran telah dicek di mutasi rekening.'),
+                ]
+            )
+        ),
         responses: [
-            new OA\Response(response: 200, description: 'Verifikasi berhasil'),
-            new OA\Response(response: 403, description: 'Akses ditolak'),
-            new OA\Response(response: 404, description: 'Payment tidak ditemukan'),
-            new OA\Response(response: 422, description: 'Tidak ada bukti untuk diverifikasi'),
+            new OA\Response(
+                response: 200,
+                description: 'Verifikasi berhasil',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Verifikasi pembayaran berhasil.'),
+                        new OA\Property(property: 'data', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Akses ditolak (bukan dosen/PM/pengurus)',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Dosen/PM yang dapat memverifikasi pembayaran.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Payment tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Data termin pembayaran tidak ditemukan.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Tidak ada bukti atau validasi gagal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Bukti pembayaran belum diupload oleh klien.'),
+                    ]
+                )
+            ),
         ]
     )]
     public function verify(Request $request, int|string $id, int|string $paymentId): JsonResponse
@@ -208,13 +406,67 @@ final class PaymentController extends Controller
     // ──────────────────────────────────────────────────────
     #[OA\Get(
         path: '/payments/pending',
-        summary: 'List semua pembayaran yang butuh verifikasi',
-        description: 'Return semua payments dengan status=PENDING yang sudah ada proof_url-nya, dengan relasi ke proposal dan client.',
+        summary: 'List semua pembayaran yang butuh verifikasi (Dosen PM / Pengurus TeFa)',
+        description: 'Mengambil daftar pembayaran dengan status PENDING yang telah diunggah bukti pembayarannya oleh klien, dilengkapi data relasi proposal dan klien.',
         security: [['bearerAuth' => []]],
         tags: ['F-09: Pembayaran'],
         responses: [
-            new OA\Response(response: 200, description: 'Daftar pembayaran pending'),
-            new OA\Response(response: 403, description: 'Akses ditolak'),
+            new OA\Response(
+                response: 200,
+                description: 'Daftar pembayaran pending',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Daftar pembayaran yang menunggu verifikasi'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'array',
+                            items: new OA\Items(
+                                properties: [
+                                    new OA\Property(property: 'id', type: 'integer', example: 1),
+                                    new OA\Property(property: 'proposal_id', type: 'integer', example: 1),
+                                    new OA\Property(property: 'term_sequence', type: 'integer', example: 1),
+                                    new OA\Property(property: 'amount', type: 'number', example: 7500000),
+                                    new OA\Property(property: 'due_date', type: 'string', format: 'date', example: '2026-12-01'),
+                                    new OA\Property(property: 'payment_date', type: 'string', format: 'date', example: '2026-11-04'),
+                                    new OA\Property(property: 'payment_method', type: 'string', example: 'BANK_TRANSFER'),
+                                    new OA\Property(property: 'transfer_reference', type: 'string', example: 'TRX-123456'),
+                                    new OA\Property(property: 'proof_url', type: 'string', example: 'http://localhost:8000/storage/payments/proofs/abc.jpg'),
+                                    new OA\Property(property: 'status', type: 'string', example: 'PENDING'),
+                                    new OA\Property(
+                                        property: 'proposal',
+                                        type: 'object',
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Manajemen Teaching Factory'),
+                                            new OA\Property(property: 'proposal_code', type: 'string', example: 'PRSL-2025-001'),
+                                        ]
+                                    ),
+                                ]
+                            )
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Akses ditolak',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Akses ditolak.'),
+                    ]
+                )
+            ),
         ]
     )]
     public function pending(Request $request): JsonResponse

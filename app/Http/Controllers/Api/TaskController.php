@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
-#[OA\Tag(name: 'F-05: Tasks & Progress', description: 'Manajemen task + laporan sprint oleh mahasiswa, review oleh dosen PM')]
 final class TaskController extends Controller
 {
     use ApiResponse;
