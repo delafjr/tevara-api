@@ -100,6 +100,23 @@ class ProposalRevisionTest extends TestCase
             'note'        => 'Mohon sesuaikan estimasi harga/anggaran menjadi maksimal Rp 35.000.000 dan rinci modul pembayarannya.',
             'changed_by'  => $this->pengurus->id,
         ]);
+
+        // Verifikasi notifikasi terkirim ke PIC klien
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $this->klien->id,
+            'type'        => 'proposal.revision_required',
+            'proposal_id' => $this->proposal->id,
+        ]);
+
+        $notification = \App\Models\Notification::where('user_id', $this->klien->id)
+            ->where('proposal_id', $this->proposal->id)
+            ->where('type', 'proposal.revision_required')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($notification);
+        $this->assertEquals('Proposal Perlu Revisi', $notification->title);
+        $this->assertStringContainsString('Rp 35.000.000', $notification->message);
     }
 
     public function test_klien_can_view_proposal_and_submit_revision_which_returns_status_to_submitted(): void
@@ -152,6 +169,22 @@ class ProposalRevisionTest extends TestCase
             'status_id'        => 2,
             'estimated_budget' => 35000000,
         ]);
+
+        // Verifikasi seluruh pengurus TeFa menerima notifikasi revisi proposal
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $this->pengurus->id,
+            'type'        => 'proposal.revision_submitted',
+            'proposal_id' => $this->proposal->id,
+        ]);
+
+        $notification = \App\Models\Notification::where('user_id', $this->pengurus->id)
+            ->where('proposal_id', $this->proposal->id)
+            ->where('type', 'proposal.revision_submitted')
+            ->first();
+
+        $this->assertNotNull($notification);
+        $this->assertEquals('Revisi Proposal Masuk', $notification->title);
+        $this->assertStringContainsString('Sistem E-Commerce B2B (Revisi)', $notification->message);
 
         // Pengurus TEFA can see proposal back in pending
         Sanctum::actingAs($this->pengurus);

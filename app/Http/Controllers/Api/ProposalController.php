@@ -648,6 +648,7 @@ class ProposalController extends Controller
         $modules = $validated['modules'] ?? [];
         unset($validated['modules']);
 
+        $wasRevision = (int) $proposal->status_id === 4;
         $newStatusId = 2; // Submitted kembali ke pengurus TEFA
 
         $proposal = DB::transaction(function () use ($proposal, $validated, $modules, $newStatusId, $user) {
@@ -669,9 +670,11 @@ class ProposalController extends Controller
             return $proposal;
         });
 
-        $proposal->load('client');
+        $proposal->load(['client.clientPic.clientProfile.user', 'client.clientProfile.user']);
 
-        $this->notifications->notifyRole('pengurus_tefa', 'proposal.submitted', [
+        $notificationType = $wasRevision ? 'proposal.revision_submitted' : 'proposal.submitted';
+
+        $this->notifications->notifyRole('pengurus_tefa', $notificationType, [
             'client' => $proposal->client_company_name,
             'code'   => $proposal->proposal_code,
             'title'  => $proposal->title,
