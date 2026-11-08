@@ -170,6 +170,22 @@ class ProposalRevisionTest extends TestCase
             'estimated_budget' => 35000000,
         ]);
 
+        // Verifikasi seluruh pengurus TeFa menerima notifikasi revisi proposal
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $this->pengurus->id,
+            'type'        => 'proposal.revision_submitted',
+            'proposal_id' => $this->proposal->id,
+        ]);
+
+        $notification = \App\Models\Notification::where('user_id', $this->pengurus->id)
+            ->where('proposal_id', $this->proposal->id)
+            ->where('type', 'proposal.revision_submitted')
+            ->first();
+
+        $this->assertNotNull($notification);
+        $this->assertEquals('Revisi Proposal Masuk', $notification->title);
+        $this->assertStringContainsString('Sistem E-Commerce B2B (Revisi)', $notification->message);
+
         // Pengurus TEFA can see proposal back in pending
         Sanctum::actingAs($this->pengurus);
         $pendingResponse = $this->getJson('/api/v1/proposals/pending');

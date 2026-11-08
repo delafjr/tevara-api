@@ -23,6 +23,10 @@ final class NotificationService
             'title'   => 'Proposal Baru Masuk',
             'message' => ':client mengajukan proposal :code - :title.',
         ],
+        'proposal.revision_submitted' => [
+            'title'   => 'Revisi Proposal Masuk',
+            'message' => ':client mengirimkan revisi proposal :code - :title.',
+        ],
         'proposal.approved' => [
             'title'   => 'Proposal Disetujui',
             'message' => 'Proposal :code - :title telah disetujui.',
