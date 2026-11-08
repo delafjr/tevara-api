@@ -29,11 +29,11 @@ final class NotificationService
         ],
         'proposal.rejected' => [
             'title'   => 'Proposal Ditolak',
-            'message' => 'Proposal :code - :title ditolak oleh Pengurus TeFa.',
+            'message' => 'Proposal :code - :title ditolak oleh Pengurus TeFa. Alasan: :reason',
         ],
         'proposal.revision_required' => [
             'title'   => 'Proposal Perlu Revisi',
-            'message' => 'Proposal :code - :title perlu direvisi. Silakan cek catatan review.',
+            'message' => 'Proposal :code - :title perlu direvisi. Catatan: :notes',
         ],
         'payment.created' => [
             'title'   => 'Termin Pembayaran Baru',
@@ -126,14 +126,30 @@ final class NotificationService
     }
 
     /**
-     * Kirim notifikasi ke klien pemilik proposal.
+     * Kirim notifikasi ke klien pemilik proposal (PIC).
      *
      * @param  array<string, mixed>  $vars
      */
     public function notifyClient(Proposal $proposal, string $type, array $vars = []): void
     {
-        if ($proposal->client_id) {
-            $this->notify((int) $proposal->client_id, $type, $vars, (int) $proposal->id);
+        $client = $proposal->relationLoaded('client')
+            ? $proposal->client
+            : $proposal->client()->with(['clientPic', 'clientProfile.pics'])->first();
+
+        $picUserId = $client?->clientPic?->user_id
+            ?? $client?->clientProfile?->pics->first()?->user_id
+            ?? $proposal->client_id;
+
+        if ($type === 'proposal.rejected' && empty($vars['reason'])) {
+            $vars['reason'] = $proposal->review_notes ?: 'Tidak memenuhi kriteria kelayakan.';
+        }
+
+        if ($type === 'proposal.revision_required' && empty($vars['notes'])) {
+            $vars['notes'] = $proposal->review_notes ?: 'Silakan cek catatan review.';
+        }
+
+        if ($picUserId) {
+            $this->notify((int) $picUserId, $type, $vars, (int) $proposal->id);
         }
     }
 
