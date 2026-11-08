@@ -6,12 +6,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 
 class ProposalReviewController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     #[OA\Patch(
         path: '/proposals/{id}/review',
         summary: 'Review proposal (Pengurus TeFa)',
@@ -115,6 +120,17 @@ class ProposalReviewController extends Controller
             ]);
         });
 
+        $notificationType = match ($validated['decision']) {
+            'approved'          => 'proposal.approved',
+            'rejected'          => 'proposal.rejected',
+            'revision_required' => 'proposal.revision_required',
+        };
+
+        $this->notifications->notifyClient($proposal, $notificationType, [
+            'code'  => $proposal->proposal_code,
+            'title' => $proposal->title,
+        ]);
+
         return response()->json([
             'message' => 'Review submitted successfully',
             'data'    => $proposal->fresh(['status', 'reviewer']),
@@ -186,6 +202,20 @@ class ProposalReviewController extends Controller
                 'changed_by' => $request->user()->id,
             ]);
         });
+
+        $notificationType = match ((int) $validated['status_id']) {
+            4       => 'proposal.revision_required',
+            5       => 'proposal.approved',
+            6       => 'proposal.rejected',
+            default => null,
+        };
+
+        if ($notificationType !== null) {
+            $this->notifications->notifyClient($proposal, $notificationType, [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+            ]);
+        }
 
         return response()->json([
             'message' => 'Status updated successfully',

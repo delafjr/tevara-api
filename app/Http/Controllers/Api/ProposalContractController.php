@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ use OpenApi\Attributes as OA;
 
 class ProposalContractController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     #[OA\Patch(
         path: '/proposals/{id}/contract',
         summary: 'Isi data SPK / Kontrak (Pengurus TeFa)',
@@ -82,7 +87,11 @@ class ProposalContractController extends Controller
             'members'                     => 'nullable',
         ]);
 
-        DB::transaction(function () use ($proposal, $validated, $request) {
+        $oldPmId      = $proposal->pm_id;
+        $addedMembers = [];
+        $termsCreated = 0;
+
+        DB::transaction(function () use ($proposal, $validated, $request, &$addedMembers, &$termsCreated) {
             $year = date('Y', strtotime($validated['start_date']));
 
             // Auto-generate atau set spk_number: SPK/TEFA/{Y}/{SEQ}
@@ -161,6 +170,7 @@ class ProposalContractController extends Controller
                             'verification_notes' => $t['name'] ?? $t['notes'] ?? ('Termin ' . ($idx + 1)),
                             'status'             => 'PENDING',
                         ]);
+                        $termsCreated++;
                     }
                 }
             }
@@ -176,11 +186,16 @@ class ProposalContractController extends Controller
                     $studentId = $m['student_id'] ?? $m['user_id'] ?? null;
                     $roleId = $m['role_id'] ?? null;
                     if ($studentId && $roleId) {
-                        $proposal->projectTeams()->create([
+                        $team = $proposal->projectTeams()->create([
                             'user_id'   => (int) $studentId,
                             'role_id'   => (int) $roleId,
                             'joined_at' => !empty($m['joined_at']) ? $m['joined_at'] : $validated['start_date'],
                         ]);
+
+                        $addedMembers[] = [
+                            'user_id' => (int) $studentId,
+                            'role'    => $team->role?->name ?? 'Anggota',
+                        ];
                     }
                 }
             }
@@ -192,6 +207,28 @@ class ProposalContractController extends Controller
                 'changed_by' => $request->user()->id,
             ]);
         });
+
+        if ($proposal->pm_id && (int) $proposal->pm_id !== (int) $oldPmId) {
+            $this->notifications->notify((int) $proposal->pm_id, 'proposal.pm_assigned', [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+            ], (int) $proposal->id);
+        }
+
+        if ($termsCreated > 0) {
+            $this->notifications->notifyClient($proposal, 'payment.terms_set', [
+                'count' => $termsCreated,
+                'code'  => $proposal->proposal_code,
+            ]);
+        }
+
+        foreach ($addedMembers as $member) {
+            $this->notifications->notify($member['user_id'], 'project.team_assigned', [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+                'role'  => $member['role'],
+            ], (int) $proposal->id);
+        }
 
         return response()->json([
             'message' => 'Data SPK/kontrak berhasil disimpan',
@@ -325,6 +362,11 @@ class ProposalContractController extends Controller
 
         $proposal->pm_id = $dosen->id;
         $proposal->save();
+
+        $this->notifications->notify((int) $dosen->id, 'proposal.pm_assigned', [
+            'code'  => $proposal->proposal_code,
+            'title' => $proposal->title,
+        ], (int) $proposal->id);
 
         return response()->json([
             'message' => 'Project Manager (Dosen) berhasil ditugaskan',

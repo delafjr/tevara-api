@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Proposal;
 use App\Models\ProposalStatus;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -125,6 +126,10 @@ use OpenApi\Attributes as OA;
 )]
 class ProposalController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     #[OA\Get(
         path: '/proposals',
         summary: 'List semua proposal (Pengurus TeFa)',
@@ -469,6 +474,14 @@ class ProposalController extends Controller
             return $proposal;
         });
 
+        $proposal->load('client');
+
+        $this->notifications->notifyRole('pengurus_tefa', 'proposal.submitted', [
+            'client' => $proposal->client_company_name,
+            'code'   => $proposal->proposal_code,
+            'title'  => $proposal->title,
+        ], $proposal->id);
+
         return response()->json($proposal->load(['status', 'category', 'modules']), 201);
     }
 
@@ -655,6 +668,14 @@ class ProposalController extends Controller
 
             return $proposal;
         });
+
+        $proposal->load('client');
+
+        $this->notifications->notifyRole('pengurus_tefa', 'proposal.submitted', [
+            'client' => $proposal->client_company_name,
+            'code'   => $proposal->proposal_code,
+            'title'  => $proposal->title,
+        ], $proposal->id);
 
         return response()->json([
             'message' => 'Revisi proposal berhasil disimpan dan diserahkan kembali ke pengurus TEFA.',

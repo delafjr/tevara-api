@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProjectTeam;
 use App\Models\Proposal;
 use App\Models\Task;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,10 @@ use OpenApi\Attributes as OA;
 final class TaskController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
 
     // ──────────────────────────────────────────────────────
     //  1. GET /proposals/{id}/tasks  — List semua task di proyek
@@ -164,6 +169,13 @@ final class TaskController extends Controller
         ]);
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
+
+        if ($task->projectTeam?->user_id) {
+            $this->notifications->notify((int) $task->projectTeam->user_id, 'task.assigned', [
+                'task' => $task->title,
+                'code' => $proposal->proposal_code,
+            ], (int) $proposal->id);
+        }
 
         return $this->created('Task berhasil dibuat', $this->formatTask($task));
     }
@@ -313,6 +325,12 @@ final class TaskController extends Controller
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
 
+        $this->notifications->notifyPm($proposal, 'task.progress_submitted', [
+            'student'  => $user->name,
+            'task'     => $task->title,
+            'progress' => (float) $task->progress_percentage,
+        ]);
+
         return $this->ok('Progress report berhasil diperbarui', $this->formatTask($task));
     }
 
@@ -391,6 +409,13 @@ final class TaskController extends Controller
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
 
+        if ($task->projectTeam?->user_id) {
+            $this->notifications->notify((int) $task->projectTeam->user_id, 'task.reviewed', [
+                'task'   => $task->title,
+                'status' => $validated['pm_status'] === 'APPROVED' ? 'Disetujui' : 'Perlu perbaikan',
+            ], (int) $proposal->id);
+        }
+
         return $this->ok('Review task berhasil disimpan', $this->formatTask($task));
     }
 
@@ -447,6 +472,8 @@ final class TaskController extends Controller
 
         $task = Task::where('proposal_id', $proposal->id)->findOrFail($taskId);
 
+        $oldAssigneeId = $task->projectTeam?->user_id;
+
         $validated = $request->validate([
             'title'               => ['nullable', 'string', 'max:255'],
             'description'         => ['nullable', 'string'],
@@ -498,6 +525,15 @@ final class TaskController extends Controller
         }
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
+
+        if (array_key_exists('assigned_student_id', $validated)
+            && $validated['assigned_student_id'] !== null
+            && (int) $validated['assigned_student_id'] !== (int) $oldAssigneeId) {
+            $this->notifications->notify((int) $validated['assigned_student_id'], 'task.assigned', [
+                'task' => $task->title,
+                'code' => $proposal->proposal_code,
+            ], (int) $proposal->id);
+        }
 
         return $this->ok('Task berhasil diperbarui', $this->formatTask($task));
     }
