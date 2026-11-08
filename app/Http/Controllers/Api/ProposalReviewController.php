@@ -136,9 +136,8 @@ class ProposalReviewController extends Controller
         };
 
         $this->notifications->notifyClient($proposal, $notificationType, [
-            'code'   => $proposal->proposal_code,
-            'title'  => $proposal->title,
-            'reason' => $validated['review_notes'] ?? ($proposal->review_notes ?? ''),
+            'code'  => $proposal->proposal_code,
+            'title' => $proposal->title,
         ]);
 
         return response()->json([

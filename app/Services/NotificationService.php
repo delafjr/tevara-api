@@ -29,7 +29,7 @@ final class NotificationService
         ],
         'proposal.rejected' => [
             'title'   => 'Proposal Ditolak',
-            'message' => 'Proposal :code - :title ditolak oleh Pengurus TeFa. Alasan: :reason',
+            'message' => 'Proposal :code - :title ditolak oleh Pengurus TeFa.',
         ],
         'proposal.revision_required' => [
             'title'   => 'Proposal Perlu Revisi',
@@ -126,26 +126,14 @@ final class NotificationService
     }
 
     /**
-     * Kirim notifikasi ke klien pemilik proposal (PIC).
+     * Kirim notifikasi ke klien pemilik proposal.
      *
      * @param  array<string, mixed>  $vars
      */
     public function notifyClient(Proposal $proposal, string $type, array $vars = []): void
     {
-        $client = $proposal->relationLoaded('client')
-            ? $proposal->client
-            : $proposal->client()->with(['clientPic', 'clientProfile.pics'])->first();
-
-        $picUserId = $client?->clientPic?->user_id
-            ?? $client?->clientProfile?->pics->first()?->user_id
-            ?? $proposal->client_id;
-
-        if ($type === 'proposal.rejected' && empty($vars['reason'])) {
-            $vars['reason'] = $proposal->review_notes ?: 'Tidak memenuhi kriteria kelayakan.';
-        }
-
-        if ($picUserId) {
-            $this->notify((int) $picUserId, $type, $vars, (int) $proposal->id);
+        if ($proposal->client_id) {
+            $this->notify((int) $proposal->client_id, $type, $vars, (int) $proposal->id);
         }
     }
 
