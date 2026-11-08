@@ -531,7 +531,17 @@ class ProposalController extends Controller
             $proposal->makeHidden(['risk_analysis']);
         }
 
-        return response()->json($proposal);
+        // Overall progress: 100% saat proyek selesai/handover, selain itu rata-rata progres task.
+        $statusName   = strtolower($proposal->status?->name ?? '');
+        $isCompleted  = in_array($statusName, ['completed', 'handover'], true);
+        $taskProgress = $proposal->tasks()->pluck('progress_percentage');
+        $overallProgress = $isCompleted
+            ? 100
+            : ($taskProgress->count() > 0 ? (int) round((float) $taskProgress->avg()) : 0);
+
+        return response()->json(array_merge($proposal->toArray(), [
+            'overall_progress' => $overallProgress,
+        ]));
     }
 
     #[OA\Put(
