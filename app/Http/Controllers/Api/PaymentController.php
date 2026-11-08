@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Proposal;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,10 @@ use OpenApi\Attributes as OA;
 final class PaymentController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
 
     // ──────────────────────────────────────────────────────
     //  1. POST /proposals/{id}/payments — Buat termin pembayaran
@@ -143,6 +148,12 @@ final class PaymentController extends Controller
             'amount'        => $data['amount'],
             'due_date'      => $data['due_date'] ?? null,
             'status'        => 'PENDING',
+        ]);
+
+        $this->notifications->notifyClient($proposal, 'payment.created', [
+            'term'   => $payment->term_sequence,
+            'amount' => $this->rupiah($payment->amount),
+            'code'   => $proposal->proposal_code,
         ]);
 
         return $this->created('Termin pembayaran berhasil dibuat.', $this->formatPayment($payment));
@@ -283,6 +294,13 @@ final class PaymentController extends Controller
             'status'             => 'PENDING', // kembali ke PENDING setelah re-upload
         ]);
 
+        $this->notifications->notifyPm($proposal, 'payment.proof_uploaded', [
+            'client' => $proposal->client_company_name,
+            'term'   => $payment->term_sequence,
+            'amount' => $this->rupiah($payment->amount),
+            'code'   => $proposal->proposal_code,
+        ]);
+
         return $this->ok('Bukti pembayaran berhasil diupload.', $this->formatPayment($payment));
     }
 
@@ -398,6 +416,16 @@ final class PaymentController extends Controller
             'verified_at'        => now(),
         ]);
 
+        $this->notifications->notifyClient(
+            $proposal,
+            $data['status'] === 'VERIFIED' ? 'payment.verified' : 'payment.rejected',
+            [
+                'term'   => $payment->term_sequence,
+                'amount' => $this->rupiah($payment->amount),
+                'code'   => $proposal->proposal_code,
+            ]
+        );
+
         return $this->ok('Verifikasi pembayaran berhasil.', $this->formatPayment($payment->load('verifier')));
     }
 
@@ -493,6 +521,11 @@ final class PaymentController extends Controller
     // ──────────────────────────────────────────────────────
     //  Helpers
     // ──────────────────────────────────────────────────────
+    private function rupiah(float|string $amount): string
+    {
+        return 'Rp ' . number_format((float) $amount, 0, ',', '.');
+    }
+
     private function formatPayment(Payment $payment): array
     {
         return [

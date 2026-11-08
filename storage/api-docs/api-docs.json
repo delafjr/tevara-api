@@ -255,6 +255,267 @@
                 ]
             }
         },
+        "/notifications": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "List notifikasi user",
+                "description": "Mengambil daftar notifikasi milik user yang sedang login (maksimal 100 terbaru). Gunakan `unread=1` untuk hanya menampilkan yang belum dibaca.",
+                "operationId": "b1274a2aaae8a4295a7e1925e8d8090f",
+                "parameters": [
+                    {
+                        "name": "unread",
+                        "in": "query",
+                        "description": "Filter hanya yang belum dibaca (1/true)",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "example": true
+                        }
+                    },
+                    {
+                        "name": "proposal_id",
+                        "in": "query",
+                        "description": "Filter berdasarkan proposal",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 9
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar notifikasi",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Daftar notifikasi"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 12
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "payment.proof_uploaded"
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "Bukti Pembayaran Baru"
+                                                    },
+                                                    "message": {
+                                                        "type": "string",
+                                                        "example": "PT. Maju Bersama Sentosa mengunggah bukti Termin 1 (Rp 7.800.000) untuk proposal PRSL-2026-372."
+                                                    },
+                                                    "proposal_id": {
+                                                        "type": "integer",
+                                                        "example": 9,
+                                                        "nullable": true
+                                                    },
+                                                    "is_read": {
+                                                        "type": "boolean",
+                                                        "example": false
+                                                    },
+                                                    "read_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": null,
+                                                        "nullable": true
+                                                    },
+                                                    "created_at": {
+                                                        "type": "string",
+                                                        "format": "date-time",
+                                                        "example": "2026-11-08T10:00:00+07:00"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/notifications/unread-count": {
+            "get": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Jumlah notifikasi belum dibaca",
+                "description": "Mengambil jumlah notifikasi milik user yang belum dibaca. Cocok untuk badge di navbar.",
+                "operationId": "85697ee523a5dace428185c95efb9f2f",
+                "responses": {
+                    "200": {
+                        "description": "Jumlah notifikasi belum dibaca",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Jumlah notifikasi belum dibaca"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "unread_count": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/notifications/{id}/read": {
+            "patch": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Tandai satu notifikasi sudah dibaca",
+                "description": "Menandai notifikasi milik user sebagai sudah dibaca. Idempotent: notifikasi yang sudah dibaca tidak berubah.",
+                "operationId": "356012fe06901053b88e36ec633c6524",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notifikasi ditandai sudah dibaca",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Notifikasi ditandai sudah dibaca"
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Notifikasi tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/notifications/read-all": {
+            "patch": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Tandai semua notifikasi sudah dibaca",
+                "description": "Menandai seluruh notifikasi user yang belum dibaca sebagai sudah dibaca.",
+                "operationId": "889963835d78ee30e0cb8a9e30abff39",
+                "responses": {
+                    "200": {
+                        "description": "Semua notifikasi ditandai sudah dibaca",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Semua notifikasi ditandai sudah dibaca"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "updated": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/proposals/{id}/payments": {
             "post": {
                 "tags": [
@@ -5960,6 +6221,10 @@
         {
             "name": "F-09: Pembayaran",
             "description": "Catat termin pembayaran, upload bukti transfer oleh klien, verifikasi oleh dosen/PM"
+        },
+        {
+            "name": "Notifications",
+            "description": "Notifikasi in-app per user (list, unread count, tandai dibaca)"
         }
     ]
 }
