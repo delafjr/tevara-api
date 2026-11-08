@@ -161,4 +161,83 @@ class ProposalRevisionTest extends TestCase
             collect($pendingResponse->json())->contains(fn ($p) => $p['id'] === $this->proposal->id && (float) $p['estimated_budget'] === 35000000.0)
         );
     }
+
+    public function test_pengurus_tefa_can_reject_proposal_with_reason_and_creates_notification_for_pic(): void
+    {
+        Sanctum::actingAs($this->pengurus);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/review", [
+            'decision'     => 'rejected',
+            'review_notes' => 'Ruang lingkup proyek tidak sesuai dengan fokus kompetensi TeFa saat ini.',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.status_id', 6)
+            ->assertJsonPath('data.review_notes', 'Ruang lingkup proyek tidak sesuai dengan fokus kompetensi TeFa saat ini.');
+
+        $this->assertDatabaseHas('proposals', [
+            'id'           => $this->proposal->id,
+            'status_id'    => 6,
+            'reviewer_id'  => $this->pengurus->id,
+            'review_notes' => 'Ruang lingkup proyek tidak sesuai dengan fokus kompetensi TeFa saat ini.',
+        ]);
+
+        // Verifikasi notifikasi terkirim ke PIC klien
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $this->klien->id,
+            'type'        => 'proposal.rejected',
+            'proposal_id' => $this->proposal->id,
+        ]);
+
+        $notification = \App\Models\Notification::where('user_id', $this->klien->id)
+            ->where('proposal_id', $this->proposal->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($notification);
+        $this->assertStringContainsString('Ruang lingkup proyek tidak sesuai', $notification->message);
+    }
+
+    public function test_pengurus_tefa_can_reject_proposal_when_status_is_revision_required(): void
+    {
+        $this->proposal->update([
+            'status_id'    => 4,
+            'reviewer_id'  => $this->pengurus->id,
+            'review_notes' => 'Perlu revisi anggaran',
+        ]);
+
+        Sanctum::actingAs($this->pengurus);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/review", [
+            'decision'     => 'rejected',
+            'review_notes' => 'Klien tidak bersedia memenuhi syarat kelayakan teknis.',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.status_id', 6)
+            ->assertJsonPath('data.review_notes', 'Klien tidak bersedia memenuhi syarat kelayakan teknis.');
+
+        $this->assertDatabaseHas('proposals', [
+            'id'        => $this->proposal->id,
+            'status_id' => 6,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $this->klien->id,
+            'type'        => 'proposal.rejected',
+            'proposal_id' => $this->proposal->id,
+        ]);
+    }
+
+    public function test_rejecting_proposal_requires_reason(): void
+    {
+        Sanctum::actingAs($this->pengurus);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/review", [
+            'decision' => 'rejected',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['review_notes']);
+    }
 }

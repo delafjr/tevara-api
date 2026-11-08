@@ -72,17 +72,26 @@ class ProposalReviewController extends Controller
             ], 422);
         }
 
+        if ($request->has('reason') && ! $request->has('review_notes')) {
+            $request->merge(['review_notes' => $request->input('reason')]);
+        }
+        if ($request->has('rejection_reason') && ! $request->has('review_notes')) {
+            $request->merge(['review_notes' => $request->input('rejection_reason')]);
+        }
+
         $validated = $request->validate([
             'decision'         => 'required|in:approved,rejected,revision_required',
             'complexity_level' => 'required_if:decision,approved|nullable|in:LOW,MEDIUM,HIGH',
             'risk_analysis'    => 'required_if:decision,approved|nullable|string',
             'estimated_cost'   => 'required_if:decision,approved|nullable|numeric',
-            'review_notes'     => 'required_if:decision,revision_required|nullable|string',
+            'review_notes'     => in_array($request->input('decision'), ['revision_required', 'rejected'], true)
+                ? 'required|string|min:3'
+                : 'nullable|string',
         ]);
 
-        if ($proposal->status_id === 4 && in_array($validated['decision'], ['approved', 'rejected'])) {
+        if ($proposal->status_id === 4 && $validated['decision'] === 'approved') {
             return response()->json([
-                'message' => 'Proposal sedang menunggu revisi dari klien, keputusan hanya bisa berupa catatan revisi.',
+                'message' => 'Proposal sedang menunggu revisi dari klien, tidak dapat langsung disetujui.',
             ], 422);
         }
 
@@ -127,8 +136,9 @@ class ProposalReviewController extends Controller
         };
 
         $this->notifications->notifyClient($proposal, $notificationType, [
-            'code'  => $proposal->proposal_code,
-            'title' => $proposal->title,
+            'code'   => $proposal->proposal_code,
+            'title'  => $proposal->title,
+            'reason' => $validated['review_notes'] ?? ($proposal->review_notes ?? ''),
         ]);
 
         return response()->json([
