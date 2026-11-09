@@ -33,6 +33,8 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $clientProfile = $this->clientPic?->clientProfile ?? $this->clientProfile;
+
         return [
             'id'           => $this->id,
             'name'         => $this->name,
@@ -40,6 +42,12 @@ class UserResource extends JsonResource
             'phone_number' => $this->phone_number,
             'company_name' => $this->companyName(),
             'position'     => $this->position(),
+            'nidn'         => $this->lecturerProfile?->nidn,
+            'department'   => $this->lecturerProfile?->department,
+            'nim'          => $this->studentProfile?->nim,
+            'study_program' => $this->studentProfile?->study_program,
+            'client_profile_id' => $clientProfile?->id,
+            'company_email' => $clientProfile?->user?->email,
             'roles'        => $this->whenLoaded('roles', fn () => $this->getRoleNames()),
             'is_pm'        => $this->isPm(),
             'created_at'   => $this->created_at,

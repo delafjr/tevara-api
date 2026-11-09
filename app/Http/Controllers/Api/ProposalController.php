@@ -293,6 +293,9 @@ class ProposalController extends Controller
             'id'               => $proposal->id,
             'proposal_code'    => $proposal->proposal_code,
             'client_name'      => $proposal->client_company_name,
+            'client_profile_id' => $proposal->client_profile_id ?? $proposal->client?->clientPic?->client_profile_id ?? $proposal->client?->clientProfile?->id,
+            'client_company_email' => $proposal->client?->clientPic?->clientProfile?->user?->email
+                ?? $proposal->client?->clientProfile?->user?->email,
             'title'            => $proposal->title,
             'background'       => $proposal->background,
             'target_audience'  => $proposal->target_audience,
@@ -340,6 +343,14 @@ class ProposalController extends Controller
         $query = Proposal::with([
             'status:id,name',
             'category:id,name',
+            'pm:id,name',
+            'pm.lecturerProfile:user_id,nidn,department',
+            'modules:id,proposal_id,title,description',
+            'tasks:id,proposal_id,progress_percentage',
+            'maintenance',
+            'projectTeams.user:id,name',
+            'projectTeams.user.studentProfile:user_id,nim,study_program',
+            'projectTeams.role:id,name',
             'projectTeams.uatResults' => fn ($query) => $query
                 ->select('id', 'project_team_id', 'session_date', 'overall_result')
                 ->orderByDesc('session_date')
@@ -366,11 +377,26 @@ class ProposalController extends Controller
                     ->flatMap(fn ($team) => $team->uatResults)
                     ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
                     ->first();
+                $statusName = strtolower($proposal->status?->name ?? '');
+                $progress = in_array($statusName, ['completed', 'handover'], true)
+                    ? 100
+                    : (int) round($proposal->tasks->avg('progress_percentage') ?? 0);
 
                 return [
                 'id'                     => $proposal->id,
                 'proposal_code'          => $proposal->proposal_code,
                 'project_code'           => $proposal->project_code,
+                'spk_number'             => $proposal->spk_number,
+                'contract_file_url'      => $proposal->contract_file_url,
+                'bast_number'            => $proposal->bast_number,
+                'handover_date'          => $proposal->handover_date?->toDateString(),
+                'repository_url'         => $proposal->repository_url,
+                'documentation_url'      => $proposal->documentation_url,
+                'maintenance'            => $proposal->maintenance ? [
+                    'maintenance_warranty_months' => $proposal->maintenance->maintenance_warranty_months,
+                    'maintenance_start_date' => $proposal->maintenance->maintenance_start_date?->toDateString(),
+                    'maintenance_end_date' => $proposal->maintenance->maintenance_end_date?->toDateString(),
+                ] : null,
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
                 'status'                 => $proposal->status?->name,
@@ -380,6 +406,25 @@ class ProposalController extends Controller
                 'desired_deadline'       => $proposal->desired_deadline?->toDateString(),
                 'start_date'             => $proposal->start_date?->toDateString(),
                 'target_completion_date' => $proposal->target_completion_date?->toDateString(),
+                'overall_progress'       => $progress,
+                'pm'                     => $proposal->pm ? [
+                    'id'         => $proposal->pm->id,
+                    'name'       => $proposal->pm->name,
+                    'nidn'       => $proposal->pm->lecturerProfile?->nidn,
+                    'department' => $proposal->pm->lecturerProfile?->department,
+                ] : null,
+                'modules'                => $proposal->modules->map(fn ($module) => [
+                    'id'          => $module->id,
+                    'title'       => $module->title,
+                    'description' => $module->description,
+                ])->values(),
+                'team_members'           => $proposal->projectTeams->map(fn ($team) => [
+                    'id'           => $team->user?->id,
+                    'name'         => $team->user?->name,
+                    'nim'          => $team->user?->studentProfile?->nim,
+                    'study_program'=> $team->user?->studentProfile?->study_program,
+                    'role'         => $team->role?->name,
+                ])->values(),
                 'latest_uat_result'      => $latestUat?->overall_result,
                 'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && !$proposal->client_approved,
                 'client_approved'        => $proposal->client_approved,
@@ -443,7 +488,7 @@ class ProposalController extends Controller
         $validated = $request->validate([
             'client_id'             => ['required', 'integer', 'exists:users,id'],
             'title'                 => ['required', 'string', 'max:255'],
-            'background'            => ['required', 'string', 'min:100'],
+            'background'            => ['required', 'string', 'max:500'],
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'desired_deadline'      => ['required', 'date', 'after_or_equal:' . now()->addDays(30)->toDateString()],
@@ -635,7 +680,7 @@ class ProposalController extends Controller
 
         $validated = $request->validate([
             'title'                 => ['required', 'string', 'max:255'],
-            'background'            => ['required', 'string', 'min:100'],
+            'background'            => ['required', 'string', 'max:500'],
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'desired_deadline'      => ['required', 'date'],

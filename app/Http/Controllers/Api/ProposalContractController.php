@@ -8,9 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\NotificationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
 class ProposalContractController extends Controller
@@ -37,7 +40,7 @@ class ProposalContractController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
-                mediaType: 'multipart/form-data',
+                mediaType: 'application/json',
                 schema: new OA\Schema(
                     required: ['scope_of_work', 'total_amount', 'payment_terms_description', 'start_date', 'target_completion_date'],
                     properties: [
@@ -47,7 +50,9 @@ class ProposalContractController extends Controller
                         new OA\Property(property: 'maintenance_warranty_months', type: 'integer', example: 3, default: 3),
                         new OA\Property(property: 'start_date', type: 'string', format: 'date', example: '2026-11-01'),
                         new OA\Property(property: 'target_completion_date', type: 'string', format: 'date', example: '2027-02-28'),
-                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'File SPK/Kontrak (PDF, max 10MB)'),
+                        new OA\Property(property: 'pm_id', type: 'integer', nullable: true),
+                        new OA\Property(property: 'terms', type: 'array', items: new OA\Items(type: 'object')),
+                        new OA\Property(property: 'members', type: 'array', items: new OA\Items(type: 'object')),
                     ]
                 )
             )
@@ -74,30 +79,48 @@ class ProposalContractController extends Controller
         $proposal = Proposal::findOrFail($id);
 
         $validated = $request->validate([
-            'spk_number'                  => 'nullable|string|max:100',
             'scope_of_work'               => 'required|string',
             'total_amount'                => 'required|numeric|min:0',
             'payment_terms_description'   => 'nullable|string',
             'maintenance_warranty_months' => 'nullable|integer|min:0',
             'start_date'                  => 'required|date',
             'target_completion_date'      => 'required|date|after_or_equal:start_date',
-            'contract_file'               => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'pm_id'                       => 'nullable|integer|exists:users,id',
-            'terms'                       => 'nullable',
-            'members'                     => 'nullable',
+            'terms'                       => 'nullable|array',
+            'terms.*'                     => 'array',
+            'terms.*.amount'              => 'nullable|numeric|min:0',
+            'terms.*.payment_date'        => 'nullable|date',
+            'members'                     => 'nullable|array',
+            'members.*'                   => 'array',
+            'members.*.student_id'        => ['required_with:members', 'integer', 'exists:users,id', 'distinct'],
+            'members.*.role_id'           => 'required_with:members|integer|exists:project_roles,id',
+            'members.*.joined_at'         => 'nullable|date',
         ]);
+
+        $members = $validated['members'] ?? [];
+        $studentIds = array_values(array_unique(array_map(
+            static fn (array $member): int => (int) $member['student_id'],
+            $members
+        )));
+        if ($studentIds !== [] && User::whereIn('id', $studentIds)->get()->contains(
+            static fn (User $user): bool => !$user->hasRole('mahasiswa')
+        )) {
+            return response()->json([
+                'message' => 'Semua anggota tim harus memiliki role mahasiswa.',
+                'errors' => ['members' => ['Pilih mahasiswa yang terdaftar pada sistem.']],
+            ], 422);
+        }
 
         $oldPmId      = $proposal->pm_id;
         $addedMembers = [];
         $termsCreated = 0;
+        $generatedContractPath = null;
 
-        DB::transaction(function () use ($proposal, $validated, $request, &$addedMembers, &$termsCreated) {
+        DB::transaction(function () use ($proposal, $validated, $request, $members, &$addedMembers, &$termsCreated, &$generatedContractPath) {
             $year = date('Y', strtotime($validated['start_date']));
 
-            // Auto-generate atau set spk_number: SPK/TEFA/{Y}/{SEQ}
-            if (!empty($validated['spk_number'])) {
-                $proposal->spk_number = $validated['spk_number'];
-            } elseif (empty($proposal->spk_number)) {
+            // Auto-generate the official document number when one has not been assigned.
+            if (empty($proposal->spk_number)) {
                 $prefixSpk = "SPK/TEFA/{$year}/";
                 $lastSpk = Proposal::where('spk_number', 'like', $prefixSpk . '%')
                     ->orderByDesc('spk_number')
@@ -126,12 +149,6 @@ class ProposalContractController extends Controller
                 $proposal->project_code = $prefixPrj . str_pad((string) $seqPrj, 3, '0', STR_PAD_LEFT);
             }
 
-            // Upload contract file jika disertakan
-            if ($request->hasFile('contract_file')) {
-                $proposal->contract_file_url = $request->file('contract_file')
-                    ->store('contracts', 'public');
-            }
-
             if (!empty($validated['pm_id'])) {
                 $proposal->pm_id = (int) $validated['pm_id'];
             }
@@ -155,10 +172,7 @@ class ProposalContractController extends Controller
             );
 
             // Simpan termin pembayaran jika ada
-            $terms = $request->input('terms');
-            if (is_string($terms)) {
-                $terms = json_decode($terms, true);
-            }
+            $terms = $validated['terms'] ?? [];
             if (is_array($terms) && count($terms) > 0) {
                 $proposal->payments()->delete();
                 foreach ($terms as $idx => $t) {
@@ -176,10 +190,6 @@ class ProposalContractController extends Controller
             }
 
             // Simpan anggota tim pengembang jika ada
-            $members = $request->input('members');
-            if (is_string($members)) {
-                $members = json_decode($members, true);
-            }
             if (is_array($members) && count($members) > 0) {
                 $proposal->projectTeams()->delete();
                 foreach ($members as $m) {
@@ -206,6 +216,22 @@ class ProposalContractController extends Controller
                 'note'       => 'Proposal disetujui & SPK/Kontrak diterbitkan',
                 'changed_by' => $request->user()->id,
             ]);
+
+            $proposal->load(['client', 'pm', 'maintenance']);
+            $teamMembers = $proposal->projectTeams()->with(['user', 'role'])->get();
+            $generatedContractPath = 'contracts/' . $proposal->id . '-' . Str::slug($proposal->spk_number) . '.pdf';
+            $contractPdf = Pdf::loadView('documents.contract', [
+                'proposal' => $proposal,
+                'teamMembers' => $teamMembers,
+                'terms' => $terms,
+            ])->setPaper('a4');
+
+            if (!Storage::disk('local')->put($generatedContractPath, $contractPdf->output())) {
+                throw new \RuntimeException('Dokumen SPK gagal disimpan.');
+            }
+
+            $proposal->contract_file_url = $generatedContractPath;
+            $proposal->save();
         });
 
         if ($proposal->pm_id && (int) $proposal->pm_id !== (int) $oldPmId) {
@@ -234,6 +260,28 @@ class ProposalContractController extends Controller
             'message' => 'Data SPK/kontrak berhasil disimpan',
             'data'    => $proposal->fresh(['status', 'maintenance', 'pm.lecturerProfile', 'client']),
         ]);
+    }
+
+    public function download(Request $request, int|string $id)
+    {
+        $proposal = Proposal::findOrFail($id);
+        $user = $request->user();
+
+        if (!$user->hasRole('pengurus_tefa')) {
+            $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+            $clientIds = $clientProfile
+                ? $clientProfile->pics()->pluck('user_id')->push($clientProfile->user_id)
+                : collect([$user->id]);
+
+            if (!$clientIds->contains($proposal->client_id)) {
+                abort(403, 'Akses ditolak: Anda bukan bagian dari klien pemilik proyek ini.');
+            }
+        }
+
+        $path = $proposal->contract_file_url;
+        abort_if(!$path || !Storage::disk('local')->exists($path), 404, 'Dokumen SPK belum tersedia.');
+
+        return Storage::disk('local')->download($path, basename($path));
     }
 
     #[OA\Patch(
