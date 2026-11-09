@@ -116,11 +116,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::match(['patch', 'post'], 'proposals/{id}/contract/sign', [ProposalContractController::class, 'sign'])->whereNumber('id');
             Route::patch('proposals/{id}/contract/pm', [ProposalContractController::class, 'assignPm'])->whereNumber('id');
         });
-        Route::middleware('role:klien|jurusan|pengurus_tefa')->get(
-            'proposals/{id}/contract/download',
-            [ProposalContractController::class, 'download']
-        )->whereNumber('id');
-
         // ── F-04: Penugasan Tim ─────────────────────────
         Route::middleware('role:pengurus_tefa|dosen|mahasiswa')->group(function () {
             Route::get('proposals/{id}/team', [ProposalTeamController::class, 'index'])->whereNumber('id');
@@ -188,6 +183,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // PATCH upload bukti: hanya klien
         Route::middleware('role:klien')->group(function () {
+            Route::get('payments/{paymentId}/invoice', [PaymentController::class, 'downloadInvoice'])
+                ->whereNumber('paymentId');
             Route::patch('proposals/{id}/payments/{paymentId}/proof', [PaymentController::class, 'uploadProof'])
                 ->whereNumber('id')->whereNumber('paymentId');
         });

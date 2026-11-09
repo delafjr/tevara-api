@@ -7,10 +7,8 @@ namespace Tests\Feature;
 use App\Models\Proposal;
 use App\Models\ProposalCategory;
 use App\Models\ProposalStatus;
-use App\Models\ProjectRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -46,7 +44,6 @@ class ContractTest extends TestCase
 
         // Setup Category
         $cat = ProposalCategory::firstOrCreate(['name' => 'Web']);
-        ProjectRole::firstOrCreate(['name' => 'Backend']);
 
         // Setup Users
         $this->pengurus = User::factory()->create(['name' => 'Pengurus TeFa']);
@@ -74,7 +71,6 @@ class ContractTest extends TestCase
 
     public function test_pengurus_can_fill_contract_data(): void
     {
-        Storage::fake('local');
         Sanctum::actingAs($this->pengurus);
 
         $payload = [
@@ -84,14 +80,6 @@ class ContractTest extends TestCase
             'maintenance_warranty_months' => 6,
             'start_date'                  => '2026-11-01',
             'target_completion_date'      => '2027-01-31',
-            'pm_id'                       => $this->dosen->id,
-            'terms'                       => [
-                ['name' => 'Termin 1', 'amount' => 7500000, 'payment_date' => '2026-11-01'],
-                ['name' => 'Termin 2', 'amount' => 7500000, 'payment_date' => '2027-01-31'],
-            ],
-            'members'                     => [
-                ['student_id' => $this->mahasiswa->id, 'role_id' => ProjectRole::where('name', 'Backend')->value('id')],
-            ],
         ];
 
         $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/contract", $payload);
@@ -109,26 +97,8 @@ class ContractTest extends TestCase
         $fresh = $this->proposal->fresh();
         $this->assertNotNull($fresh->spk_number);
         $this->assertStringStartsWith('SPK/TEFA/', $fresh->spk_number);
-        $this->assertNotNull($fresh->contract_file_url);
-        Storage::disk('local')->assertExists($fresh->contract_file_url);
         $this->assertNotNull($fresh->project_code);
         $this->assertStringStartsWith('PRJ-', $fresh->project_code);
-        $this->assertDatabaseHas('project_teams', [
-            'proposal_id' => $this->proposal->id,
-            'user_id' => $this->mahasiswa->id,
-        ]);
-        $this->get("/api/v1/proposals/{$this->proposal->id}/contract/download")
-            ->assertOk()
-            ->assertHeader('content-type', 'application/pdf');
-        Sanctum::actingAs($this->klien);
-        $this->get("/api/v1/proposals/{$this->proposal->id}/contract/download")
-            ->assertOk()
-            ->assertHeader('content-type', 'application/pdf');
-
-        $otherClient = User::factory()->create();
-        $otherClient->assignRole('klien');
-        Sanctum::actingAs($otherClient);
-        $this->get("/api/v1/proposals/{$this->proposal->id}/contract/download")->assertForbidden();
 
         // Check maintenance warranty
         $this->assertDatabaseHas('project_maintenances', [

@@ -565,6 +565,7 @@ class ProposalController extends Controller
             'reviewer', 'pm.lecturerProfile',
             'projectTeams.user.studentProfile', 'projectTeams.role',
             'modules', 'statusHistories.changedBy',
+            'payments' => fn ($query) => $query->orderBy('term_sequence'),
         ])->findOrFail($id);
 
         $user = $request->user();

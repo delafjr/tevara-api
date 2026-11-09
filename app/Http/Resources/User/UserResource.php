@@ -15,6 +15,10 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'name', type: 'string', example: 'Dela Fajar Mulia'),
         new OA\Property(property: 'email', type: 'string', format: 'email', example: 'dela.43325207@mhs.polines.ac.id'),
         new OA\Property(property: 'phone_number', type: 'string', nullable: true, example: '6288228893279'),
+        new OA\Property(property: 'nidn', type: 'string', nullable: true, example: '0000000001'),
+        new OA\Property(property: 'department', type: 'string', nullable: true, example: 'Teknik Informatika'),
+        new OA\Property(property: 'nim', type: 'string', nullable: true, example: '4.33.25.1.14'),
+        new OA\Property(property: 'study_program', type: 'string', nullable: true, example: 'D3 Teknik Informatika'),
         new OA\Property(property: 'company_name', type: 'string', nullable: true, example: 'PT. Maju Bersama Sentosa'),
         new OA\Property(property: 'position', type: 'string', nullable: true, example: 'IT Manager'),
         new OA\Property(
