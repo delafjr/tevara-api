@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Proposal;
 use App\Services\NotificationService;
 use App\Traits\ApiResponse;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -60,6 +61,7 @@ final class PaymentController extends Controller
                             properties: [
                                 new OA\Property(property: 'id', type: 'integer', example: 1),
                                 new OA\Property(property: 'proposal_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'invoice_number', type: 'string', example: 'INV/2026/000001'),
                                 new OA\Property(property: 'term_sequence', type: 'integer', example: 1),
                                 new OA\Property(property: 'amount', type: 'number', example: 7500000),
                                 new OA\Property(property: 'due_date', type: 'string', format: 'date', example: '2026-12-01'),
@@ -149,6 +151,8 @@ final class PaymentController extends Controller
             'due_date'      => $data['due_date'] ?? null,
             'status'        => 'PENDING',
         ]);
+        $payment->invoice_number = sprintf('INV/%s/%06d', now()->format('Y'), $payment->id);
+        $payment->save();
 
         $this->notifications->notifyClient($proposal, 'payment.created', [
             'term'   => $payment->term_sequence,
@@ -526,11 +530,60 @@ final class PaymentController extends Controller
         return 'Rp ' . number_format((float) $amount, 0, ',', '.');
     }
 
+    #[OA\Get(
+        path: '/payments/{paymentId}/invoice',
+        summary: 'Download invoice for a payment term',
+        security: [['bearerAuth' => []]],
+        tags: ['F-09: Pembayaran'],
+        parameters: [
+            new OA\Parameter(name: 'paymentId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Invoice PDF',
+                content: new OA\MediaType(
+                    mediaType: 'application/pdf',
+                    schema: new OA\Schema(type: 'string', format: 'binary')
+                )
+            ),
+            new OA\Response(response: 403, description: 'Invoice is not owned by the authenticated client'),
+            new OA\Response(response: 404, description: 'Payment not found'),
+        ]
+    )]
+    public function downloadInvoice(Request $request, int|string $paymentId)
+    {
+        $payment = Payment::with([
+            'proposal.status',
+            'proposal.client.clientProfile.pics',
+            'proposal.client.clientPic.clientProfile.pics',
+        ])->findOrFail($paymentId);
+        $user = $request->user();
+        $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+        $clientIds = $clientProfile
+            ? $clientProfile->pics()->pluck('user_id')->push($clientProfile->user_id)
+            : collect([$user->id]);
+
+        abort_unless($clientIds->contains($payment->proposal->client_id), 403, 'Akses ditolak untuk invoice ini.');
+
+        $invoiceNumber = $payment->invoice_number
+            ?? sprintf('INV/%s/%06d', $payment->created_at?->format('Y') ?? now()->format('Y'), $payment->id);
+        $filename = str_replace('/', '-', $invoiceNumber) . '.pdf';
+        $pdf = Pdf::loadView('documents.invoice', [
+            'payment' => $payment,
+            'proposal' => $payment->proposal,
+            'invoiceNumber' => $invoiceNumber,
+        ])->setPaper('a4');
+
+        return $pdf->download($filename);
+    }
+
     private function formatPayment(Payment $payment): array
     {
         return [
             'id'                 => $payment->id,
             'proposal_id'        => $payment->proposal_id,
+            'invoice_number'     => $payment->invoice_number,
             'term_sequence'      => $payment->term_sequence,
             'amount'             => (float) $payment->amount,
             'due_date'           => $payment->due_date?->toDateString(),

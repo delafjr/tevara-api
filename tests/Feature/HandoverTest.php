@@ -12,6 +12,8 @@ use App\Models\ProposalStatus;
 use App\Models\UatResult;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -60,6 +62,7 @@ class HandoverTest extends TestCase
 
     public function test_client_can_submit_handover_after_latest_uat_passes(): void
     {
+        Storage::fake('public');
         UatResult::create([
             'project_team_id' => $this->team->id,
             'session_date' => now()->toDateString(),
@@ -67,17 +70,13 @@ class HandoverTest extends TestCase
         ]);
         Sanctum::actingAs($this->client);
 
-        $response = $this->postJson("/api/v1/proposals/{$this->proposal->id}/handover", [
-            'handover_date' => now()->toDateString(),
+        $response = $this->post("/api/v1/proposals/{$this->proposal->id}/handover", [
             'repository_url' => 'https://example.test/repository',
-            'documentation_url' => 'https://example.test/documentation',
-            'user_manual_url' => 'https://example.test/manual',
+            'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'handover_notes' => 'Seluruh produk diserahkan.',
             'client_signoff_name' => 'Klien Tevara',
             'client_approved' => true,
             'maintenance_warranty_months' => 3,
-            'maintenance_start_date' => now()->toDateString(),
-            'maintenance_end_date' => now()->addMonths(3)->toDateString(),
             'maintenance_notes' => 'Pemeliharaan sesuai SPK.',
         ]);
 
@@ -87,6 +86,8 @@ class HandoverTest extends TestCase
             ->assertJsonPath('data.status.name', 'Handover')
             ->assertJsonPath('data.maintenance.maintenance_warranty_months', 3)
             ->assertJsonMissingPath('data.risk_analysis');
+        $this->assertSame(now()->toDateString(), substr((string) $response->json('data.handover_date'), 0, 10));
+        $this->assertSame(now()->addDay()->toDateString(), substr((string) $response->json('data.maintenance.maintenance_start_date'), 0, 10));
 
         $this->assertDatabaseHas('proposals', [
             'id' => $this->proposal->id,
@@ -96,7 +97,10 @@ class HandoverTest extends TestCase
         $this->assertDatabaseHas('project_maintenances', [
             'proposal_id' => $this->proposal->id,
             'maintenance_warranty_months' => 3,
+            'maintenance_start_date' => now()->addDay()->toDateString() . ' 00:00:00',
+            'maintenance_end_date' => now()->addDay()->addMonthsNoOverflow(3)->toDateString() . ' 00:00:00',
         ]);
+        Storage::disk('public')->assertExists($this->proposal->fresh()->documentation_url);
     }
 
     public function test_client_cannot_submit_handover_until_uat_passes(): void
