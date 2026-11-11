@@ -595,6 +595,10 @@
                                                     "type": "integer",
                                                     "example": 1
                                                 },
+                                                "invoice_number": {
+                                                    "type": "string",
+                                                    "example": "INV/2026/000001"
+                                                },
                                                 "term_sequence": {
                                                     "type": "integer",
                                                     "example": 1
@@ -1202,6 +1206,49 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/payments/{paymentId}/invoice": {
+            "get": {
+                "tags": [
+                    "F-09: Pembayaran"
+                ],
+                "summary": "Download invoice for a payment term",
+                "operationId": "470a32d822e1a3e2253f6dc025d2d99e",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Invoice PDF",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invoice is not owned by the authenticated client"
+                    },
+                    "404": {
+                        "description": "Payment not found"
                     }
                 },
                 "security": [
@@ -1942,143 +1989,16 @@
                 ]
             }
         },
-        "/proposals/{id}/handover": {
+        "/proposals/handover": {
             "get": {
                 "tags": [
                     "F-07: BAST"
                 ],
-                "summary": "Detail BAST proyek (Klien)",
-                "description": "Melihat rincian BAST dan status kelayakan serah terima berdasarkan hasil UAT terakhir (eligible_for_handover = true jika UAT PASSED). Hanya klien pemilik proposal yang dapat mengakses.",
-                "operationId": "f7b6d373155b7aa055dd79877b196644",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "ID Proposal",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "example": 1
-                        }
-                    }
-                ],
+                "summary": "Daftar proyek dengan UAT lulus dan sudah ditandatangani klien",
+                "operationId": "453550b0dd86b637ea89cfc4b1e309ca",
                 "responses": {
                     "200": {
-                        "description": "Detail BAST proyek",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Detail BAST proyek"
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "proposal": {
-                                                    "$ref": "#/components/schemas/Proposal"
-                                                },
-                                                "latest_uat": {
-                                                    "properties": {
-                                                        "id": {
-                                                            "type": "integer",
-                                                            "example": 1
-                                                        },
-                                                        "proposal_id": {
-                                                            "type": "integer",
-                                                            "example": 1
-                                                        },
-                                                        "session_date": {
-                                                            "type": "string",
-                                                            "format": "date",
-                                                            "example": "2026-11-04"
-                                                        },
-                                                        "overall_result": {
-                                                            "type": "string",
-                                                            "example": "PASSED",
-                                                            "enum": [
-                                                                "PASSED",
-                                                                "FAILED",
-                                                                "PARTIAL"
-                                                            ]
-                                                        },
-                                                        "client_signoff_name": {
-                                                            "type": "string",
-                                                            "example": "Budi Santoso"
-                                                        },
-                                                        "signed_off_at": {
-                                                            "type": "string",
-                                                            "format": "date-time",
-                                                            "example": "2026-11-04T10:00:00Z"
-                                                        }
-                                                    },
-                                                    "type": "object",
-                                                    "nullable": true
-                                                },
-                                                "eligible_for_handover": {
-                                                    "type": "boolean",
-                                                    "example": true
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Unauthenticated."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Bukan klien pemilik proposal",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Akses ditolak: Anda bukan klien pemilik proyek ini."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Proposal tidak ditemukan",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "No query results for model [App\\Models\\Proposal] 999"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Daftar proyek untuk proses BAST"
                     }
                 },
                 "security": [
@@ -2086,14 +2006,117 @@
                         "bearerAuth": []
                     }
                 ]
-            },
+            }
+        },
+        "/proposals/{id}/handover": {
+            "get": {
+                "tags": [
+                    "F-07: BAST"
+                ],
+                "summary": "Detail BAST untuk PIC Klien",
+                "operationId": "f7b6d373155b7aa055dd79877b196644",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail BAST dan status persetujuan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/handover/prepare": {
             "post": {
                 "tags": [
                     "F-07: BAST"
                 ],
-                "summary": "Setujui dan simpan BAST oleh klien",
-                "description": "Hanya klien pemilik proposal yang dapat menyetujui BAST setelah hasil UAT terakhir PASSED. Nomor BAST dibuat otomatis dan status proposal menjadi Handover.",
-                "operationId": "ebb6756f06ab99673d771424dcaa330d",
+                "summary": "Siapkan BAST oleh Pengurus TeFa",
+                "description": "Hanya dapat disiapkan setelah UAT terakhir lulus dan telah ditandatangani klien.",
+                "operationId": "70936820cd601b3a186c156ea249a64d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "repository_url",
+                                    "maintenance_warranty_months"
+                                ],
+                                "properties": {
+                                    "repository_url": {
+                                        "type": "string",
+                                        "format": "uri"
+                                    },
+                                    "documentation_file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    },
+                                    "user_manual_url": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "nullable": true
+                                    },
+                                    "handover_notes": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "maintenance_warranty_months": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                    },
+                                    "maintenance_notes": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "BAST disiapkan untuk persetujuan PIC Klien"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/handover/approve": {
+            "patch": {
+                "tags": [
+                    "F-07: BAST"
+                ],
+                "summary": "Setujui BAST oleh PIC Klien",
+                "description": "Mencatat persetujuan PIC, tanggal serah terima resmi, status Completed, dan awal masa garansi keesokan hari.",
+                "operationId": "5a612fa10583b3c06ff3a1b0d63db836",
                 "parameters": [
                     {
                         "name": "id",
@@ -2110,59 +2133,16 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "handover_date",
-                                    "repository_url",
-                                    "documentation_url",
-                                    "user_manual_url",
                                     "client_signoff_name",
-                                    "client_approved",
-                                    "maintenance_warranty_months",
-                                    "maintenance_start_date",
-                                    "maintenance_end_date"
+                                    "client_approved"
                                 ],
                                 "properties": {
-                                    "handover_date": {
-                                        "type": "string",
-                                        "format": "date"
-                                    },
-                                    "repository_url": {
-                                        "type": "string",
-                                        "format": "uri"
-                                    },
-                                    "documentation_url": {
-                                        "type": "string",
-                                        "format": "uri"
-                                    },
-                                    "user_manual_url": {
-                                        "type": "string",
-                                        "format": "uri"
-                                    },
-                                    "handover_notes": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
                                     "client_signoff_name": {
                                         "type": "string"
                                     },
                                     "client_approved": {
                                         "type": "boolean",
                                         "example": true
-                                    },
-                                    "maintenance_warranty_months": {
-                                        "type": "integer",
-                                        "example": 3
-                                    },
-                                    "maintenance_start_date": {
-                                        "type": "string",
-                                        "format": "date"
-                                    },
-                                    "maintenance_end_date": {
-                                        "type": "string",
-                                        "format": "date"
-                                    },
-                                    "maintenance_notes": {
-                                        "type": "string",
-                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -2172,123 +2152,36 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "BAST berhasil disetujui",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "BAST berhasil disetujui"
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/Proposal"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
+                        "description": "BAST disetujui"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/handover/documentation": {
+            "get": {
+                "tags": [
+                    "F-07: BAST"
+                ],
+                "summary": "Unduh dokumentasi API BAST",
+                "operationId": "eed9537cf8758e7e66b6c65bd911c720",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
                         }
-                    },
-                    "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Unauthenticated."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Bukan klien pemilik proposal",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Akses ditolak: Anda bukan klien pemilik proyek ini."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Proposal tidak ditemukan",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "No query results for model [App\\Models\\Proposal] 999"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "BAST telah disetujui",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": false
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "BAST proyek ini sudah disetujui."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "UAT belum PASSED atau validasi gagal",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED."
-                                        },
-                                        "errors": {
-                                            "properties": {
-                                                "uat": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string",
-                                                        "example": "BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED."
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dokumentasi API"
                     }
                 },
                 "security": [
@@ -6130,6 +6023,26 @@
                     "phone_number": {
                         "type": "string",
                         "example": "6288228893279",
+                        "nullable": true
+                    },
+                    "nidn": {
+                        "type": "string",
+                        "example": "0000000001",
+                        "nullable": true
+                    },
+                    "department": {
+                        "type": "string",
+                        "example": "Teknik Informatika",
+                        "nullable": true
+                    },
+                    "nim": {
+                        "type": "string",
+                        "example": "4.33.25.1.14",
+                        "nullable": true
+                    },
+                    "study_program": {
+                        "type": "string",
+                        "example": "D3 Teknik Informatika",
                         "nullable": true
                     },
                     "company_name": {
