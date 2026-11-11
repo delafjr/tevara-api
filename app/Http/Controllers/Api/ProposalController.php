@@ -392,10 +392,15 @@ class ProposalController extends Controller
                 'handover_date'          => $proposal->handover_date?->toDateString(),
                 'repository_url'         => $proposal->repository_url,
                 'documentation_url'      => $proposal->documentation_url,
+                'user_manual_url'        => $proposal->user_manual_url,
+                'handover_notes'          => $proposal->handover_notes,
+                'client_signoff_name'     => $proposal->client_signoff_name,
+                'bast_approved_at'        => $proposal->bast_approved_at?->toDateTimeString(),
                 'maintenance'            => $proposal->maintenance ? [
                     'maintenance_warranty_months' => $proposal->maintenance->maintenance_warranty_months,
                     'maintenance_start_date' => $proposal->maintenance->maintenance_start_date?->toDateString(),
                     'maintenance_end_date' => $proposal->maintenance->maintenance_end_date?->toDateString(),
+                    'maintenance_notes' => $proposal->maintenance->maintenance_notes,
                 ] : null,
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
@@ -427,6 +432,7 @@ class ProposalController extends Controller
                 ])->values(),
                 'latest_uat_result'      => $latestUat?->overall_result,
                 'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && !$proposal->client_approved,
+                'bast_prepared'          => filled($proposal->bast_number) && !$proposal->client_approved,
                 'client_approved'        => $proposal->client_approved,
                 ];
             });
