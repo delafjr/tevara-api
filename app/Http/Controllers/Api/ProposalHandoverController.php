@@ -59,6 +59,7 @@ final class ProposalHandoverController extends Controller
                     'documentation_url' => $proposal->documentation_url,
                     'user_manual_url' => $proposal->user_manual_url,
                     'handover_notes' => $proposal->handover_notes,
+                    'handover_deliverables' => $proposal->handover_deliverables ?? [],
                     'client_approved' => $proposal->client_approved,
                     'maintenance' => $proposal->maintenance ? [
                         'maintenance_warranty_months' => $proposal->maintenance->maintenance_warranty_months,
@@ -108,12 +109,13 @@ final class ProposalHandoverController extends Controller
             content: new OA\MediaType(
                 mediaType: 'multipart/form-data',
                 schema: new OA\Schema(
-                    required: ['repository_url', 'maintenance_warranty_months'],
+                    required: ['repository_url', 'handover_deliverables', 'maintenance_warranty_months'],
                     properties: [
                         new OA\Property(property: 'repository_url', type: 'string', format: 'uri'),
                         new OA\Property(property: 'documentation_file', type: 'string', format: 'binary', nullable: true),
                         new OA\Property(property: 'user_manual_url', type: 'string', format: 'uri', nullable: true),
                         new OA\Property(property: 'handover_notes', type: 'string', nullable: true),
+                        new OA\Property(property: 'handover_deliverables', type: 'string', description: 'JSON array berisi nama, jenis, jumlah, satuan, kondisi, dan keterangan setiap hasil/barang yang diserahkan.'),
                         new OA\Property(property: 'maintenance_warranty_months', type: 'integer', minimum: 0),
                         new OA\Property(property: 'maintenance_notes', type: 'string', nullable: true),
                     ]
@@ -131,6 +133,12 @@ final class ProposalHandoverController extends Controller
             return $this->error('BAST yang sudah disetujui klien tidak dapat diubah.', 409);
         }
 
+        $deliverables = $request->input('handover_deliverables');
+        if (is_string($deliverables)) {
+            $deliverables = json_decode($deliverables, true);
+            $request->merge(['handover_deliverables' => $deliverables]);
+        }
+
         $validated = $request->validate([
             'repository_url' => ['required', 'url', 'max:255'],
             'documentation_file' => [
@@ -141,6 +149,13 @@ final class ProposalHandoverController extends Controller
             ],
             'user_manual_url' => ['nullable', 'url', 'max:255'],
             'handover_notes' => ['nullable', 'string'],
+            'handover_deliverables' => ['required', 'array', 'min:1', 'max:50'],
+            'handover_deliverables.*.name' => ['required', 'string', 'max:255'],
+            'handover_deliverables.*.type' => ['required', 'in:physical,digital,document,other'],
+            'handover_deliverables.*.quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'handover_deliverables.*.unit' => ['required', 'string', 'max:50'],
+            'handover_deliverables.*.condition' => ['required', 'in:new,good,needs_repair,not_applicable'],
+            'handover_deliverables.*.notes' => ['nullable', 'string', 'max:2000'],
             'maintenance_warranty_months' => ['required', 'integer', 'min:0'],
             'maintenance_notes' => ['nullable', 'string'],
         ]);
@@ -176,6 +191,7 @@ final class ProposalHandoverController extends Controller
                     'documentation_url' => $newDocumentationPath ?? $lockedProposal->documentation_url,
                     'user_manual_url' => $validated['user_manual_url'] ?? null,
                     'handover_notes' => $validated['handover_notes'] ?? null,
+                    'handover_deliverables' => $validated['handover_deliverables'],
                     'handover_date' => null,
                     'client_signoff_name' => null,
                     'client_approved' => false,
@@ -253,9 +269,9 @@ final class ProposalHandoverController extends Controller
         if ($proposal->client_approved) {
             return $this->error('BAST proyek ini sudah disetujui.', 409);
         }
-        if (! $proposal->bast_number || ! $proposal->repository_url || ! $proposal->documentation_url) {
+        if (! $proposal->bast_number || ! $proposal->repository_url || ! $proposal->documentation_url || empty($proposal->handover_deliverables)) {
             throw ValidationException::withMessages([
-                'handover' => ['BAST belum disiapkan oleh Pengurus TeFa.'],
+                'handover' => ['BAST belum lengkap. Pengurus TeFa harus mencatat hasil atau barang yang diserahkan.'],
             ]);
         }
 
@@ -275,9 +291,9 @@ final class ProposalHandoverController extends Controller
             }
 
             $this->assertUatSignedAndPassed($lockedProposal);
-            if (! $lockedProposal->bast_number || ! $lockedProposal->repository_url || ! $lockedProposal->documentation_url) {
+            if (! $lockedProposal->bast_number || ! $lockedProposal->repository_url || ! $lockedProposal->documentation_url || empty($lockedProposal->handover_deliverables)) {
                 throw ValidationException::withMessages([
-                    'handover' => ['BAST belum disiapkan oleh Pengurus TeFa.'],
+                    'handover' => ['BAST belum lengkap. Pengurus TeFa harus mencatat hasil atau barang yang diserahkan.'],
                 ]);
             }
 

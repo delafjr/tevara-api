@@ -91,6 +91,14 @@ class HandoverTest extends TestCase
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'user_manual_url' => 'https://example.test/user-manual',
             'handover_notes' => 'Seluruh produk diserahkan.',
+            'handover_deliverables' => json_encode([[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+                'notes' => 'Akses tersedia melalui repository dan panduan pengguna.',
+            ]]),
             'maintenance_warranty_months' => 3,
             'maintenance_notes' => 'Pemeliharaan sesuai SPK.',
         ]);
@@ -98,7 +106,8 @@ class HandoverTest extends TestCase
         $prepared->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.client_approved', false)
-            ->assertJsonPath('data.maintenance.maintenance_warranty_months', 3);
+            ->assertJsonPath('data.maintenance.maintenance_warranty_months', 3)
+            ->assertJsonPath('data.handover_deliverables.0.name', 'Aplikasi inventaris');
         $this->assertNull($prepared->json('data.handover_date'));
         Storage::disk('public')->assertExists($this->proposal->fresh()->documentation_url);
 
@@ -146,6 +155,13 @@ class HandoverTest extends TestCase
         $response = $this->postJson("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
             'maintenance_warranty_months' => 3,
         ]);
 
@@ -188,6 +204,13 @@ class HandoverTest extends TestCase
         $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
             'maintenance_warranty_months' => 3,
         ])->assertOk();
 
@@ -205,6 +228,15 @@ class HandoverTest extends TestCase
 
     public function test_client_project_list_includes_latest_uat_and_bast_eligibility(): void
     {
+        $this->proposal->forceFill([
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
+        ])->save();
         UatResult::create([
             'proposal_id' => $this->proposal->id,
             'session_date' => now()->toDateString(),
@@ -218,6 +250,40 @@ class HandoverTest extends TestCase
             ->assertOk()
             ->assertJsonPath('0.project_code', 'PRJ-2026/001')
             ->assertJsonPath('0.latest_uat_result', 'PASSED')
-            ->assertJsonPath('0.bast_eligible', true);
+            ->assertJsonPath('0.bast_eligible', true)
+            ->assertJsonPath('0.handover_deliverables.0.name', 'Aplikasi inventaris');
+    }
+
+    public function test_client_cannot_approve_bast_without_handover_deliverables(): void
+    {
+        Storage::fake('public');
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+        Sanctum::actingAs($this->pengurus);
+        $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
+            'maintenance_warranty_months' => 3,
+        ])->assertOk();
+
+        $this->proposal->forceFill(['handover_deliverables' => []])->save();
+        Sanctum::actingAs($this->client);
+        $this->patchJson("/api/v1/proposals/{$this->proposal->id}/handover/approve", [
+            'client_signoff_name' => 'PIC Klien',
+            'client_approved' => true,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('handover');
     }
 }

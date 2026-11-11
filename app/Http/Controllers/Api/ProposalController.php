@@ -395,6 +395,7 @@ class ProposalController extends Controller
                 'documentation_url'      => $proposal->documentation_url,
                 'user_manual_url'        => $proposal->user_manual_url,
                 'handover_notes'          => $proposal->handover_notes,
+                'handover_deliverables'   => $proposal->handover_deliverables ?? [],
                 'client_signoff_name'     => $proposal->client_signoff_name,
                 'bast_approved_at'        => $proposal->bast_approved_at?->toDateTimeString(),
                 'maintenance'            => $proposal->maintenance ? [

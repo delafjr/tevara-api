@@ -2062,6 +2062,7 @@
                             "schema": {
                                 "required": [
                                     "repository_url",
+                                    "handover_deliverables",
                                     "maintenance_warranty_months"
                                 ],
                                 "properties": {
@@ -2082,6 +2083,10 @@
                                     "handover_notes": {
                                         "type": "string",
                                         "nullable": true
+                                    },
+                                    "handover_deliverables": {
+                                        "description": "JSON array berisi nama, jenis, jumlah, satuan, kondisi, dan keterangan setiap hasil/barang yang diserahkan.",
+                                        "type": "string"
                                     },
                                     "maintenance_warranty_months": {
                                         "type": "integer",
