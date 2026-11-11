@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProjectTeam;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,10 @@ use OpenApi\Attributes as OA;
 
 class ProposalTeamController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     #[OA\Get(
         path: '/proposals/{id}/team',
         summary: 'List anggota tim proyek (Pengurus / PM / Mahasiswa)',
@@ -167,8 +172,9 @@ class ProposalTeamController extends Controller
         // Cek jika mode batch
         if ($request->has('members') && is_array($request->members)) {
             $createdMembers = [];
+            $addedStudents  = [];
 
-            DB::transaction(function () use ($proposal, $validated, &$createdMembers) {
+            DB::transaction(function () use ($proposal, $validated, &$createdMembers, &$addedStudents) {
                 foreach ($validated['members'] as $item) {
                     $student = User::findOrFail($item['student_id']);
                     if (! $student->hasRole('mahasiswa')) {
@@ -187,8 +193,16 @@ class ProposalTeamController extends Controller
 
                     $team->load(['user.studentProfile', 'role']);
                     $createdMembers[] = $this->formatTeamMember($team);
+                    $addedStudents[]  = [
+                        'user_id' => (int) $item['student_id'],
+                        'role'    => $team->role?->name ?? 'Anggota',
+                    ];
                 }
             });
+
+            foreach ($addedStudents as $added) {
+                $this->notifyAssigned($proposal, $added['user_id'], $added['role']);
+            }
 
             return response()->json([
                 'message' => 'Anggota tim (batch) berhasil ditambahkan',
@@ -223,6 +237,8 @@ class ProposalTeamController extends Controller
         ]);
 
         $team->load(['user.studentProfile', 'role']);
+
+        $this->notifyAssigned($proposal, (int) $validated['student_id'], $team->role?->name ?? 'Anggota');
 
         return response()->json([
             'message' => 'Anggota tim berhasil ditambahkan',
@@ -385,5 +401,14 @@ class ProposalTeamController extends Controller
                 'name' => $team->role?->name,
             ],
         ];
+    }
+
+    private function notifyAssigned(Proposal $proposal, int $studentId, string $roleName): void
+    {
+        $this->notifications->notify($studentId, 'project.team_assigned', [
+            'code'  => $proposal->proposal_code,
+            'title' => $proposal->title,
+            'role'  => $roleName,
+        ], (int) $proposal->id);
     }
 }

@@ -11,7 +11,13 @@ class UserService
 {
     public function getAll(?string $role = null): Collection
     {
-        $query = User::with(['roles', 'studentProfile', 'lecturerProfile']);
+        $query = User::with([
+            'roles',
+            'studentProfile',
+            'lecturerProfile',
+            'clientProfile.user',
+            'clientPic.clientProfile.user',
+        ]);
 
         if ($role) {
             $query->role($role);
