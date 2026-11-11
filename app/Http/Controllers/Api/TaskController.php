@@ -670,7 +670,12 @@ final class TaskController extends Controller
     )]
     public function overview(Request $request, int|string $id): JsonResponse
     {
-        $proposal = Proposal::with(['status:id,name', 'category:id,name'])->findOrFail($id);
+        $proposal = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'projectTeams.user.studentProfile',
+            'projectTeams.role:id,name',
+        ])->findOrFail($id);
         $user     = $request->user();
 
         if (! $user->hasRole('dosen') || $proposal->pm_id !== $user->id) {
@@ -697,6 +702,20 @@ final class TaskController extends Controller
                 : 0,
         ];
 
+        $teamMembers = $proposal->projectTeams->map(function (ProjectTeam $team) {
+            $student = $team->user;
+            $profile = $student?->studentProfile;
+
+            return [
+                'id'            => $student?->id,
+                'name'          => $student?->name,
+                'email'         => $student?->email,
+                'nim'           => $profile?->nim,
+                'study_program' => $profile?->study_program,
+                'role'          => $team->role?->name,
+            ];
+        })->filter(fn ($m) => ! empty($m['id']))->values();
+
         return $this->ok('Data monitoring task proyek', [
             'proposal' => [
                 'id'                     => $proposal->id,
@@ -707,9 +726,12 @@ final class TaskController extends Controller
                 'start_date'             => $proposal->start_date?->toDateString(),
                 'target_completion_date' => $proposal->target_completion_date?->toDateString(),
                 'pm_id'                  => $proposal->pm_id,
+                'client_name'            => $proposal->client_company_name,
+                'team_size'              => $teamMembers->count(),
             ],
-            'summary' => $summary,
-            'tasks'   => $tasks->map(fn (Task $task) => $this->formatTask($task)),
+            'summary'      => $summary,
+            'team_members' => $teamMembers,
+            'tasks'        => $tasks->map(fn (Task $task) => $this->formatTask($task)),
         ]);
     }
 
