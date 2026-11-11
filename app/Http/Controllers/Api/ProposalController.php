@@ -337,39 +337,15 @@ class ProposalController extends Controller
     )]
     public function mine(Request $request)
     {
-        $user = $request->user();
-        $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
-
-        $query = Proposal::with([
+        $proposals = Proposal::with([
             'status:id,name',
             'category:id,name',
-            'pm:id,name',
-            'pm.lecturerProfile:user_id,nidn,department',
-            'modules:id,proposal_id,title,description',
-            'tasks:id,proposal_id,progress_percentage',
-            'maintenance',
-            'projectTeams.user:id,name',
-            'projectTeams.user.studentProfile:user_id,nim,study_program',
-            'projectTeams.role:id,name',
             'projectTeams.uatResults' => fn ($query) => $query
                 ->select('id', 'project_team_id', 'session_date', 'overall_result')
                 ->orderByDesc('session_date')
                 ->orderByDesc('id'),
-        ]);
-
-        if ($clientProfile) {
-            $clientUserIds = $clientProfile->pics()
-                ->pluck('user_id')
-                ->push($clientProfile->user_id)
-                ->unique()
-                ->values();
-
-            $query->whereIn('client_id', $clientUserIds);
-        } else {
-            $query->where('client_id', $user->id);
-        }
-
-        $proposals = $query
+        ])
+            ->where('client_id', $request->user()->id)
             ->latest()
             ->get()
             ->map(function (Proposal $proposal) {
