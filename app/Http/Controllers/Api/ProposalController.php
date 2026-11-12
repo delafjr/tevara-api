@@ -487,7 +487,7 @@ class ProposalController extends Controller
             'client.clientProfile.user',
             'reviewer', 'pm.lecturerProfile',
             'projectTeams.user.studentProfile', 'projectTeams.role',
-            'modules', 'statusHistories.changedBy',
+            'modules', 'statusHistories.changedBy', 'payments.verifier',
         ])->findOrFail($id);
 
         $user = $request->user();
