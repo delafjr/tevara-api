@@ -80,10 +80,19 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'jurusan'])->name('dashboard');
         });
 
-        // ── F-07: BAST (khusus klien pemilik proposal) ──
+        // ── F-07: BAST preparation and client approval ──
+        Route::middleware('role:pengurus_tefa')->group(function () {
+            Route::get('proposals/handover', [ProposalHandoverController::class, 'indexForPengurus']);
+            Route::post('proposals/{id}/handover/prepare', [ProposalHandoverController::class, 'prepare'])->whereNumber('id');
+        });
+
         Route::middleware('role:klien')->group(function () {
             Route::get('proposals/{id}/handover', [ProposalHandoverController::class, 'show'])->whereNumber('id');
-            Route::post('proposals/{id}/handover', [ProposalHandoverController::class, 'store'])->whereNumber('id');
+            Route::patch('proposals/{id}/handover/approve', [ProposalHandoverController::class, 'approve'])->whereNumber('id');
+        });
+
+        Route::middleware('role:klien|pengurus_tefa')->group(function () {
+            Route::get('proposals/{id}/handover/documentation', [ProposalHandoverController::class, 'downloadDocumentation'])->whereNumber('id');
         });
 
         // ── F-01: Proposal ─────────────────────────────
