@@ -57,21 +57,4 @@ class UserResource extends JsonResource
             'created_at'   => $this->created_at,
         ];
     }
-
-    /**
-     * Nama perusahaan untuk user yang punya role klien.
-     * Diambil dari client_pics -> client_profiles -> users (owner akun perusahaan).
-     */
-    private function companyName(): ?string
-    {
-        return $this->clientPic?->clientProfile?->user?->name;
-    }
-
-    /**
-     * Jabatan PIC pada perusahaan (mis. IT Manager, Direktur Operasional).
-     */
-    private function position(): ?string
-    {
-        return $this->clientPic?->position;
-    }
 }
