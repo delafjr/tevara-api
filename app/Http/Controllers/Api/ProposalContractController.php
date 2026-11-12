@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ use OpenApi\Attributes as OA;
 
 class ProposalContractController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     #[OA\Patch(
         path: '/proposals/{id}/contract',
         summary: 'Isi data SPK / Kontrak (Pengurus TeFa)',
@@ -69,20 +74,30 @@ class ProposalContractController extends Controller
         $proposal = Proposal::findOrFail($id);
 
         $validated = $request->validate([
+            'spk_number'                  => 'nullable|string|max:100',
             'scope_of_work'               => 'required|string',
             'total_amount'                => 'required|numeric|min:0',
-            'payment_terms_description'   => 'required|string',
+            'payment_terms_description'   => 'nullable|string',
             'maintenance_warranty_months' => 'nullable|integer|min:0',
             'start_date'                  => 'required|date',
             'target_completion_date'      => 'required|date|after_or_equal:start_date',
-            'contract_file'               => 'nullable|file|mimes:pdf|max:10240',
+            'contract_file'               => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+            'pm_id'                       => 'nullable|integer|exists:users,id',
+            'terms'                       => 'nullable',
+            'members'                     => 'nullable',
         ]);
 
-        DB::transaction(function () use ($proposal, $validated, $request) {
+        $oldPmId      = $proposal->pm_id;
+        $addedMembers = [];
+        $termsCreated = 0;
+
+        DB::transaction(function () use ($proposal, $validated, $request, &$addedMembers, &$termsCreated) {
             $year = date('Y', strtotime($validated['start_date']));
 
-            // Auto-generate spk_number: SPK/TEFA/{Y}/{SEQ}
-            if (empty($proposal->spk_number)) {
+            // Auto-generate atau set spk_number: SPK/TEFA/{Y}/{SEQ}
+            if (!empty($validated['spk_number'])) {
+                $proposal->spk_number = $validated['spk_number'];
+            } elseif (empty($proposal->spk_number)) {
                 $prefixSpk = "SPK/TEFA/{$year}/";
                 $lastSpk = Proposal::where('spk_number', 'like', $prefixSpk . '%')
                     ->orderByDesc('spk_number')
@@ -117,9 +132,13 @@ class ProposalContractController extends Controller
                     ->store('contracts', 'public');
             }
 
+            if (!empty($validated['pm_id'])) {
+                $proposal->pm_id = (int) $validated['pm_id'];
+            }
+
             $proposal->scope_of_work             = $validated['scope_of_work'];
             $proposal->total_amount              = $validated['total_amount'];
-            $proposal->payment_terms_description = $validated['payment_terms_description'];
+            $proposal->payment_terms_description = $validated['payment_terms_description'] ?? 'Termin pembayaran telah disepakati sesuai SPK.';
             $proposal->start_date                = $validated['start_date'];
             $proposal->target_completion_date    = $validated['target_completion_date'];
             $proposal->status_id                 = 7; // Active (id=7)
@@ -135,13 +154,81 @@ class ProposalContractController extends Controller
                 ['maintenance_warranty_months' => $warrantyMonths]
             );
 
+            // Simpan termin pembayaran jika ada
+            $terms = $request->input('terms');
+            if (is_string($terms)) {
+                $terms = json_decode($terms, true);
+            }
+            if (is_array($terms) && count($terms) > 0) {
+                $proposal->payments()->delete();
+                foreach ($terms as $idx => $t) {
+                    if (isset($t['amount']) && (float) $t['amount'] > 0) {
+                        $proposal->payments()->create([
+                            'term_sequence'      => (int) ($t['term_sequence'] ?? ($idx + 1)),
+                            'amount'             => (float) $t['amount'],
+                            'payment_date'       => !empty($t['payment_date']) ? $t['payment_date'] : null,
+                            'verification_notes' => $t['name'] ?? $t['notes'] ?? ('Termin ' . ($idx + 1)),
+                            'status'             => 'PENDING',
+                        ]);
+                        $termsCreated++;
+                    }
+                }
+            }
+
+            // Simpan anggota tim pengembang jika ada
+            $members = $request->input('members');
+            if (is_string($members)) {
+                $members = json_decode($members, true);
+            }
+            if (is_array($members) && count($members) > 0) {
+                $proposal->projectTeams()->delete();
+                foreach ($members as $m) {
+                    $studentId = $m['student_id'] ?? $m['user_id'] ?? null;
+                    $roleId = $m['role_id'] ?? null;
+                    if ($studentId && $roleId) {
+                        $team = $proposal->projectTeams()->create([
+                            'user_id'   => (int) $studentId,
+                            'role_id'   => (int) $roleId,
+                            'joined_at' => !empty($m['joined_at']) ? $m['joined_at'] : $validated['start_date'],
+                        ]);
+
+                        $addedMembers[] = [
+                            'user_id' => (int) $studentId,
+                            'role'    => $team->role?->name ?? 'Anggota',
+                        ];
+                    }
+                }
+            }
+
             // Rekam di timeline status
             $proposal->statusHistories()->create([
                 'status_id'  => 7,
-                'note'       => 'SPK/Kontrak diterbitkan',
+                'note'       => 'Proposal disetujui & SPK/Kontrak diterbitkan',
                 'changed_by' => $request->user()->id,
             ]);
         });
+
+        if ($proposal->pm_id && (int) $proposal->pm_id !== (int) $oldPmId) {
+            $this->notifications->notify((int) $proposal->pm_id, 'proposal.pm_assigned', [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+            ], (int) $proposal->id);
+        }
+
+        if ($termsCreated > 0) {
+            $this->notifications->notifyClient($proposal, 'payment.terms_set', [
+                'count' => $termsCreated,
+                'code'  => $proposal->proposal_code,
+            ]);
+        }
+
+        foreach ($addedMembers as $member) {
+            $this->notifications->notify($member['user_id'], 'project.team_assigned', [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+                'role'  => $member['role'],
+            ], (int) $proposal->id);
+        }
 
         return response()->json([
             'message' => 'Data SPK/kontrak berhasil disimpan',
@@ -275,6 +362,11 @@ class ProposalContractController extends Controller
 
         $proposal->pm_id = $dosen->id;
         $proposal->save();
+
+        $this->notifications->notify((int) $dosen->id, 'proposal.pm_assigned', [
+            'code'  => $proposal->proposal_code,
+            'title' => $proposal->title,
+        ], (int) $proposal->id);
 
         return response()->json([
             'message' => 'Project Manager (Dosen) berhasil ditugaskan',

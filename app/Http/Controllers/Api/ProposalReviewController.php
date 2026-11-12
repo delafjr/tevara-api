@@ -6,12 +6,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 
 class ProposalReviewController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     #[OA\Patch(
         path: '/proposals/{id}/review',
         summary: 'Review proposal (Pengurus TeFa)',
@@ -67,17 +72,26 @@ class ProposalReviewController extends Controller
             ], 422);
         }
 
+        if ($request->has('reason') && ! $request->has('review_notes')) {
+            $request->merge(['review_notes' => $request->input('reason')]);
+        }
+        if ($request->has('rejection_reason') && ! $request->has('review_notes')) {
+            $request->merge(['review_notes' => $request->input('rejection_reason')]);
+        }
+
         $validated = $request->validate([
             'decision'         => 'required|in:approved,rejected,revision_required',
             'complexity_level' => 'required_if:decision,approved|nullable|in:LOW,MEDIUM,HIGH',
             'risk_analysis'    => 'required_if:decision,approved|nullable|string',
             'estimated_cost'   => 'required_if:decision,approved|nullable|numeric',
-            'review_notes'     => 'required_if:decision,revision_required|nullable|string',
+            'review_notes'     => in_array($request->input('decision'), ['revision_required', 'rejected'], true)
+                ? 'required|string|min:3'
+                : 'nullable|string',
         ]);
 
-        if ($proposal->status_id === 4 && in_array($validated['decision'], ['approved', 'rejected'])) {
+        if ($proposal->status_id === 4 && $validated['decision'] === 'approved') {
             return response()->json([
-                'message' => 'Proposal sedang menunggu revisi dari klien, keputusan hanya bisa berupa catatan revisi.',
+                'message' => 'Proposal sedang menunggu revisi dari klien, tidak dapat langsung disetujui.',
             ], 422);
         }
 
@@ -114,6 +128,19 @@ class ProposalReviewController extends Controller
                 'changed_by' => $request->user()->id,
             ]);
         });
+
+        $notificationType = match ($validated['decision']) {
+            'approved'          => 'proposal.approved',
+            'rejected'          => 'proposal.rejected',
+            'revision_required' => 'proposal.revision_required',
+        };
+
+        $this->notifications->notifyClient($proposal, $notificationType, [
+            'code'   => $proposal->proposal_code,
+            'title'  => $proposal->title,
+            'reason' => $validated['review_notes'] ?? ($proposal->review_notes ?? ''),
+            'notes'  => $validated['review_notes'] ?? ($proposal->review_notes ?? ''),
+        ]);
 
         return response()->json([
             'message' => 'Review submitted successfully',
@@ -186,6 +213,20 @@ class ProposalReviewController extends Controller
                 'changed_by' => $request->user()->id,
             ]);
         });
+
+        $notificationType = match ((int) $validated['status_id']) {
+            4       => 'proposal.revision_required',
+            5       => 'proposal.approved',
+            6       => 'proposal.rejected',
+            default => null,
+        };
+
+        if ($notificationType !== null) {
+            $this->notifications->notifyClient($proposal, $notificationType, [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+            ]);
+        }
 
         return response()->json([
             'message' => 'Status updated successfully',

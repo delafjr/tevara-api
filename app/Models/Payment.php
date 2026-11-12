@@ -8,6 +8,7 @@ class Payment extends Model
 {
     protected $fillable = [
         'proposal_id',
+        'invoice_number',
         'term_sequence',
         'amount',
         'due_date',

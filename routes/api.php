@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\MasterDataController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProposalContractController;
+use App\Http\Controllers\Api\ProposalHandoverController;
 use App\Http\Controllers\Api\ProposalController;
 use App\Http\Controllers\Api\ProposalReviewController;
 use App\Http\Controllers\Api\ProposalTeamController;
@@ -28,6 +30,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
             Route::post('logout', [AuthController::class, 'logout'])->name('logout');
             Route::get('me',     [AuthController::class, 'me'])->name('me');
+        });
+
+        // ── Notifikasi in-app ──────────────────────────
+        Route::prefix('notifications')->name('notifications.')->group(function () {
+            Route::get('/', [NotificationController::class, 'index'])->name('index');
+            Route::get('unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
+            Route::patch('read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
+            Route::patch('{id}/read', [NotificationController::class, 'markAsRead'])->name('read')->whereNumber('id');
         });
 
         // Data user + perusahaan (khusus klien & jurusan). Harus sebelum apiResource agar tidak tertangkap /users/{id}
@@ -70,6 +80,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'jurusan'])->name('dashboard');
         });
 
+        // ── F-07: BAST (khusus klien pemilik proposal) ──
+        Route::middleware('role:klien')->group(function () {
+            Route::get('proposals/{id}/handover', [ProposalHandoverController::class, 'show'])->whereNumber('id');
+            Route::post('proposals/{id}/handover', [ProposalHandoverController::class, 'store'])->whereNumber('id');
+        });
+
         // ── F-01: Proposal ─────────────────────────────
         // /proposals/mine HARUS didaftarkan sebelum /proposals/{id}
         Route::middleware('role:klien|jurusan')->group(function () {
@@ -100,7 +116,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::match(['patch', 'post'], 'proposals/{id}/contract/sign', [ProposalContractController::class, 'sign'])->whereNumber('id');
             Route::patch('proposals/{id}/contract/pm', [ProposalContractController::class, 'assignPm'])->whereNumber('id');
         });
-
         // ── F-04: Penugasan Tim ─────────────────────────
         Route::middleware('role:pengurus_tefa|dosen|mahasiswa')->group(function () {
             Route::get('proposals/{id}/team', [ProposalTeamController::class, 'index'])->whereNumber('id');
@@ -168,6 +183,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // PATCH upload bukti: hanya klien
         Route::middleware('role:klien')->group(function () {
+            Route::get('payments/{paymentId}/invoice', [PaymentController::class, 'downloadInvoice'])
+                ->whereNumber('paymentId');
             Route::patch('proposals/{id}/payments/{paymentId}/proof', [PaymentController::class, 'uploadProof'])
                 ->whereNumber('id')->whereNumber('paymentId');
         });

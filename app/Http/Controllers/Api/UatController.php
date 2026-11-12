@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
-#[OA\Tag(name: 'F-06: UAT', description: 'User Acceptance Testing — buat sesi, isi item, sign-off klien')]
 final class UatController extends Controller
 {
     use ApiResponse;
@@ -26,15 +25,80 @@ final class UatController extends Controller
     #[OA\Get(
         path: '/proposals/{id}/uat',
         summary: 'Detail UAT proyek + semua item',
-        description: 'Return uat_result + uat_items[]. Jika belum ada UAT, return 404.',
+        description: 'Mengambil data UAT result beserta seluruh test scenario/item. Dapat diakses oleh Klien pemilik, Dosen PM, dan Pengurus TeFa. Jika belum ada UAT, mengembalikan 404.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Data UAT'),
-            new OA\Response(response: 404, description: 'Proposal atau UAT tidak ditemukan'),
+            new OA\Response(
+                response: 200,
+                description: 'Data UAT proyek',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Data UAT proyek'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                new OA\Property(property: 'proposal_id', type: 'integer', example: 1),
+                                new OA\Property(property: 'session_date', type: 'string', format: 'date', example: '2026-11-04'),
+                                new OA\Property(property: 'overall_result', type: 'string', enum: ['PASSED', 'FAILED', 'PARTIAL'], example: 'PASSED'),
+                                new OA\Property(property: 'client_notes', type: 'string', nullable: true, example: 'Semua fungsi utama berjalan dengan baik.'),
+                                new OA\Property(property: 'client_signoff_name', type: 'string', nullable: true, example: 'Budi Santoso'),
+                                new OA\Property(property: 'signed_off_at', type: 'string', format: 'date-time', nullable: true, example: '2026-11-04T10:00:00Z'),
+                                new OA\Property(
+                                    property: 'uat_items',
+                                    type: 'array',
+                                    items: new OA\Items(
+                                        properties: [
+                                            new OA\Property(property: 'id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'uat_result_id', type: 'integer', example: 1),
+                                            new OA\Property(property: 'feature_name', type: 'string', example: 'Login & Autentikasi'),
+                                            new OA\Property(property: 'test_scenario', type: 'string', nullable: true, example: 'Login dengan kredensial valid dan invalid'),
+                                            new OA\Property(property: 'result', type: 'string', enum: ['PASSED', 'FAILED', 'BUG_FOUND'], example: 'PASSED'),
+                                            new OA\Property(property: 'bug_severity', type: 'string', nullable: true, enum: ['MINOR', 'MAJOR', 'CRITICAL']),
+                                            new OA\Property(property: 'bug_description', type: 'string', nullable: true),
+                                            new OA\Property(property: 'client_feedback', type: 'string', nullable: true, example: 'UI login responsif dan jelas'),
+                                        ]
+                                    )
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Akses ditolak',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Akses ditolak.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Proposal atau UAT tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'UAT belum tersedia untuk proyek ini.'),
+                    ]
+                )
+            ),
         ]
     )]
     public function show(Request $request, int|string $id): JsonResponse
@@ -60,17 +124,89 @@ final class UatController extends Controller
     // ──────────────────────────────────────────────────────
     #[OA\Post(
         path: '/proposals/{id}/uat',
-        summary: 'Buat sesi UAT + item sekaligus',
-        description: 'Proposal harus status Testing (id=8). One-to-one: satu proposal satu UAT. Simpan header + items dalam satu transaksi DB.',
+        summary: 'Buat sesi UAT + item sekaligus (Dosen PM / Pengurus TeFa)',
+        description: 'Proposal harus berstatus Testing (id=8). Relasi one-to-one: satu proposal satu hasil UAT. Simpan header sesi dan item-item pengujian dalam satu transaksi DB.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['session_date', 'overall_result', 'items'],
+                properties: [
+                    new OA\Property(property: 'session_date', type: 'string', format: 'date', example: '2026-11-04'),
+                    new OA\Property(property: 'overall_result', type: 'string', enum: ['PASSED', 'FAILED', 'PARTIAL'], example: 'PASSED'),
+                    new OA\Property(property: 'client_notes', type: 'string', nullable: true, example: 'Pengujian modul utama telah selesai.'),
+                    new OA\Property(
+                        property: 'items',
+                        type: 'array',
+                        items: new OA\Items(
+                            required: ['feature_name', 'result'],
+                            properties: [
+                                new OA\Property(property: 'feature_name', type: 'string', example: 'Manajemen Proposal'),
+                                new OA\Property(property: 'test_scenario', type: 'string', nullable: true, example: 'Pengajuan proposal dengan lampiran dokumen'),
+                                new OA\Property(property: 'result', type: 'string', enum: ['PASSED', 'FAILED', 'BUG_FOUND'], example: 'PASSED'),
+                                new OA\Property(property: 'bug_severity', type: 'string', nullable: true, enum: ['MINOR', 'MAJOR', 'CRITICAL']),
+                                new OA\Property(property: 'bug_description', type: 'string', nullable: true),
+                                new OA\Property(property: 'client_feedback', type: 'string', nullable: true, example: 'Fitur sesuai kebutuhan'),
+                            ]
+                        )
+                    ),
+                ]
+            )
+        ),
         responses: [
-            new OA\Response(response: 201, description: 'UAT berhasil dibuat'),
-            new OA\Response(response: 409, description: 'UAT sudah ada'),
-            new OA\Response(response: 422, description: 'Validasi gagal'),
+            new OA\Response(
+                response: 201,
+                description: 'UAT berhasil dibuat',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'UAT berhasil dibuat'),
+                        new OA\Property(property: 'data', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Akses ditolak (bukan dosen/PM/pengurus)',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Dosen/PM yang dapat mengelola UAT.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: 'UAT sudah ada',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'UAT untuk proyek ini sudah ada. Gunakan endpoint PUT untuk memperbarui.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validasi gagal atau status proposal bukan Testing',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'Proposal harus berstatus Testing untuk membuat UAT.'),
+                    ]
+                )
+            ),
         ]
     )]
     public function store(Request $request, int|string $id): JsonResponse
@@ -135,16 +271,98 @@ final class UatController extends Controller
     #[OA\Put(
         path: '/proposals/{id}/uat',
         summary: 'Update UAT (revisi item)',
-        description: 'Body sama dengan POST. Replace seluruh items (delete lama, insert baru dalam satu transaksi). Hanya bisa update jika belum di-sign-off klien.',
+        description: 'Memperbarui hasil UAT dan mengganti seluruh item pengujian (replace dalam satu transaksi). Hanya bisa dilakukan jika UAT belum di-sign-off klien.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['session_date', 'overall_result', 'items'],
+                properties: [
+                    new OA\Property(property: 'session_date', type: 'string', format: 'date', example: '2026-11-04'),
+                    new OA\Property(property: 'overall_result', type: 'string', enum: ['PASSED', 'FAILED', 'PARTIAL'], example: 'PASSED'),
+                    new OA\Property(property: 'client_notes', type: 'string', nullable: true, example: 'Revisi minor bug sudah selesai diuji.'),
+                    new OA\Property(
+                        property: 'items',
+                        type: 'array',
+                        items: new OA\Items(
+                            required: ['feature_name', 'result'],
+                            properties: [
+                                new OA\Property(property: 'feature_name', type: 'string', example: 'Manajemen Proposal'),
+                                new OA\Property(property: 'test_scenario', type: 'string', nullable: true, example: 'Pengajuan proposal dengan lampiran dokumen'),
+                                new OA\Property(property: 'result', type: 'string', enum: ['PASSED', 'FAILED', 'BUG_FOUND'], example: 'PASSED'),
+                                new OA\Property(property: 'bug_severity', type: 'string', nullable: true, enum: ['MINOR', 'MAJOR', 'CRITICAL']),
+                                new OA\Property(property: 'bug_description', type: 'string', nullable: true),
+                                new OA\Property(property: 'client_feedback', type: 'string', nullable: true, example: 'Semua lulus uji coba'),
+                            ]
+                        )
+                    ),
+                ]
+            )
+        ),
         responses: [
-            new OA\Response(response: 200, description: 'UAT berhasil diperbarui'),
-            new OA\Response(response: 404, description: 'UAT tidak ditemukan'),
-            new OA\Response(response: 409, description: 'UAT sudah di-sign-off oleh klien'),
+            new OA\Response(
+                response: 200,
+                description: 'UAT berhasil diperbarui',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'UAT berhasil diperbarui'),
+                        new OA\Property(property: 'data', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Akses ditolak',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Dosen/PM yang dapat mengelola UAT.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'UAT tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'UAT tidak ditemukan untuk proyek ini.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: 'UAT sudah di-sign-off oleh klien',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'UAT sudah di-sign-off oleh klien dan tidak dapat diubah.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validasi input gagal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'The overall result field is required.'),
+                        new OA\Property(property: 'errors', type: 'object'),
+                    ]
+                )
+            ),
         ]
     )]
     public function update(Request $request, int|string $id): JsonResponse
@@ -211,16 +429,81 @@ final class UatController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/uat/signoff',
         summary: 'Sign-off UAT oleh klien',
-        description: 'Auto-set signed_off_at=now(). Jika overall_result=PASSED → update status proposal ke Handover (id=9).',
+        description: 'Menandatangani persetujuan UAT oleh klien. Otomatis mengisi signed_off_at=now(). Jika overall_result=PASSED, status proposal otomatis beralih ke Handover (id=9).',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['client_signoff_name'],
+                properties: [
+                    new OA\Property(property: 'client_signoff_name', type: 'string', example: 'Budi Santoso'),
+                ]
+            )
+        ),
         responses: [
-            new OA\Response(response: 200, description: 'Sign-off berhasil'),
-            new OA\Response(response: 404, description: 'UAT tidak ditemukan'),
-            new OA\Response(response: 409, description: 'UAT sudah di-sign-off sebelumnya'),
+            new OA\Response(
+                response: 200,
+                description: 'Sign-off berhasil',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Sign-off UAT berhasil.'),
+                        new OA\Property(property: 'data', type: 'object'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Bukan klien pemilik proposal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Anda bukan klien dari proyek ini.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'UAT tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'UAT tidak ditemukan untuk proyek ini.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: 'UAT sudah di-sign-off sebelumnya',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'UAT sudah di-sign-off sebelumnya.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validasi gagal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'The client signoff name field is required.'),
+                        new OA\Property(property: 'errors', type: 'object'),
+                    ]
+                )
+            ),
         ]
     )]
     public function signoff(Request $request, int|string $id): JsonResponse
@@ -273,15 +556,59 @@ final class UatController extends Controller
     // ──────────────────────────────────────────────────────
     #[OA\Patch(
         path: '/proposals/{id}/status/testing',
-        summary: 'Tandai proyek masuk fase Testing',
-        description: 'Shortcut: update status → Testing (id=8). Trigger ini supaya form UAT bisa dibuka.',
+        summary: 'Tandai proyek masuk fase Testing (Dosen PM / Pengurus TeFa)',
+        description: 'Mengubah status proposal menjadi Testing (id=8) agar sesi UAT dapat dibuat.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Status berhasil diperbarui ke Testing'),
+            new OA\Response(
+                response: 200,
+                description: 'Status berhasil diperbarui ke Testing',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Status proyek berhasil diperbarui ke Testing.'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer', example: 1),
+                                new OA\Property(property: 'status_id', type: 'integer', example: 8),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Akses ditolak',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Dosen/PM yang dapat mengelola UAT.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Proposal tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model [App\\Models\\Proposal] 999'),
+                    ]
+                )
+            ),
         ]
     )]
     public function setTesting(Request $request, int|string $id): JsonResponse

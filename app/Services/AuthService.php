@@ -12,6 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     public function register(array $data): array
     {
         $user = User::create([
@@ -21,7 +25,16 @@ class AuthService
             'phone_number' => $data['phone_number'] ?? null,
         ]);
 
-        $user->assignRole($data['role'] ?? 'mahasiswa');
+        $role = $data['role'] ?? 'mahasiswa';
+        $user->assignRole($role);
+
+        if (in_array($role, ['klien', 'jurusan'], true)) {
+            $this->notifications->notifyRole('pengurus_tefa', 'client.registration_requested', [
+                'name'  => $user->name,
+                'email' => $user->email,
+                'role'  => $role,
+            ]);
+        }
 
         return $this->authenticatedPayload($user);
     }
@@ -42,10 +55,16 @@ class AuthService
     public function loginWithGoogle(string $idToken): array
     {
         try {
-            $response = Http::timeout(10)->get('https://oauth2.googleapis.com/tokeninfo', [
+            $request = Http::timeout(10);
+            if (app()->environment('local', 'testing') || config('services.google.verify_ssl') === false) {
+                $request = $request->withoutVerifying();
+            }
+
+            $response = $request->get('https://oauth2.googleapis.com/tokeninfo', [
                 'id_token' => $idToken,
             ]);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Google Auth verification error: ' . $e->getMessage());
             throw ValidationException::withMessages([
                 'id_token' => ['Gagal menghubungi server verifikasi Google.'],
             ]);
@@ -95,7 +114,7 @@ class AuthService
     private function authenticatedPayload(User $user): array
     {
         return [
-            'user'  => $user->load(['roles', 'clientPic.clientProfile.user']),
+            'user'  => $user->load('roles'),
             'token' => $user->createToken('auth-token')->plainTextToken,
         ];
     }

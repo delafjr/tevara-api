@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class LecturerProfile extends Model
 {
-    protected $fillable = ['user_id', 'nidn'];
+    protected $fillable = ['user_id', 'nidn', 'department'];
 
     public function user()
     {

@@ -26,11 +26,16 @@ use OpenApi\Attributes as OA;
 #[OA\Tag(name: 'Auth', description: 'Autentikasi (Register, Login, Logout, Profile)')]
 #[OA\Tag(name: 'Users', description: 'Manajemen User (CRUD)')]
 #[OA\Tag(name: 'Dashboard', description: 'Dashboard per Role')]
+#[OA\Tag(name: 'Master Data', description: 'Data master kategori proposal, status, role tim proyek, dan kategori task')]
 #[OA\Tag(name: 'F-01: Pengajuan Proposal', description: 'Klien mengajukan proposal proyek baru')]
 #[OA\Tag(name: 'F-02: Review & Validasi', description: 'Pengurus TeFa mereview kelayakan proposal')]
 #[OA\Tag(name: 'F-03: SPK & Kontrak', description: 'Pembuatan dan penandatanganan SPK / kontrak kerja serta assign PM')]
 #[OA\Tag(name: 'F-04: Penugasan Tim', description: 'Penugasan dan manajemen tim mahasiswa proyek')]
-#[OA\Tag(name: 'Master Data', description: 'Data master kategori, status, role tim proyek, dan kategori task')]
+#[OA\Tag(name: 'F-05: Tasks & Progress', description: 'Manajemen task dan laporan progres sprint oleh mahasiswa, review oleh dosen PM')]
+#[OA\Tag(name: 'F-06: UAT', description: 'User Acceptance Testing — buat sesi, isi item, sign-off klien')]
+#[OA\Tag(name: 'F-07: BAST', description: 'Berita Acara Serah Terima dan persetujuan klien setelah UAT PASSED')]
+#[OA\Tag(name: 'F-09: Pembayaran', description: 'Catat termin pembayaran, upload bukti transfer oleh klien, verifikasi oleh dosen/PM')]
+#[OA\Tag(name: 'Notifications', description: 'Notifikasi in-app per user (list, unread count, tandai dibaca)')]
 abstract class Controller
 {
     //

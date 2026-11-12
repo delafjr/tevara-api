@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Proposal;
 use App\Models\ProposalStatus;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -77,6 +78,7 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 1),
         new OA\Property(property: 'proposal_code', type: 'string', example: 'PRSL-2026-001'),
+        new OA\Property(property: 'project_code', type: 'string', nullable: true, example: 'PRJ-2026/001'),
         new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
         new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Inventaris'),
         new OA\Property(property: 'background', type: 'string', example: 'Latar belakang proyek...'),
@@ -124,6 +126,10 @@ use OpenApi\Attributes as OA;
 )]
 class ProposalController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     #[OA\Get(
         path: '/proposals',
         summary: 'List semua proposal (Pengurus TeFa)',
@@ -287,6 +293,9 @@ class ProposalController extends Controller
             'id'               => $proposal->id,
             'proposal_code'    => $proposal->proposal_code,
             'client_name'      => $proposal->client_company_name,
+            'client_profile_id' => $proposal->client_profile_id ?? $proposal->client?->clientPic?->client_profile_id ?? $proposal->client?->clientProfile?->id,
+            'client_company_email' => $proposal->client?->clientPic?->clientProfile?->user?->email
+                ?? $proposal->client?->clientProfile?->user?->email,
             'title'            => $proposal->title,
             'background'       => $proposal->background,
             'target_audience'  => $proposal->target_audience,
@@ -328,29 +337,42 @@ class ProposalController extends Controller
     )]
     public function mine(Request $request)
     {
-        $user = $request->user();
-        $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
-
-        $query = Proposal::with(['status:id,name', 'category:id,name']);
-
-        if ($clientProfile) {
-            $clientUserIds = $clientProfile->pics()
-                ->pluck('user_id')
-                ->push($clientProfile->user_id)
-                ->unique()
-                ->values();
-
-            $query->whereIn('client_id', $clientUserIds);
-        } else {
-            $query->where('client_id', $user->id);
-        }
-
-        $proposals = $query
+        $proposals = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'projectTeams.uatResults' => fn ($query) => $query
+                ->select('id', 'project_team_id', 'session_date', 'overall_result')
+                ->orderByDesc('session_date')
+                ->orderByDesc('id'),
+        ])
+            ->where('client_id', $request->user()->id)
             ->latest()
             ->get()
-            ->map(fn (Proposal $proposal) => [
+            ->map(function (Proposal $proposal) {
+                $latestUat = $proposal->projectTeams
+                    ->flatMap(fn ($team) => $team->uatResults)
+                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
+                    ->first();
+                $statusName = strtolower($proposal->status?->name ?? '');
+                $progress = in_array($statusName, ['completed', 'handover'], true)
+                    ? 100
+                    : (int) round($proposal->tasks->avg('progress_percentage') ?? 0);
+
+                return [
                 'id'                     => $proposal->id,
                 'proposal_code'          => $proposal->proposal_code,
+                'project_code'           => $proposal->project_code,
+                'spk_number'             => $proposal->spk_number,
+                'contract_file_url'      => $proposal->contract_file_url,
+                'bast_number'            => $proposal->bast_number,
+                'handover_date'          => $proposal->handover_date?->toDateString(),
+                'repository_url'         => $proposal->repository_url,
+                'documentation_url'      => $proposal->documentation_url,
+                'maintenance'            => $proposal->maintenance ? [
+                    'maintenance_warranty_months' => $proposal->maintenance->maintenance_warranty_months,
+                    'maintenance_start_date' => $proposal->maintenance->maintenance_start_date?->toDateString(),
+                    'maintenance_end_date' => $proposal->maintenance->maintenance_end_date?->toDateString(),
+                ] : null,
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
                 'status'                 => $proposal->status?->name,
@@ -360,7 +382,30 @@ class ProposalController extends Controller
                 'desired_deadline'       => $proposal->desired_deadline?->toDateString(),
                 'start_date'             => $proposal->start_date?->toDateString(),
                 'target_completion_date' => $proposal->target_completion_date?->toDateString(),
-            ]);
+                'overall_progress'       => $progress,
+                'pm'                     => $proposal->pm ? [
+                    'id'         => $proposal->pm->id,
+                    'name'       => $proposal->pm->name,
+                    'nidn'       => $proposal->pm->lecturerProfile?->nidn,
+                    'department' => $proposal->pm->lecturerProfile?->department,
+                ] : null,
+                'modules'                => $proposal->modules->map(fn ($module) => [
+                    'id'          => $module->id,
+                    'title'       => $module->title,
+                    'description' => $module->description,
+                ])->values(),
+                'team_members'           => $proposal->projectTeams->map(fn ($team) => [
+                    'id'           => $team->user?->id,
+                    'name'         => $team->user?->name,
+                    'nim'          => $team->user?->studentProfile?->nim,
+                    'study_program'=> $team->user?->studentProfile?->study_program,
+                    'role'         => $team->role?->name,
+                ])->values(),
+                'latest_uat_result'      => $latestUat?->overall_result,
+                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && !$proposal->client_approved,
+                'client_approved'        => $proposal->client_approved,
+                ];
+            });
 
         return response()->json($proposals);
     }
@@ -419,7 +464,7 @@ class ProposalController extends Controller
         $validated = $request->validate([
             'client_id'             => ['required', 'integer', 'exists:users,id'],
             'title'                 => ['required', 'string', 'max:255'],
-            'background'            => ['required', 'string', 'min:100'],
+            'background'            => ['required', 'string', 'max:500'],
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'desired_deadline'      => ['required', 'date', 'after_or_equal:' . now()->addDays(30)->toDateString()],
@@ -449,6 +494,14 @@ class ProposalController extends Controller
 
             return $proposal;
         });
+
+        $proposal->load('client');
+
+        $this->notifications->notifyRole('pengurus_tefa', 'proposal.submitted', [
+            'client' => $proposal->client_company_name,
+            'code'   => $proposal->proposal_code,
+            'title'  => $proposal->title,
+        ], $proposal->id);
 
         return response()->json($proposal->load(['status', 'category', 'modules']), 201);
     }
@@ -487,7 +540,8 @@ class ProposalController extends Controller
             'client.clientProfile.user',
             'reviewer', 'pm.lecturerProfile',
             'projectTeams.user.studentProfile', 'projectTeams.role',
-            'modules', 'statusHistories.changedBy', 'payments.verifier',
+            'modules', 'statusHistories.changedBy',
+            'payments' => fn ($query) => $query->orderBy('term_sequence'),
         ])->findOrFail($id);
 
         $user = $request->user();
@@ -512,7 +566,17 @@ class ProposalController extends Controller
             $proposal->makeHidden(['risk_analysis']);
         }
 
-        return response()->json($proposal);
+        // Overall progress: 100% saat proyek selesai/handover, selain itu rata-rata progres task.
+        $statusName   = strtolower($proposal->status?->name ?? '');
+        $isCompleted  = in_array($statusName, ['completed', 'handover'], true);
+        $taskProgress = $proposal->tasks()->pluck('progress_percentage');
+        $overallProgress = $isCompleted
+            ? 100
+            : ($taskProgress->count() > 0 ? (int) round((float) $taskProgress->avg()) : 0);
+
+        return response()->json(array_merge($proposal->toArray(), [
+            'overall_progress' => $overallProgress,
+        ]));
     }
 
     #[OA\Put(
@@ -593,7 +657,7 @@ class ProposalController extends Controller
 
         $validated = $request->validate([
             'title'                 => ['required', 'string', 'max:255'],
-            'background'            => ['required', 'string', 'min:100'],
+            'background'            => ['required', 'string', 'max:500'],
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'desired_deadline'      => ['required', 'date'],
@@ -606,6 +670,7 @@ class ProposalController extends Controller
         $modules = $validated['modules'] ?? [];
         unset($validated['modules']);
 
+        $wasRevision = (int) $proposal->status_id === 4;
         $newStatusId = 2; // Submitted kembali ke pengurus TEFA
 
         $proposal = DB::transaction(function () use ($proposal, $validated, $modules, $newStatusId, $user) {
@@ -626,6 +691,16 @@ class ProposalController extends Controller
 
             return $proposal;
         });
+
+        $proposal->load(['client.clientPic.clientProfile.user', 'client.clientProfile.user']);
+
+        $notificationType = $wasRevision ? 'proposal.revision_submitted' : 'proposal.submitted';
+
+        $this->notifications->notifyRole('pengurus_tefa', $notificationType, [
+            'client' => $proposal->client_company_name,
+            'code'   => $proposal->proposal_code,
+            'title'  => $proposal->title,
+        ], $proposal->id);
 
         return response()->json([
             'message' => 'Revisi proposal berhasil disimpan dan diserahkan kembali ke pengurus TEFA.',

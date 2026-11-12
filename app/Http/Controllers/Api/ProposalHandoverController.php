@@ -1,0 +1,312 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Proposal;
+use App\Models\ProposalStatus;
+use App\Models\UatResult;
+use App\Traits\ApiResponse;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use OpenApi\Attributes as OA;
+
+final class ProposalHandoverController extends Controller
+{
+    use ApiResponse;
+
+    #[OA\Get(
+        path: '/proposals/{id}/handover',
+        summary: 'Detail BAST proyek (Klien)',
+        description: 'Melihat rincian BAST dan status kelayakan serah terima berdasarkan hasil UAT terakhir (eligible_for_handover = true jika UAT PASSED). Hanya klien pemilik proposal yang dapat mengakses.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-07: BAST'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Detail BAST proyek',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Detail BAST proyek'),
+                        new OA\Property(
+                            property: 'data',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'proposal', ref: '#/components/schemas/Proposal'),
+                                new OA\Property(
+                                    property: 'latest_uat',
+                                    type: 'object',
+                                    nullable: true,
+                                    properties: [
+                                        new OA\Property(property: 'id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'proposal_id', type: 'integer', example: 1),
+                                        new OA\Property(property: 'session_date', type: 'string', format: 'date', example: '2026-11-04'),
+                                        new OA\Property(property: 'overall_result', type: 'string', enum: ['PASSED', 'FAILED', 'PARTIAL'], example: 'PASSED'),
+                                        new OA\Property(property: 'client_signoff_name', type: 'string', example: 'Budi Santoso'),
+                                        new OA\Property(property: 'signed_off_at', type: 'string', format: 'date-time', example: '2026-11-04T10:00:00Z'),
+                                    ]
+                                ),
+                                new OA\Property(property: 'eligible_for_handover', type: 'boolean', example: true),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Bukan klien pemilik proposal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Akses ditolak: Anda bukan klien pemilik proyek ini.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Proposal tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model [App\\Models\\Proposal] 999'),
+                    ]
+                )
+            ),
+        ]
+    )]
+    public function show(Request $request, int|string $id): JsonResponse
+    {
+        $proposal = Proposal::with(['status', 'maintenance'])->findOrFail($id);
+        $this->authorizeClient($proposal, $request);
+        $proposal->makeHidden(['risk_analysis']);
+
+        $latestUat = $this->latestUat($proposal);
+
+        return $this->ok('Detail BAST proyek', [
+            'proposal' => $proposal,
+            'latest_uat' => $latestUat,
+            'eligible_for_handover' => $latestUat?->overall_result === 'PASSED',
+        ]);
+    }
+
+    #[OA\Post(
+        path: '/proposals/{id}/handover',
+        summary: 'Setujui dan simpan BAST oleh klien',
+        description: 'Hanya klien pemilik proposal yang dapat menyetujui BAST setelah hasil UAT terakhir PASSED. Nomor BAST dibuat otomatis dan status proposal menjadi Handover.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-07: BAST'],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['repository_url', 'documentation_file', 'client_signoff_name', 'client_approved', 'maintenance_warranty_months'],
+                    properties: [
+                        new OA\Property(property: 'repository_url', type: 'string', format: 'uri'),
+                        new OA\Property(property: 'documentation_file', type: 'string', format: 'binary', description: 'Lampiran fisik dokumentasi API (PDF/DOC/DOCX, max 10MB)'),
+                        new OA\Property(property: 'handover_notes', type: 'string', nullable: true),
+                        new OA\Property(property: 'client_signoff_name', type: 'string'),
+                        new OA\Property(property: 'client_approved', type: 'boolean', example: true),
+                        new OA\Property(property: 'maintenance_warranty_months', type: 'integer', example: 3),
+                        new OA\Property(property: 'maintenance_notes', type: 'string', nullable: true),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'BAST berhasil disetujui',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'BAST berhasil disetujui'),
+                        new OA\Property(property: 'data', ref: '#/components/schemas/Proposal'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Unauthenticated.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Bukan klien pemilik proposal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Akses ditolak: Anda bukan klien pemilik proyek ini.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Proposal tidak ditemukan',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'No query results for model [App\\Models\\Proposal] 999'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 409,
+                description: 'BAST telah disetujui',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: false),
+                        new OA\Property(property: 'message', type: 'string', example: 'BAST proyek ini sudah disetujui.'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'UAT belum PASSED atau validasi gagal',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED.'),
+                        new OA\Property(
+                            property: 'errors',
+                            type: 'object',
+                            properties: [
+                                new OA\Property(
+                                    property: 'uat',
+                                    type: 'array',
+                                    items: new OA\Items(type: 'string', example: 'BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED.')
+                                ),
+                            ]
+                        ),
+                    ]
+                )
+            ),
+        ]
+    )]
+    public function store(Request $request, int|string $id): JsonResponse
+    {
+        $proposal = Proposal::with('status')->findOrFail($id);
+        $this->authorizeClient($proposal, $request);
+
+        if ($proposal->client_approved) {
+            return $this->error('BAST proyek ini sudah disetujui.', 409);
+        }
+
+        $latestUat = $this->latestUat($proposal);
+        if ($latestUat?->overall_result !== 'PASSED') {
+            throw ValidationException::withMessages([
+                'uat' => ['BAST hanya dapat disetujui setelah hasil UAT terakhir berstatus PASSED.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'repository_url' => ['required', 'url', 'max:255'],
+            'documentation_file' => ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
+            'handover_notes' => ['nullable', 'string'],
+            'client_signoff_name' => ['required', 'string', 'max:255'],
+            'client_approved' => ['required', 'accepted'],
+            'maintenance_warranty_months' => ['required', 'integer', 'min:0'],
+            'maintenance_notes' => ['nullable', 'string'],
+        ]);
+
+        $documentationPath = $request->file('documentation_file')->store('handover-documents', 'public');
+        $handoverDate = now();
+        $maintenanceStartDate = $handoverDate->copy()->addDay();
+        $maintenanceEndDate = $maintenanceStartDate->copy()->addMonthsNoOverflow((int) $validated['maintenance_warranty_months']);
+
+        $updatedProposal = DB::transaction(function () use ($proposal, $validated, $request, $documentationPath, $handoverDate, $maintenanceStartDate, $maintenanceEndDate) {
+            $lockedProposal = Proposal::query()->lockForUpdate()->findOrFail($proposal->id);
+            if ($lockedProposal->client_approved) {
+                return null;
+            }
+
+            $year = $handoverDate->format('Y');
+            $prefix = "BAST/TEFA/{$year}/";
+            $lastNumber = Proposal::query()
+                ->where('bast_number', 'like', $prefix . '%')
+                ->orderByDesc('bast_number')
+                ->lockForUpdate()
+                ->value('bast_number');
+            $sequence = 1;
+            if ($lastNumber && preg_match('/\/(\d+)$/', $lastNumber, $matches)) {
+                $sequence = (int) $matches[1] + 1;
+            }
+
+            $lockedProposal->forceFill([
+                'bast_number' => $prefix . str_pad((string) $sequence, 3, '0', STR_PAD_LEFT),
+                'repository_url' => $validated['repository_url'],
+                'documentation_url' => $documentationPath,
+                'user_manual_url' => null,
+                'handover_notes' => $validated['handover_notes'] ?? null,
+                'handover_date' => $handoverDate->toDateString(),
+                'client_signoff_name' => $validated['client_signoff_name'],
+                'client_approved' => true,
+                'bast_approved_at' => now(),
+                'status_id' => ProposalStatus::query()->where('name', 'Handover')->value('id'),
+            ]);
+
+            if (!$lockedProposal->status_id) {
+                throw new \RuntimeException('Status proposal Handover belum tersedia.');
+            }
+
+            $lockedProposal->save();
+            $lockedProposal->maintenance()->updateOrCreate(
+                ['proposal_id' => $lockedProposal->id],
+                [
+                    'maintenance_warranty_months' => $validated['maintenance_warranty_months'],
+                    'maintenance_start_date' => $maintenanceStartDate->toDateString(),
+                    'maintenance_end_date' => $maintenanceEndDate->toDateString(),
+                    'maintenance_notes' => $validated['maintenance_notes'] ?? null,
+                ]
+            );
+            $lockedProposal->statusHistories()->create([
+                'status_id' => $lockedProposal->status_id,
+                'note' => 'BAST disetujui klien: ' . $lockedProposal->bast_number,
+                'changed_by' => $request->user()->id,
+            ]);
+
+            return $lockedProposal->fresh(['status', 'maintenance']);
+        });
+
+        if (!$updatedProposal) {
+            return $this->error('BAST proyek ini sudah disetujui.', 409);
+        }
+
+        $updatedProposal->makeHidden(['risk_analysis']);
+        return $this->ok('BAST berhasil disetujui', $updatedProposal);
+    }
+
+    private function authorizeClient(Proposal $proposal, Request $request): void
+    {
+        if ($proposal->client_id !== $request->user()->id) {
+            abort(403, 'Akses ditolak: Anda bukan klien pemilik proyek ini.');
+        }
+    }
+
+    private function latestUat(Proposal $proposal): ?UatResult
+    {
+        return UatResult::query()
+            ->whereHas('projectTeam', fn ($query) => $query->where('proposal_id', $proposal->id))
+            ->with('items')
+            ->orderByDesc('session_date')
+            ->orderByDesc('id')
+            ->first();
+    }
+}
