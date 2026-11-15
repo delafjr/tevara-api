@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProjectTeam;
 use App\Models\Proposal;
 use App\Models\Task;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,10 @@ use OpenApi\Attributes as OA;
 final class TaskController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
 
     // ──────────────────────────────────────────────────────
     //  1. GET /proposals/{id}/tasks  — List semua task di proyek
@@ -166,6 +171,13 @@ final class TaskController extends Controller
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
 
+        if ($task->projectTeam?->user_id) {
+            $this->notifications->notify((int) $task->projectTeam->user_id, 'task.assigned', [
+                'task' => $task->title,
+                'code' => $proposal->proposal_code,
+            ], (int) $proposal->id);
+        }
+
         return $this->created('Task berhasil dibuat', $this->formatTask($task));
     }
 
@@ -217,7 +229,7 @@ final class TaskController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/tasks/{taskId}/progress',
         summary: 'Submit progress report (Mahasiswa)',
-        description: 'Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update.',
+        description: 'Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update. Progress 100% otomatis menjadi TESTING (menunggu review PM); status DONE tidak bisa ditetapkan mahasiswa.',
         security: [['bearerAuth' => []]],
         tags: ['F-05: Tasks & Progress'],
         parameters: [
@@ -265,34 +277,60 @@ final class TaskController extends Controller
         }
 
         $validated = $request->validate([
-            'achieved_summary'    => ['required', 'string'],
-            'blockers_summary'    => ['nullable', 'string'],
-            'progress_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
-            'status'              => ['required', 'string', Rule::in(['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'])],
-            'report_attachment'   => ['nullable', 'file', 'max:10240'], // Max 10MB
+            'achieved_summary'      => ['required', 'string'],
+            'blockers_summary'      => ['nullable', 'string'],
+            'progress_percentage'   => ['required', 'numeric', 'min:0', 'max:100'],
+            'status'                => ['required', 'string', Rule::in(['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'])],
+            'report_attachment'     => ['nullable'], // File atau string URL (GitHub, GitLab, dsb)
+            'report_attachment_url' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $progress = (float) $validated['progress_percentage'];
+        $status   = $validated['status'];
+
+        // DONE adalah keputusan PM setelah review, bukan status yang bisa
+        // ditetapkan mahasiswa saat submit laporan.
+        if ($status === 'DONE' && $progress < 100) {
+            return $this->error('Status DONE hanya boleh jika progress mencapai 100%.', 422);
+        }
+
+        // Progress 100% berarti laporan siap direview, bukan otomatis selesai.
+        if ($progress >= 100) {
+            $status = 'TESTING';
+        }
 
         // Handle file upload
         $attachmentUrl = $task->report_attachment_url;
         if ($request->hasFile('report_attachment')) {
-            // Hapus file lama jika ada
-            if ($attachmentUrl && Storage::disk('public')->exists($attachmentUrl)) {
+            // Hapus file lama jika ada di storage lokal
+            if ($attachmentUrl && !str_starts_with($attachmentUrl, 'http') && Storage::disk('public')->exists($attachmentUrl)) {
                 Storage::disk('public')->delete($attachmentUrl);
             }
             $attachmentUrl = $request->file('report_attachment')
                 ->store('task-attachments/' . $proposal->id, 'public');
+        } elseif ($request->filled('report_attachment_url')) {
+            $attachmentUrl = $request->input('report_attachment_url');
+        } elseif (is_string($request->input('report_attachment')) && filled($request->input('report_attachment'))) {
+            $attachmentUrl = $request->input('report_attachment');
         }
 
         $task->update([
             'achieved_summary'      => $validated['achieved_summary'],
             'blockers_summary'      => $validated['blockers_summary'] ?? null,
-            'progress_percentage'   => $validated['progress_percentage'],
-            'status'                => $validated['status'],
+            'progress_percentage'   => $progress,
+            'status'                => $status,
             'report_attachment_url' => $attachmentUrl,
             'pm_status'             => 'PENDING', // Reset setiap mahasiswa update
+            'pm_reviewed_at'        => null,      // Laporan baru belum direview
         ]);
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
+
+        $this->notifications->notifyPm($proposal, 'task.progress_submitted', [
+            'student'  => $user->name,
+            'task'     => $task->title,
+            'progress' => (float) $task->progress_percentage,
+        ]);
 
         return $this->ok('Progress report berhasil diperbarui', $this->formatTask($task));
     }
@@ -343,18 +381,41 @@ final class TaskController extends Controller
 
         $task = Task::where('proposal_id', $proposal->id)->findOrFail($taskId);
 
+        if (! $task->hasSubmittedReport()) {
+            return $this->error('Task belum memiliki laporan progres yang bisa direview.', 422);
+        }
+
         $validated = $request->validate([
             'pm_notes'  => ['nullable', 'string'],
             'pm_status' => ['required', 'string', Rule::in(['APPROVED', 'NEEDS_IMPROVEMENT'])],
         ]);
 
-        $task->update([
+        $updateData = [
             'pm_notes'       => $validated['pm_notes'] ?? null,
             'pm_status'      => $validated['pm_status'],
             'pm_reviewed_at' => now(),
-        ]);
+        ];
+
+        // Rule: Progress 100% + PM APPROVED => status = DONE otomatis.
+        if ($validated['pm_status'] === 'APPROVED' && (float) $task->progress_percentage >= 100) {
+            $updateData['status'] = 'DONE';
+        }
+
+        // Rule: PM minta perbaikan (NEEDS_IMPROVEMENT) => task kembali ke IN_PROGRESS
+        if ($validated['pm_status'] === 'NEEDS_IMPROVEMENT') {
+            $updateData['status'] = 'IN_PROGRESS';
+        }
+
+        $task->update($updateData);
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
+
+        if ($task->projectTeam?->user_id) {
+            $this->notifications->notify((int) $task->projectTeam->user_id, 'task.reviewed', [
+                'task'   => $task->title,
+                'status' => $validated['pm_status'] === 'APPROVED' ? 'Disetujui' : 'Perlu perbaikan',
+            ], (int) $proposal->id);
+        }
 
         return $this->ok('Review task berhasil disimpan', $this->formatTask($task));
     }
@@ -412,6 +473,8 @@ final class TaskController extends Controller
 
         $task = Task::where('proposal_id', $proposal->id)->findOrFail($taskId);
 
+        $oldAssigneeId = $task->projectTeam?->user_id;
+
         $validated = $request->validate([
             'title'               => ['nullable', 'string', 'max:255'],
             'description'         => ['nullable', 'string'],
@@ -463,6 +526,15 @@ final class TaskController extends Controller
         }
 
         $task->load(['projectTeam.user.studentProfile', 'category']);
+
+        if (array_key_exists('assigned_student_id', $validated)
+            && $validated['assigned_student_id'] !== null
+            && (int) $validated['assigned_student_id'] !== (int) $oldAssigneeId) {
+            $this->notifications->notify((int) $validated['assigned_student_id'], 'task.assigned', [
+                'task' => $task->title,
+                'code' => $proposal->proposal_code,
+            ], (int) $proposal->id);
+        }
 
         return $this->ok('Task berhasil diperbarui', $this->formatTask($task));
     }
@@ -567,7 +639,7 @@ final class TaskController extends Controller
             'in_progress'        => $tasks->where('status', 'IN_PROGRESS')->count(),
             'testing'            => $tasks->where('status', 'TESTING')->count(),
             'done'               => $tasks->where('status', 'DONE')->count(),
-            'pending_review'     => $tasks->where('pm_status', 'PENDING')->count(),
+            'pending_review'     => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
             'approved'           => $tasks->where('pm_status', 'APPROVED')->count(),
             'needs_improvement'  => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
             'overall_progress'   => $tasks->count() > 0
@@ -576,6 +648,92 @@ final class TaskController extends Controller
         ];
 
         return $this->ok('Ringkasan task proyek', $summary);
+    }
+
+    // ──────────────────────────────────────────────────────
+    //  8. GET /proposals/{id}/tasks/overview  — Monitoring dosen PM
+    // ──────────────────────────────────────────────────────
+    #[OA\Get(
+        path: '/proposals/{id}/tasks/overview',
+        summary: 'Monitoring seluruh task proposal (Dosen PM)',
+        description: 'Menampilkan seluruh task dari satu proposal beserta ringkasan status (TODO, in progress, testing, done, pending review, approved, needs improvement). Hanya bisa diakses dosen yang menjadi PM pada proposal tersebut.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-05: Tasks & Progress'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Data monitoring task proyek'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan dosen PM proyek ini)'),
+            new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),
+        ]
+    )]
+    public function overview(Request $request, int|string $id): JsonResponse
+    {
+        $proposal = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'projectTeams.user.studentProfile',
+            'projectTeams.role:id,name',
+        ])->findOrFail($id);
+        $user     = $request->user();
+
+        if (! $user->hasRole('dosen') || $proposal->pm_id !== $user->id) {
+            abort(403, 'Akses ditolak: Anda bukan PM untuk proyek ini.');
+        }
+
+        $tasks = $proposal->tasks()
+            ->with(['projectTeam.user.studentProfile', 'category'])
+            ->orderBy('due_date')
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $summary = [
+            'total'             => $tasks->count(),
+            'todo'              => $tasks->where('status', 'TODO')->count(),
+            'in_progress'       => $tasks->where('status', 'IN_PROGRESS')->count(),
+            'testing'           => $tasks->where('status', 'TESTING')->count(),
+            'done'              => $tasks->where('status', 'DONE')->count(),
+            'pending_review'    => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
+            'approved'          => $tasks->where('pm_status', 'APPROVED')->count(),
+            'needs_improvement' => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
+            'overall_progress'  => $tasks->count() > 0
+                ? round($tasks->avg('progress_percentage'), 2)
+                : 0,
+        ];
+
+        $teamMembers = $proposal->projectTeams->map(function (ProjectTeam $team) {
+            $student = $team->user;
+            $profile = $student?->studentProfile;
+
+            return [
+                'id'            => $student?->id,
+                'name'          => $student?->name,
+                'email'         => $student?->email,
+                'nim'           => $profile?->nim,
+                'study_program' => $profile?->study_program,
+                'role'          => $team->role?->name,
+            ];
+        })->filter(fn ($m) => ! empty($m['id']))->values();
+
+        return $this->ok('Data monitoring task proyek', [
+            'proposal' => [
+                'id'                     => $proposal->id,
+                'proposal_code'          => $proposal->proposal_code,
+                'title'                  => $proposal->title,
+                'status'                 => $proposal->status?->name,
+                'category'               => $proposal->category?->name,
+                'start_date'             => $proposal->start_date?->toDateString(),
+                'target_completion_date' => $proposal->target_completion_date?->toDateString(),
+                'pm_id'                  => $proposal->pm_id,
+                'client_name'            => $proposal->client_company_name,
+                'team_size'              => $teamMembers->count(),
+            ],
+            'summary'      => $summary,
+            'team_members' => $teamMembers,
+            'tasks'        => $tasks->map(fn (Task $task) => $this->formatTask($task)),
+        ]);
     }
 
     // ──────────────────────────────────────────────────────
@@ -645,7 +803,9 @@ final class TaskController extends Controller
             'achieved_summary'      => $task->achieved_summary,
             'blockers_summary'      => $task->blockers_summary,
             'report_attachment_url' => $task->report_attachment_url
-                ? asset('storage/' . $task->report_attachment_url)
+                ? (str_starts_with($task->report_attachment_url, 'http://') || str_starts_with($task->report_attachment_url, 'https://')
+                    ? $task->report_attachment_url
+                    : asset('storage/' . $task->report_attachment_url))
                 : null,
             'pm_notes'              => $task->pm_notes,
             'pm_status'             => $task->pm_status,

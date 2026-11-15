@@ -92,6 +92,7 @@ final class DashboardController extends Controller
             ->with([
                 'role',
                 'proposal.status',
+                'proposal.category',
                 'proposal.client.clientPic.clientProfile.user',
                 'proposal.tasks',
             ])
@@ -148,13 +149,15 @@ final class DashboardController extends Controller
             $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
 
             return [
-                'id'          => $proposal->id,
-                'title'       => $proposal->title,
-                'client_name' => $proposal->client_company_name,
-                'role'        => $team->role?->name ?? '—',
-                'status'      => $proposal->status?->name ?? '—',
-                'progress'    => $progress,
-                'deadline'    => $deadlineToUse?->toDateString(),
+                'id'            => $proposal->id,
+                'proposal_code' => $proposal->proposal_code,
+                'title'         => $proposal->title,
+                'category'      => $proposal->category?->name,
+                'client_name'   => $proposal->client_company_name,
+                'role'          => $team->role?->name ?? '—',
+                'status'        => $proposal->status?->name ?? '—',
+                'progress'      => $progress,
+                'deadline'      => $deadlineToUse?->toDateString(),
             ];
         })->filter()->values();
 
@@ -246,6 +249,7 @@ final class DashboardController extends Controller
         $proposalIds = $proposals->pluck('id');
 
         $waitingReview = Task::whereIn('proposal_id', $proposalIds)
+            ->withSubmittedReport()
             ->where(function ($q) {
                 $q->where('pm_status', 'PENDING')
                   ->orWhere('status', 'TESTING');

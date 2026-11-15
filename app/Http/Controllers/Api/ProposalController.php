@@ -6,7 +6,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
+use App\Models\ProposalStatus;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -71,63 +73,237 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'name', type: 'string', example: 'Web Application'),
     ]
 )]
+#[OA\Schema(
+    schema: 'ProposalListItem',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 1),
+        new OA\Property(property: 'proposal_code', type: 'string', example: 'PRSL-2026-001'),
+        new OA\Property(property: 'project_code', type: 'string', nullable: true, example: 'PRJ-2026/001'),
+        new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
+        new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Inventaris'),
+        new OA\Property(property: 'background', type: 'string', example: 'Latar belakang proyek...'),
+        new OA\Property(property: 'target_audience', type: 'string', nullable: true, example: 'Staff gudang dan admin inventory'),
+        new OA\Property(property: 'category_name', type: 'string', nullable: true, example: 'Web'),
+        new OA\Property(property: 'status', type: 'string', example: 'Submitted'),
+        new OA\Property(property: 'desired_deadline', type: 'string', format: 'date', nullable: true, example: '2027-02-01'),
+        new OA\Property(property: 'estimated_budget', type: 'string', nullable: true, example: '10000000.00'),
+    ]
+)]
+#[OA\Schema(
+    schema: 'ProposalPendingDetail',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 13),
+        new OA\Property(property: 'proposal_code', type: 'string', example: 'PRSL-2026-490'),
+        new OA\Property(property: 'title', type: 'string', example: 'Sistem Informasi Inventaris'),
+        new OA\Property(property: 'background', type: 'string', example: 'Latar belakang proyek...'),
+        new OA\Property(property: 'target_audience', type: 'string', nullable: true, example: 'Staff gudang dan admin inventory'),
+        new OA\Property(property: 'category_name', type: 'string', nullable: true, example: 'Web'),
+        new OA\Property(property: 'status', type: 'string', example: 'Submitted'),
+        new OA\Property(property: 'desired_deadline', type: 'string', format: 'date', nullable: true, example: '2027-02-01'),
+        new OA\Property(property: 'estimated_budget', type: 'string', nullable: true, example: '10000000.00'),
+        new OA\Property(property: 'client_name', type: 'string', example: 'PT. Maju Bersama Sentosa'),
+        new OA\Property(
+            property: 'pic',
+            type: 'object',
+            properties: [
+                new OA\Property(property: 'name', type: 'string', example: 'Budi Santoso'),
+                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'budi.santoso@majubersamasentosa.co.id'),
+                new OA\Property(property: 'no_hp', type: 'string', nullable: true, example: '6281234567890'),
+            ]
+        ),
+        new OA\Property(
+            property: 'modules',
+            type: 'array',
+            items: new OA\Items(
+                properties: [
+                    new OA\Property(property: 'id', type: 'integer', example: 1),
+                    new OA\Property(property: 'title', type: 'string', example: 'Manajemen Barang'),
+                    new OA\Property(property: 'description', type: 'string', nullable: true, example: 'CRUD data barang'),
+                ]
+            )
+        ),
+    ]
+)]
 class ProposalController extends Controller
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     #[OA\Get(
         path: '/proposals',
-        summary: 'List semua proposal (Pengurus TeFa / Jurusan)',
-        description: 'Mengambil daftar proposal dengan filter status, kategori, dan search. Mendukung paginasi.',
+        summary: 'List semua proposal (Pengurus TeFa)',
+        description: 'Mengambil seluruh proposal. Gunakan `status_id` untuk memfilter status tertentu. Hanya dapat diakses oleh pengurus TeFa.',
         security: [['bearerAuth' => []]],
-        tags: ['F-01: Pengajuan Proposal'],
+        tags: ['F-02: Review & Validasi'],
         parameters: [
-            new OA\Parameter(name: 'status_id', in: 'query', required: false, description: 'Filter berdasarkan status', schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'category_id', in: 'query', required: false, description: 'Filter berdasarkan kategori', schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'search', in: 'query', required: false, description: 'Cari berdasarkan proposal_code, title, atau nama klien', schema: new OA\Schema(type: 'string')),
-            new OA\Parameter(name: 'per_page', in: 'query', required: false, description: 'Jumlah item per halaman (default: 15, max: 100)', schema: new OA\Schema(type: 'integer', default: 15)),
-            new OA\Parameter(name: 'page', in: 'query', required: false, description: 'Nomor halaman', schema: new OA\Schema(type: 'integer', default: 1)),
+            new OA\Parameter(
+                name: 'status_id',
+                in: 'query',
+                required: false,
+                description: 'Filter status tertentu (mis. 2 = Submitted, 5 = Approved).',
+                schema: new OA\Schema(type: 'integer', example: 2)
+            ),
         ],
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Daftar proposal (paginated)',
+                description: 'Daftar proposal',
                 content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'current_page', type: 'integer', example: 1),
-                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/Proposal')),
-                        new OA\Property(property: 'last_page', type: 'integer', example: 3),
-                        new OA\Property(property: 'per_page', type: 'integer', example: 15),
-                        new OA\Property(property: 'total', type: 'integer', example: 42),
-                    ]
+                    type: 'array',
+                    items: new OA\Items(ref: '#/components/schemas/ProposalListItem')
                 )
             ),
             new OA\Response(response: 401, description: 'Unauthenticated'),
-            new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa / jurusan)'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
         ]
     )]
     public function index(Request $request)
     {
-        $query = Proposal::with(['status', 'category', 'client'])->latest();
+        $validated = $request->validate([
+            'status_id' => ['nullable', 'integer', 'exists:proposal_statuses,id'],
+        ]);
 
-        if ($request->filled('status_id')) {
-            $query->where('status_id', $request->status_id);
-        }
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
-        }
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('proposal_code', 'like', "%{$search}%")
-                  ->orWhere('title', 'like', "%{$search}%")
-                  ->orWhereHas('client', function ($qClient) use ($search) {
-                      $qClient->where('name', 'like', "%{$search}%");
-                  });
-            });
+        $query = $this->proposalListQuery();
+
+        if (isset($validated['status_id'])) {
+            $query->where('status_id', $validated['status_id']);
         }
 
-        $perPage = min((int) $request->get('per_page', 15), 100);
+        return response()->json($this->toProposalList($query->latest()->get()));
+    }
 
-        return response()->json($query->paginate($perPage));
+    #[OA\Get(
+        path: '/proposals/pending',
+        summary: 'List proposal pending review (Pengurus TeFa)',
+        description: 'Mengambil proposal yang belum disetujui, yaitu status `Submitted` dan `Revision Required`. Hanya dapat diakses oleh pengurus TeFa.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-02: Review & Validasi'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Daftar proposal pending',
+                content: new OA\JsonContent(
+                    type: 'array',
+                    items: new OA\Items(ref: '#/components/schemas/ProposalListItem')
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
+        ]
+    )]
+    public function pending()
+    {
+        $proposals = $this->proposalListQuery()
+            ->whereIn(
+                'status_id',
+                ProposalStatus::whereIn('name', ['Submitted', 'Revision Required'])->pluck('id')
+            )
+            ->latest()
+            ->get();
+
+        return response()->json($this->toProposalList($proposals));
+    }
+
+    #[OA\Get(
+        path: '/proposals/{id}/pending',
+        summary: 'Detail proposal pending (Pengurus TeFa)',
+        description: 'Mengambil detail proposal berstatus `Submitted` atau `Revision Required`, termasuk data PIC dan seluruh modul. Hanya dapat diakses oleh pengurus TeFa.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-02: Review & Validasi'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'ID Proposal',
+                schema: new OA\Schema(type: 'integer', example: 13)
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Detail proposal pending',
+                content: new OA\JsonContent(ref: '#/components/schemas/ProposalPendingDetail')
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
+            new OA\Response(response: 404, description: 'Proposal tidak ditemukan atau bukan status pending'),
+        ]
+    )]
+    public function pendingDetail(int $id)
+    {
+        $proposal = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'reviewer:id,name',
+            'client.clientPic.clientProfile.user',
+            'client.clientProfile.user',
+            'modules:id,proposal_id,title,description',
+        ])->find($id);
+
+        if (! $proposal || ! in_array($proposal->status?->name, ['Submitted', 'Revision Required'], true)) {
+            return response()->json(['message' => 'Proposal pending tidak ditemukan.'], 404);
+        }
+
+        return response()->json([
+            'id'               => $proposal->id,
+            'proposal_code'    => $proposal->proposal_code,
+            'title'            => $proposal->title,
+            'background'       => $proposal->background,
+            'target_audience'  => $proposal->target_audience,
+            'category_id'      => $proposal->category_id,
+            'category_name'    => $proposal->category?->name,
+            'status'           => $proposal->status?->name,
+            'status_id'        => $proposal->status_id,
+            'desired_deadline' => $proposal->desired_deadline?->toDateString(),
+            'estimated_budget' => $proposal->estimated_budget,
+            'client_name'      => $proposal->client_company_name,
+            'review_notes'     => $proposal->review_notes,
+            'reviewer'         => $proposal->reviewer ? [
+                'id'   => $proposal->reviewer->id,
+                'name' => $proposal->reviewer->name,
+            ] : null,
+            'pic'              => [
+                'name'  => $proposal->client?->name,
+                'email' => $proposal->client?->email,
+                'no_hp' => $proposal->client?->phone_number,
+            ],
+            'modules'          => $proposal->modules->map(fn ($module) => [
+                'id'          => $module->id,
+                'title'       => $module->title,
+                'description' => $module->description,
+            ]),
+        ]);
+    }
+
+    private function proposalListQuery()
+    {
+        return Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'client.clientPic.clientProfile.user',
+            'client.clientProfile.user',
+        ]);
+    }
+
+    private function toProposalList($proposals)
+    {
+        return $proposals->map(fn (Proposal $proposal) => [
+            'id'               => $proposal->id,
+            'proposal_code'    => $proposal->proposal_code,
+            'client_name'      => $proposal->client_company_name,
+            'client_profile_id' => $proposal->client_profile_id ?? $proposal->client?->clientPic?->client_profile_id ?? $proposal->client?->clientProfile?->id,
+            'client_company_email' => $proposal->client?->clientPic?->clientProfile?->user?->email
+                ?? $proposal->client?->clientProfile?->user?->email,
+            'title'            => $proposal->title,
+            'background'       => $proposal->background,
+            'target_audience'  => $proposal->target_audience,
+            'category_name'    => $proposal->category?->name,
+            'status'           => $proposal->status?->name,
+            'desired_deadline' => $proposal->desired_deadline?->toDateString(),
+            'estimated_budget' => $proposal->estimated_budget,
+        ]);
     }
 
     #[OA\Get(
@@ -161,19 +337,83 @@ class ProposalController extends Controller
     )]
     public function mine(Request $request)
     {
-        $proposals = Proposal::with(['status:id,name', 'category:id,name'])
+        $proposals = Proposal::with([
+            'status:id,name',
+            'category:id,name',
+            'projectTeams.uatResults' => fn ($query) => $query
+                ->select('id', 'project_team_id', 'session_date', 'overall_result')
+                ->orderByDesc('session_date')
+                ->orderByDesc('id'),
+        ])
             ->where('client_id', $request->user()->id)
             ->latest()
             ->get()
-            ->map(fn (Proposal $proposal) => [
+            ->map(function (Proposal $proposal) {
+                $latestUat = $proposal->uatResult ?? $proposal->projectTeams
+                    ->flatMap(fn ($team) => $team->uatResults)
+                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
+                    ->first();
+                $statusName = strtolower($proposal->status?->name ?? '');
+                $progress = in_array($statusName, ['completed', 'handover'], true)
+                    ? 100
+                    : (int) round($proposal->tasks->avg('progress_percentage') ?? 0);
+
+                return [
                 'id'                     => $proposal->id,
                 'proposal_code'          => $proposal->proposal_code,
+                'project_code'           => $proposal->project_code,
+                'spk_number'             => $proposal->spk_number,
+                'contract_file_url'      => $proposal->contract_file_url,
+                'bast_number'            => $proposal->bast_number,
+                'handover_date'          => $proposal->handover_date?->toDateString(),
+                'repository_url'         => $proposal->repository_url,
+                'documentation_url'      => $proposal->documentation_url,
+                'user_manual_url'        => $proposal->user_manual_url,
+                'handover_notes'          => $proposal->handover_notes,
+                'handover_deliverables'   => $proposal->handover_deliverables ?? [],
+                'client_signoff_name'     => $proposal->client_signoff_name,
+                'bast_approved_at'        => $proposal->bast_approved_at?->toDateTimeString(),
+                'maintenance'            => $proposal->maintenance ? [
+                    'maintenance_warranty_months' => $proposal->maintenance->maintenance_warranty_months,
+                    'maintenance_start_date' => $proposal->maintenance->maintenance_start_date?->toDateString(),
+                    'maintenance_end_date' => $proposal->maintenance->maintenance_end_date?->toDateString(),
+                    'maintenance_notes' => $proposal->maintenance->maintenance_notes,
+                ] : null,
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
                 'status'                 => $proposal->status?->name,
+                'status_id'              => $proposal->status_id,
+                'review_notes'           => $proposal->review_notes,
+                'estimated_budget'       => $proposal->estimated_budget,
+                'desired_deadline'       => $proposal->desired_deadline?->toDateString(),
                 'start_date'             => $proposal->start_date?->toDateString(),
                 'target_completion_date' => $proposal->target_completion_date?->toDateString(),
-            ]);
+                'overall_progress'       => $progress,
+                'pm'                     => $proposal->pm ? [
+                    'id'         => $proposal->pm->id,
+                    'name'       => $proposal->pm->name,
+                    'nidn'       => $proposal->pm->lecturerProfile?->nidn,
+                    'department' => $proposal->pm->lecturerProfile?->department,
+                ] : null,
+                'modules'                => $proposal->modules->map(fn ($module) => [
+                    'id'          => $module->id,
+                    'title'       => $module->title,
+                    'description' => $module->description,
+                ])->values(),
+                'team_members'           => $proposal->projectTeams->map(fn ($team) => [
+                    'id'           => $team->user?->id,
+                    'name'         => $team->user?->name,
+                    'nim'          => $team->user?->studentProfile?->nim,
+                    'study_program'=> $team->user?->studentProfile?->study_program,
+                    'role'         => $team->role?->name,
+                ])->values(),
+                'latest_uat_result'      => $latestUat?->overall_result,
+                'uat_signed_off_at'      => $latestUat?->signed_off_at?->toIso8601String(),
+                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && $latestUat?->signed_off_at !== null && !$proposal->client_approved,
+                'bast_prepared'          => filled($proposal->bast_number) && !$proposal->client_approved,
+                'client_approved'        => $proposal->client_approved,
+                ];
+            });
 
         return response()->json($proposals);
     }
@@ -232,7 +472,7 @@ class ProposalController extends Controller
         $validated = $request->validate([
             'client_id'             => ['required', 'integer', 'exists:users,id'],
             'title'                 => ['required', 'string', 'max:255'],
-            'background'            => ['required', 'string', 'min:100'],
+            'background'            => ['required', 'string', 'max:500'],
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'desired_deadline'      => ['required', 'date', 'after_or_equal:' . now()->addDays(30)->toDateString()],
@@ -262,6 +502,14 @@ class ProposalController extends Controller
 
             return $proposal;
         });
+
+        $proposal->load('client');
+
+        $this->notifications->notifyRole('pengurus_tefa', 'proposal.submitted', [
+            'client' => $proposal->client_company_name,
+            'code'   => $proposal->proposal_code,
+            'title'  => $proposal->title,
+        ], $proposal->id);
 
         return response()->json($proposal->load(['status', 'category', 'modules']), 201);
     }
@@ -295,15 +543,28 @@ class ProposalController extends Controller
     public function show(Request $request, $id)
     {
         $proposal = Proposal::with([
-            'status', 'category', 'client.clientProfile',
+            'status', 'category',
+            'client.clientPic.clientProfile.user',
+            'client.clientProfile.user',
             'reviewer', 'pm.lecturerProfile',
             'projectTeams.user.studentProfile', 'projectTeams.role',
+            'modules', 'statusHistories.changedBy',
+            'payments' => fn ($query) => $query->orderBy('term_sequence'),
         ])->findOrFail($id);
 
         $user = $request->user();
 
-        if ($user->hasRole('klien') && $proposal->client_id !== $user->id) {
-            abort(403, 'Unauthorized access to this proposal.');
+        if ($user->hasRole('klien')) {
+            $allowed = $proposal->client_id === $user->id;
+            if (! $allowed) {
+                $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+                if ($clientProfile) {
+                    $allowed = $clientProfile->pics()->pluck('user_id')->push($clientProfile->user_id)->contains($proposal->client_id);
+                }
+            }
+            if (! $allowed) {
+                abort(403, 'Unauthorized access to this proposal.');
+            }
         }
         if ($user->hasRole('dosen') && $proposal->pm_id !== $user->id) {
             abort(403, 'Unauthorized access to this proposal.');
@@ -313,6 +574,145 @@ class ProposalController extends Controller
             $proposal->makeHidden(['risk_analysis']);
         }
 
-        return response()->json($proposal);
+        // Overall progress: 100% saat proyek selesai/handover, selain itu rata-rata progres task.
+        $statusName   = strtolower($proposal->status?->name ?? '');
+        $isCompleted  = in_array($statusName, ['completed', 'handover'], true);
+        $taskProgress = $proposal->tasks()->pluck('progress_percentage');
+        $overallProgress = $isCompleted
+            ? 100
+            : ($taskProgress->count() > 0 ? (int) round((float) $taskProgress->avg()) : 0);
+
+        return response()->json(array_merge($proposal->toArray(), [
+            'overall_progress' => $overallProgress,
+        ]));
+    }
+
+    #[OA\Put(
+        path: '/proposals/{id}',
+        summary: 'Update / kirim revisi proposal (Klien)',
+        description: 'Memperbarui data proposal yang diminta revisi oleh pengurus TEFA. Hanya bisa dilakukan jika proposal berstatus Revision Required (4) atau Draft (1). Setelah diupdate, status otomatis kembali menjadi Submitted (2) agar dicek kembali oleh pengurus TEFA.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-01: Pengajuan Proposal'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'ID Proposal',
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'application/json',
+                schema: new OA\Schema(
+                    required: ['title', 'background', 'category_id', 'desired_deadline'],
+                    properties: [
+                        new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                        new OA\Property(property: 'background', type: 'string', description: 'Minimal 100 karakter'),
+                        new OA\Property(property: 'target_audience', type: 'string', nullable: true),
+                        new OA\Property(property: 'category_id', type: 'integer'),
+                        new OA\Property(property: 'desired_deadline', type: 'string', format: 'date'),
+                        new OA\Property(property: 'estimated_budget', type: 'number', format: 'float', nullable: true),
+                        new OA\Property(
+                            property: 'modules',
+                            type: 'array',
+                            nullable: true,
+                            items: new OA\Items(
+                                type: 'object',
+                                required: ['title'],
+                                properties: [
+                                    new OA\Property(property: 'title', type: 'string'),
+                                    new OA\Property(property: 'description', type: 'string', nullable: true),
+                                ]
+                            )
+                        ),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Revisi proposal berhasil disimpan dan disubmit ke pengurus TEFA'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 422, description: 'Proposal tidak dalam status revisi / validasi gagal'),
+        ]
+    )]
+    public function update(Request $request, $id)
+    {
+        $proposal = Proposal::with('modules')->findOrFail($id);
+        $user = $request->user();
+
+        if ($user->hasRole('klien') || $user->hasRole('jurusan')) {
+            $allowed = $proposal->client_id === $user->id;
+            if (! $allowed && $user->hasRole('klien')) {
+                $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
+                if ($clientProfile) {
+                    $allowed = $clientProfile->pics()->pluck('user_id')->push($clientProfile->user_id)->contains($proposal->client_id);
+                }
+            }
+            if (! $allowed) {
+                return response()->json(['message' => 'Unauthorized access to this proposal.'], 403);
+            }
+        }
+
+        if (! in_array($proposal->status_id, [1, 4], true)) {
+            return response()->json([
+                'message' => 'Proposal hanya dapat diubah saat berstatus Draft atau Revision Required.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'title'                 => ['required', 'string', 'max:255'],
+            'background'            => ['required', 'string', 'max:500'],
+            'target_audience'       => ['nullable', 'string'],
+            'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
+            'desired_deadline'      => ['required', 'date'],
+            'estimated_budget'      => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'modules'               => ['nullable', 'array'],
+            'modules.*.title'       => ['required', 'string', 'max:255'],
+            'modules.*.description' => ['nullable', 'string'],
+        ]);
+
+        $modules = $validated['modules'] ?? [];
+        unset($validated['modules']);
+
+        $wasRevision = (int) $proposal->status_id === 4;
+        $newStatusId = 2; // Submitted kembali ke pengurus TEFA
+
+        $proposal = DB::transaction(function () use ($proposal, $validated, $modules, $newStatusId, $user) {
+            $proposal->update(array_merge($validated, [
+                'status_id' => $newStatusId,
+            ]));
+
+            if (! empty($modules)) {
+                $proposal->modules()->delete();
+                $proposal->modules()->createMany($modules);
+            }
+
+            $proposal->statusHistories()->create([
+                'status_id'  => $newStatusId,
+                'note'       => 'Revisi proposal diajukan kembali oleh klien.',
+                'changed_by' => $user->id,
+            ]);
+
+            return $proposal;
+        });
+
+        $proposal->load(['client.clientPic.clientProfile.user', 'client.clientProfile.user']);
+
+        $notificationType = $wasRevision ? 'proposal.revision_submitted' : 'proposal.submitted';
+
+        $this->notifications->notifyRole('pengurus_tefa', $notificationType, [
+            'client' => $proposal->client_company_name,
+            'code'   => $proposal->proposal_code,
+            'title'  => $proposal->title,
+        ], $proposal->id);
+
+        return response()->json([
+            'message' => 'Revisi proposal berhasil disimpan dan diserahkan kembali ke pengurus TEFA.',
+            'data'    => $proposal->load(['status', 'category', 'modules']),
+        ]);
     }
 }

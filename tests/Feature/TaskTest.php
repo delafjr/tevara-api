@@ -409,4 +409,239 @@ class TaskTest extends TestCase
             ->assertJsonPath('data.pending_review', 1)
             ->assertJsonPath('data.overall_progress', 75);
     }
+
+    public function test_mahasiswa_cannot_set_status_done_when_progress_less_than_100(): void
+    {
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Belum Selesai',
+            'status'              => 'IN_PROGRESS',
+            'progress_percentage' => 50,
+        ]);
+
+        Sanctum::actingAs($this->mhs1);
+
+        $response = $this->postJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/progress", [
+            'achieved_summary'    => 'Pekerjaan baru separuh',
+            'progress_percentage' => 80,
+            'status'              => 'DONE',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Status DONE hanya boleh jika progress mencapai 100%.');
+    }
+
+    public function test_mahasiswa_progress_100_percent_automatically_becomes_testing(): void
+    {
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Selesai Dikerjakan Mahasiswa',
+            'status'              => 'IN_PROGRESS',
+            'progress_percentage' => 80,
+            'pm_status'           => 'APPROVED',
+        ]);
+
+        Sanctum::actingAs($this->mhs1);
+
+        $response = $this->postJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/progress", [
+            'achieved_summary'    => 'Semua modul selesai dan siap diuji PM',
+            'progress_percentage' => 100,
+            'status'              => 'DONE',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'TESTING')
+            ->assertJsonPath('data.progress_percentage', 100)
+            ->assertJsonPath('data.pm_status', 'PENDING');
+
+        $this->assertDatabaseHas('tasks', [
+            'id'                  => $task->id,
+            'status'              => 'TESTING',
+            'progress_percentage' => 100,
+            'pm_status'           => 'PENDING',
+        ]);
+    }
+
+    public function test_pm_cannot_review_task_without_submitted_report(): void
+    {
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Baru Belum Dikerjakan',
+            'status'              => 'TODO',
+            'progress_percentage' => 0,
+            'pm_status'           => 'PENDING',
+        ]);
+
+        Sanctum::actingAs($this->dosenPm);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/review", [
+            'pm_status' => 'APPROVED',
+            'pm_notes'  => 'Langsung approve tanpa laporan',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('message', 'Task belum memiliki laporan progres yang bisa direview.');
+    }
+
+    public function test_pm_approve_task_with_100_percent_progress_automatically_becomes_done(): void
+    {
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Testing Siap Review',
+            'status'              => 'TESTING',
+            'progress_percentage' => 100,
+            'achieved_summary'    => 'Selesai 100% dan sudah lolos testing internal',
+            'pm_status'           => 'PENDING',
+        ]);
+
+        Sanctum::actingAs($this->dosenPm);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/review", [
+            'pm_status' => 'APPROVED',
+            'pm_notes'  => 'Pekerjaan sempurna dan telah diverifikasi.',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'DONE')
+            ->assertJsonPath('data.pm_status', 'APPROVED');
+
+        $this->assertDatabaseHas('tasks', [
+            'id'        => $task->id,
+            'status'    => 'DONE',
+            'pm_status' => 'APPROVED',
+        ]);
+    }
+
+    public function test_pm_approve_task_with_partial_progress_keeps_current_status(): void
+    {
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Parsial',
+            'status'              => 'IN_PROGRESS',
+            'progress_percentage' => 60,
+            'achieved_summary'    => 'Progress parsial 60%',
+            'pm_status'           => 'PENDING',
+        ]);
+
+        Sanctum::actingAs($this->dosenPm);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/review", [
+            'pm_status' => 'APPROVED',
+            'pm_notes'  => 'Progres 60% disetujui, lanjutkan.',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'IN_PROGRESS')
+            ->assertJsonPath('data.pm_status', 'APPROVED');
+
+        $this->assertDatabaseHas('tasks', [
+            'id'        => $task->id,
+            'status'    => 'IN_PROGRESS',
+            'pm_status' => 'APPROVED',
+        ]);
+    }
+
+    public function test_pm_needs_improvement_moves_task_back_to_in_progress(): void
+    {
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Perlu Revisi',
+            'status'              => 'TESTING',
+            'progress_percentage' => 100,
+            'achieved_summary'    => 'Klaim 100% tapi ada bug',
+            'pm_status'           => 'PENDING',
+        ]);
+
+        Sanctum::actingAs($this->dosenPm);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/review", [
+            'pm_status' => 'NEEDS_IMPROVEMENT',
+            'pm_notes'  => 'Masih ada bug pada integrasi, perbaiki.',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'IN_PROGRESS')
+            ->assertJsonPath('data.pm_status', 'NEEDS_IMPROVEMENT');
+
+        $this->assertDatabaseHas('tasks', [
+            'id'        => $task->id,
+            'status'    => 'IN_PROGRESS',
+            'pm_status' => 'NEEDS_IMPROVEMENT',
+        ]);
+    }
+
+    public function test_pm_needs_improvement_on_done_task_moves_it_back_to_in_progress(): void
+    {
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Sudah Done tapi Ditemukan Masalah',
+            'status'              => 'DONE',
+            'progress_percentage' => 100,
+            'achieved_summary'    => 'Selesai sebelumnya',
+            'pm_status'           => 'APPROVED',
+        ]);
+
+        Sanctum::actingAs($this->dosenPm);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/review", [
+            'pm_status' => 'NEEDS_IMPROVEMENT',
+            'pm_notes'  => 'Ada regresi fungsi, perbaiki segera.',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'IN_PROGRESS')
+            ->assertJsonPath('data.pm_status', 'NEEDS_IMPROVEMENT');
+
+        $this->assertDatabaseHas('tasks', [
+            'id'        => $task->id,
+            'status'    => 'IN_PROGRESS',
+            'pm_status' => 'NEEDS_IMPROVEMENT',
+        ]);
+    }
+
+    public function test_overview_and_summary_exclude_unsubmitted_tasks_from_pending_review(): void
+    {
+        // Task 1: TODO, 0%, belum ada laporan -> tidak boleh dihitung pending_review
+        Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Baru 1',
+            'status'              => 'TODO',
+            'progress_percentage' => 0,
+            'pm_status'           => 'PENDING',
+            'achieved_summary'    => null,
+        ]);
+
+        // Task 2: IN_PROGRESS, 50%, ada laporan -> dihitung pending_review
+        Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team2->id,
+            'title'               => 'Task Berjalan 2',
+            'status'              => 'IN_PROGRESS',
+            'progress_percentage' => 50,
+            'pm_status'           => 'PENDING',
+            'achieved_summary'    => 'Laporan progres ada',
+        ]);
+
+        Sanctum::actingAs($this->dosenPm);
+
+        $response = $this->getJson("/api/v1/proposals/{$this->proposal->id}/tasks/overview");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.summary.total', 2)
+            ->assertJsonPath('data.summary.pending_review', 1)
+            ->assertJsonStructure([
+                'data' => [
+                    'team_members',
+                    'tasks',
+                ],
+            ]);
+    }
 }

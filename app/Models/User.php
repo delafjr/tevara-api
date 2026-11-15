@@ -42,6 +42,52 @@ class User extends Authenticatable
             : $this->managedProposals()->exists();
     }
 
+    /**
+     * Get the company name for this user.
+     * - If the user is a PIC, the company name is the name of the main client account.
+     * - If the user is a direct client (has own clientProfile), their name is used.
+     * - Otherwise, returns null.
+     */
+    public function companyName(): ?string
+    {
+        // PIC user: company name is the parent client profile's user's name
+        if ($this->relationLoaded('clientPic') && $this->clientPic) {
+            return $this->clientPic->clientProfile?->user?->name;
+        }
+        if (!$this->relationLoaded('clientPic')) {
+            $pic = $this->clientPic()->with('clientProfile.user')->first();
+            if ($pic) {
+                return $pic->clientProfile?->user?->name;
+            }
+        }
+
+        // Direct client user
+        if ($this->relationLoaded('clientProfile') && $this->clientProfile) {
+            return $this->name;
+        }
+        if (!$this->relationLoaded('clientProfile') && $this->clientProfile()->exists()) {
+            return $this->name;
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the position/jabatan for this user.
+     * Only PIC users have a position.
+     */
+    public function position(): ?string
+    {
+        if ($this->relationLoaded('clientPic') && $this->clientPic) {
+            return $this->clientPic->position;
+        }
+        if (!$this->relationLoaded('clientPic')) {
+            return $this->clientPic()?->value('position');
+        }
+
+        return null;
+    }
+
     // ── Profile extensions ─────────────────────────────
 
     public function clientProfile()

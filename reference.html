@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TEFARA — API Endpoint Reference</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2333;
+    --border: #2a2f42;
+    --border2: #363c54;
+    --text: #e2e8f0;
+    --muted: #7c87a0;
+    --accent: #6272ea;
+    --accent2: #4a57d4;
+
+    --get:    #22c55e;
+    --post:   #3b82f6;
+    --put:    #f59e0b;
+    --patch:  #a855f7;
+    --delete: #ef4444;
+
+    --get-bg:    rgba(34,197,94,.12);
+    --post-bg:   rgba(59,130,246,.12);
+    --put-bg:    rgba(245,158,11,.12);
+    --patch-bg:  rgba(168,85,247,.12);
+    --delete-bg: rgba(239,68,68,.12);
+
+    --role-klien:   #38bdf8;
+    --role-pengurus:#f472b6;
+    --role-dosen:   #34d399;
+    --role-mhs:     #fb923c;
+    --role-jurusan: #a78bfa;
+    --role-public:  #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  /* Layout */
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 260px; min-width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: sticky; top: 0; height: 100vh;
+    overflow-y: auto; padding: 20px 0;
+  }
+  .main { flex: 1; overflow-x: auto; padding: 32px 40px; max-width: 1100px; }
+
+  /* Sidebar */
+  .sidebar-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .sidebar-logo .name { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+  .sidebar-logo .sub  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .nav-group { margin-bottom: 4px; }
+  .nav-group-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    color: var(--muted); text-transform: uppercase;
+    padding: 8px 20px 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 20px;
+    color: var(--muted); cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all .15s;
+    text-decoration: none; font-size: 12px;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,.04); }
+  .nav-item.active { color: var(--accent); border-color: var(--accent); background: rgba(98,114,234,.08); }
+  .nav-count {
+    margin-left: auto;
+    font-size: 10px; color: var(--muted);
+    background: var(--border); border-radius: 8px;
+    padding: 1px 6px;
+  }
+
+  /* Page Header */
+  .page-header { margin-bottom: 36px; }
+  .page-header h1 { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -.5px; }
+  .page-header p  { color: var(--muted); margin-top: 6px; font-size: 13px; font-family: sans-serif; }
+  .base-url {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px;
+    margin-top: 14px; font-size: 13px; color: var(--accent);
+  }
+  .base-url span { color: var(--muted); }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; align-items: center; }
+  .legend-label { font-size: 11px; color: var(--muted); margin-right: 4px; font-family: sans-serif; }
+
+  /* Section */
+  .section { margin-bottom: 52px; scroll-margin-top: 20px; }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 17px; font-weight: 700; color: var(--text); }
+  .section-header .section-desc { font-size: 12px; color: var(--muted); margin-top: 1px; font-family: sans-serif; }
+  .subsection-title {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .08em;
+    margin: 20px 0 10px;
+  }
+
+  /* Endpoint card */
+  .endpoint {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .ep-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .ep-header:hover { background: rgba(255,255,255,.02); }
+  .method {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 5px;
+    letter-spacing: .04em; min-width: 58px;
+    text-align: center; flex-shrink: 0;
+  }
+  .GET    { color: var(--get);    background: var(--get-bg); }
+  .POST   { color: var(--post);   background: var(--post-bg); }
+  .PUT    { color: var(--put);    background: var(--put-bg); }
+  .PATCH  { color: var(--patch);  background: var(--patch-bg); }
+  .DELETE { color: var(--delete); background: var(--delete-bg); }
+  .ep-path { color: var(--text); font-size: 13px; flex: 1; }
+  .ep-path .param { color: var(--put); }
+  .ep-desc { font-size: 12px; color: var(--muted); margin-left: auto; font-family: sans-serif; }
+  .roles { display: flex; gap: 4px; flex-shrink: 0; }
+  .role-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 20px; letter-spacing: .03em;
+  }
+  .r-klien   { color: var(--role-klien);   background: rgba(56,189,248,.12); }
+  .r-pengurus{ color: var(--role-pengurus); background: rgba(244,114,182,.12); }
+  .r-dosen   { color: var(--role-dosen);   background: rgba(52,211,153,.12); }
+  .r-mhs     { color: var(--role-mhs);     background: rgba(251,146,60,.12); }
+  .r-jurusan { color: var(--role-jurusan); background: rgba(167,139,250,.12); }
+  .r-public  { color: var(--role-public);  background: rgba(148,163,184,.12); }
+  .r-all     { color: #fbbf24; background: rgba(251,191,36,.12); }
+
+  /* Expand body */
+  .ep-body { display: none; border-top: 1px solid var(--border); padding: 16px; }
+  .ep-body.open { display: block; }
+  .ep-body-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:760px){ .ep-body-cols { grid-template-columns: 1fr; } }
+
+  .field-table { width: 100%; border-collapse: collapse; }
+  .field-table th {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--muted);
+    padding: 4px 8px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .field-table td {
+    padding: 5px 8px; vertical-align: top;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    font-size: 12px;
+  }
+  .field-table tr:last-child td { border-bottom: none; }
+  .field-name { color: var(--accent); }
+  .field-type { color: var(--muted); font-style: italic; }
+  .req { color: var(--delete); font-size: 10px; font-weight: 700; }
+  .opt { color: var(--muted); font-size: 10px; }
+  .field-note { color: var(--muted); font-family: sans-serif; }
+
+  .block-title {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em;
+    margin-bottom: 8px;
+  }
+  .notes-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px;
+    font-size: 12px; color: var(--muted);
+    font-family: sans-serif; line-height: 1.7;
+  }
+  .notes-box strong { color: var(--text); }
+
+  /* Tab switcher BE/FE */
+  .tab-bar {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .tab-btn {
+    font-family: monospace; font-size: 12px; font-weight: 700;
+    padding: 8px 18px; cursor: pointer;
+    color: var(--muted); background: none;
+    border: none; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: all .15s;
+  }
+  .tab-btn.active { color: var(--accent); border-color: var(--accent); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="name">TEFARA</div>
+    <div class="sub">API Endpoint Reference v1</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">General</div>
+    <a class="nav-item active" href="#auth" onclick="scrollTo('auth',this)">Auth <span class="nav-count">4</span></a>
+    <a class="nav-item" href="#users" onclick="scrollTo('users',this)">Users & Profiles <span class="nav-count">6</span></a>
+    <a class="nav-item" href="#master" onclick="scrollTo('master',this)">Master Data <span class="nav-count">8</span></a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-label">Alur Proyek</div>
+    <a class="nav-item" href="#f01" onclick="scrollTo('f01',this)">F-01 Proposal <span class="nav-count">4</span></a>
+    <a class="nav-item" href="#f02" onclick="scrollTo('f02',this)">F-02 Review <span class="nav-count">2</span></a>
+    <a class="nav-item" href="#f03" onclick="scrollTo('f03',this)">F-03 SPK/Kontrak <span class="nav-count">3</span></a>
+    <a class="nav-item" href="#f04" onclick="scrollTo('f04',this)">F-04 Tim <span class="nav-count">4</span></a>
+    <a class="nav-item" href="#f05" onclick="scrollTo('f05',this)">F-05 Tasks & Progress <span class="nav-count">8</span></a>
+    <a class="nav-item" href="#f06" onclick="scrollTo('f06',this)">F-06 UAT <span class="nav-count">5</span></a>
+    <a class="nav-item" href="#f07" onclick="scrollTo('f07',this)">F-07 BAST <span class="nav-count">3</span></a>
+    <a class="nav-item" href="#f08" onclick="scrollTo('f08',this)">F-08 Invoice <span class="nav-count">2</span></a>
+    <a class="nav-item" href="#f09" onclick="scrollTo('f09',this)">F-09 Pembayaran <span class="nav-count">4</span></a>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-label">Lainnya</div>
+    <a class="nav-item" href="#dashboard" onclick="scrollTo('dashboard',this)">Dashboard <span class="nav-count">5</span></a>
+    <a class="nav-item" href="#report" onclick="scrollTo('report',this)">Laporan & Export <span class="nav-count">3</span></a>
+    <a class="nav-item" href="#notif" onclick="scrollTo('notif',this)">Notifikasi <span class="nav-count">3</span></a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="page-header">
+    <h1>TEFARA API Reference</h1>
+    <p style="font-family:sans-serif">Teaching Factory Resource & Activity Management · Laravel 11 + MySQL 8 · Spatie Permission</p>
+    <div class="base-url"><span>BASE URL</span> /api/v1</div>
+    <div class="base-url" style="margin-top:8px;font-family:sans-serif;font-size:12px;">
+      <span>AUTH</span> Authorization: Bearer &lt;sanctum_token&gt; — semua endpoint kecuali login & register
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <span class="legend-label" style="font-family:sans-serif">Role:</span>
+    <span class="role-badge r-public">PUBLIC</span>
+    <span class="role-badge r-all">ALL</span>
+    <span class="role-badge r-klien">klien</span>
+    <span class="role-badge r-pengurus">pengurus_tefa</span>
+    <span class="role-badge r-dosen">dosen</span>
+    <span class="role-badge r-mhs">mahasiswa</span>
+    <span class="role-badge r-jurusan">jurusan</span>
+  </div>
+
+  <!-- TAB: Backend / Frontend -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('be',this)">⚙ Backend (Laravel Routes)</button>
+    <button class="tab-btn" onclick="switchTab('fe',this)">🖥 Frontend (Fetch Calls)</button>
+  </div>
+
+  <!-- ===== BACKEND TAB ===== -->
+  <div class="tab-panel active" id="tab-be">
+
+  <!-- AUTH -->
+  <div class="section" id="auth">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(98,114,234,.15)">🔐</div>
+      <div>
+        <h2>Authentication</h2>
+        <div class="section-desc">Login, register klien, profil, logout</div>
+      </div>
+    </div>
+
+    <!-- POST /register -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/auth/register</span>
+        <div class="roles"><span class="role-badge r-public">PUBLIC</span></div>
+        <span class="ep-desc">Register klien baru</span>
+      </div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">name</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">Nama kontak person</td></tr>
+              <tr><td class="field-name">email</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">Unique, dipakai login</td></tr>
+              <tr><td class="field-name">password</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">Min 8 karakter</td></tr>
+              <tr><td class="field-name">password_confirmation</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">phone_number</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">company_name</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Nama instansi/perusahaan</td></tr>
+              <tr><td class="field-name">client_type</td><td class="field-type">enum</td><td><span class="req">REQ</span></td><td class="field-note">EXTERNAL | INTERNAL</td></tr>
+              <tr><td class="field-name">address</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Response 201</div>
+            <div class="notes-box">{ <strong>user</strong>: {...}, <strong>token</strong>: "sanctum_token", <strong>role</strong>: "klien" }</div>
+            <div class="block-title" style="margin-top:12px">Notes</div>
+            <div class="notes-box">Auto-assign role <strong>klien</strong>. Auto-create <strong>client_profiles</strong> row. Token langsung bisa dipakai tanpa login ulang.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POST /login -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/auth/login</span>
+        <div class="roles"><span class="role-badge r-public">PUBLIC</span></div>
+        <span class="ep-desc">Login semua role</span>
+      </div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">email</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">password</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Response 200</div>
+            <div class="notes-box">{ <strong>user</strong>: {id, name, email, avatar_url}, <strong>token</strong>: "...", <strong>role</strong>: "..." }</div>
+            <div class="block-title" style="margin-top:12px">Notes</div>
+            <div class="notes-box">Response juga return <strong>permissions</strong>[] untuk frontend tahu menu apa yang muncul.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GET /me -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="ep-path">/auth/me</span>
+        <div class="roles"><span class="role-badge r-all">ALL</span></div>
+        <span class="ep-desc">Data user yang sedang login</span>
+      </div>
+      <div class="ep-body">
+        <div class="notes-box">Return user + role + profile extension (client_profiles / lecturer_profiles / student_profiles sesuai role). Dipakai di page load untuk hydrate state auth.</div>
+      </div>
+    </div>
+
+    <!-- POST /logout -->
+    <div class="endpoint">
+      <div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="ep-path">/auth/logout</span>
+        <div class="roles"><span class="role-badge r-all">ALL</span></div>
+        <span class="ep-desc">Cabut token Sanctum</span>
+      </div>
+      <div class="ep-body">
+        <div class="notes-box">Hapus token current (<code>$request->user()->currentAccessToken()->delete()</code>). Return 204.</div>
+      </div>
+    </div>
+  </div><!-- /auth -->
+
+  <!-- USERS -->
+  <div class="section" id="users">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(244,114,182,.12)">👥</div>
+      <div><h2>Users & Profiles</h2><div class="section-desc">CRUD user oleh Pengurus, update profil sendiri</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/users</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">List semua user</span></div>
+      <div class="ep-body">
+        <div class="block-title">Query Params</div>
+        <table class="field-table">
+          <tr><th>Param</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">role</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Filter: klien | dosen | mahasiswa | jurusan</td></tr>
+          <tr><td class="field-name">search</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Cari nama / email / NIM</td></tr>
+          <tr><td class="field-name">per_page</td><td class="field-type">int</td><td><span class="opt">OPT</span></td><td class="field-note">Default 20</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/users</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Buat akun Dosen / Mahasiswa / Jurusan</span></div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">name</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">email</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">password</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">role</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">dosen | mahasiswa | jurusan</td></tr>
+              <tr><td class="field-name">phone_number</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">nidn</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Jika role dosen</td></tr>
+              <tr><td class="field-name">nim</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Jika role mahasiswa</td></tr>
+              <tr><td class="field-name">study_program</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Default: D3 Teknik Informatika</td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Notes</div>
+            <div class="notes-box">Auto-create profile extension sesuai role. Return 201 + user object.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/users/<span class="param">{id}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Detail user</span></div>
+      <div class="ep-body"><div class="notes-box">Return user + profile extension lengkap.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PUT">PUT</span><span class="ep-path">/users/<span class="param">{id}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Update data user</span></div>
+      <div class="ep-body">
+        <div class="block-title">Request Body — semua optional</div>
+        <table class="field-table">
+          <tr><th>Field</th><th>Keterangan</th></tr>
+          <tr><td class="field-name">name, email, phone_number</td><td class="field-note">Data dasar user</td></tr>
+          <tr><td class="field-name">nidn</td><td class="field-note">Jika dosen</td></tr>
+          <tr><td class="field-name">nim, study_program</td><td class="field-note">Jika mahasiswa</td></tr>
+          <tr><td class="field-name">company_name, client_type, address</td><td class="field-note">Jika klien</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method DELETE">DELETE</span><span class="ep-path">/users/<span class="param">{id}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Soft delete user</span></div>
+      <div class="ep-body"><div class="notes-box">Set <strong>deleted_at</strong> timestamp. User tidak bisa login. Return 204.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/profile/avatar</span>
+      <div class="roles"><span class="role-badge r-all">ALL</span></div>
+      <span class="ep-desc">Upload avatar sendiri</span></div>
+      <div class="ep-body">
+        <div class="block-title">Request — multipart/form-data</div>
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">avatar</td><td class="field-type">file</td><td><span class="req">REQ</span></td><td class="field-note">JPG/PNG, max 2 MB</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Simpan ke <code>storage/app/public/avatars/</code>, update <strong>users.avatar_url</strong>.</div>
+      </div>
+    </div>
+  </div><!-- /users -->
+
+  <!-- MASTER DATA -->
+  <div class="section" id="master">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(167,139,250,.12)">🗂</div>
+      <div><h2>Master Data</h2><div class="section-desc">Kategori, status, role tim, kategori task — CRUD oleh Pengurus</div></div>
+    </div>
+    <div class="notes-box" style="margin-bottom:12px">Semua master data mengikuti pola yang sama: <strong>GET /master/{resource}</strong> (list), <strong>POST</strong> (create), <strong>PUT /{id}</strong> (update), <strong>DELETE /{id}</strong> (delete). Body: <strong>name</strong> (required, string, unique). Hanya <span class="role-badge r-pengurus">pengurus_tefa</span> yang bisa write.</div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/master/proposal-categories</span>
+      <div class="roles"><span class="role-badge r-all">ALL</span></div>
+      <span class="ep-desc">List kategori proposal</span></div>
+      <div class="ep-body"><div class="notes-box">Seed: Web, Mobile, Desktop, IoT, Other. Dipakai di dropdown F-01.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/master/proposal-statuses</span>
+      <div class="roles"><span class="role-badge r-all">ALL</span></div>
+      <span class="ep-desc">List status proposal (ordered)</span></div>
+      <div class="ep-body"><div class="notes-box">Return berurutan: Draft→Submitted→Under Review→Revision Required→Approved→Rejected→Active→Testing→Handover→Completed. Dipakai untuk render timeline progress bar.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/master/project-roles</span>
+      <div class="roles"><span class="role-badge r-all">ALL</span></div>
+      <span class="ep-desc">List role tim mahasiswa</span></div>
+      <div class="ep-body"><div class="notes-box">Seed: UI/UX, Frontend, Backend, Fullstack, QA Tester. Dipakai di F-04.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/master/task-categories</span>
+      <div class="roles"><span class="role-badge r-all">ALL</span></div>
+      <span class="ep-desc">List kategori task</span></div>
+      <div class="ep-body"><div class="notes-box">Seed: Frontend, Backend, UI/UX, Testing, Documentation, Research. Dipakai di F-05.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/master/<span class="param">{resource}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Tambah item master</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th></tr>
+          <tr><td class="field-name">name</td><td class="field-type">string</td><td><span class="req">REQ</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PUT">PUT</span><span class="ep-path">/master/<span class="param">{resource}/{id}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Edit item master</span></div>
+      <div class="ep-body"><div class="notes-box">Body: { name }. Return item yang diupdate.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method DELETE">DELETE</span><span class="ep-path">/master/<span class="param">{resource}/{id}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Hapus item master</span></div>
+      <div class="ep-body"><div class="notes-box">Cek dulu apakah item sedang dipakai di proposal/task. Jika ya, return 422 dengan pesan "Tidak bisa dihapus, sedang digunakan."</div></div>
+    </div>
+
+  </div><!-- /master -->
+
+  <!-- F-01 PROPOSAL -->
+  <div class="section" id="f01">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(59,130,246,.12)">📋</div>
+      <div><h2>F-01 — Pengajuan Proposal</h2><div class="section-desc">Klien ajukan proyek, Pengurus lihat & kelola</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-jurusan">jurusan</span></div>
+      <span class="ep-desc">List semua proposal</span></div>
+      <div class="ep-body">
+        <div class="block-title">Query Params</div>
+        <table class="field-table">
+          <tr><th>Param</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">status_id</td><td class="field-type">int</td><td><span class="opt">OPT</span></td><td class="field-note">Filter by status</td></tr>
+          <tr><td class="field-name">category_id</td><td class="field-type">int</td><td><span class="opt">OPT</span></td><td class="field-note">Filter by kategori</td></tr>
+          <tr><td class="field-name">search</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Cari di proposal_code, title, nama klien</td></tr>
+          <tr><td class="field-name">per_page</td><td class="field-type">int</td><td><span class="opt">OPT</span></td><td class="field-note">Default 15</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/mine</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span></div>
+      <span class="ep-desc">List proposal milik klien yang login</span></div>
+      <div class="ep-body"><div class="notes-box">Scope otomatis ke <strong>proposals.client_id = auth()->id()</strong>. Include relasi status + history status perubahan untuk timeline.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/proposals</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span></div>
+      <span class="ep-desc">Ajukan proposal baru (F-01)</span></div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body — multipart/form-data</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">title</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">Max 255</td></tr>
+              <tr><td class="field-name">background</td><td class="field-type">text</td><td><span class="req">REQ</span></td><td class="field-note">Min 100 char</td></tr>
+              <tr><td class="field-name">category_id</td><td class="field-type">int</td><td><span class="req">REQ</span></td><td class="field-note">FK proposal_categories</td></tr>
+              <tr><td class="field-name">desired_deadline</td><td class="field-type">date</td><td><span class="req">REQ</span></td><td class="field-note">Min H+30</td></tr>
+              <tr><td class="field-name">target_audience</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">estimated_budget</td><td class="field-type">decimal</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">attachment</td><td class="field-type">file</td><td><span class="opt">OPT</span></td><td class="field-note">PDF/DOCX max 10MB → attachment_url</td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Notes</div>
+            <div class="notes-box">
+              Observer auto-generate <strong>proposal_code</strong>: <code>PRSL-{Y}-{SEQ}</code>.<br><br>
+              Status awal: <strong>Submitted</strong> (id=2).<br><br>
+              Auto-set <strong>client_id</strong> dari auth user.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span></span>
+      <div class="roles"><span class="role-badge r-klien">klien</span><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-dosen">dosen</span><span class="role-badge r-jurusan">jurusan</span></div>
+      <span class="ep-desc">Detail proposal lengkap</span></div>
+      <div class="ep-body">
+        <div class="notes-box">
+          Load relasi: <strong>status</strong>, <strong>category</strong>, <strong>client.client_profiles</strong>, <strong>reviewer</strong>, <strong>pm.lecturer_profiles</strong>, <strong>project_teams.student.student_profiles</strong>, <strong>project_teams.role</strong>.<br><br>
+          <strong>Policy:</strong> Klien hanya bisa lihat proposal miliknya. Dosen hanya bisa lihat proposal yang ia jadi PM-nya.
+        </div>
+      </div>
+    </div>
+  </div><!-- /f01 -->
+
+  <!-- F-02 REVIEW -->
+  <div class="section" id="f02">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(245,158,11,.12)">🔍</div>
+      <div><h2>F-02 — Review Kelayakan</h2><div class="section-desc">Pengurus TeFa menilai dan memutuskan proposal</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/review</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Submit hasil review kelayakan</span></div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">complexity_level</td><td class="field-type">enum</td><td><span class="req">REQ</span></td><td class="field-note">LOW | MEDIUM | HIGH</td></tr>
+              <tr><td class="field-name">risk_analysis</td><td class="field-type">text</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">estimated_cost</td><td class="field-type">decimal</td><td><span class="req">REQ</span></td><td class="field-note">Harga penawaran TeFa</td></tr>
+              <tr><td class="field-name">review_notes</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note">Syarat / catatan</td></tr>
+              <tr><td class="field-name">decision</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">approved | rejected | revision_required</td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Notes</div>
+            <div class="notes-box">
+              Auto-set <strong>reviewer_id</strong> = auth user.<br>
+              Auto-set <strong>reviewed_at</strong> = now().<br><br>
+              Status mapping:<br>
+              approved → <strong>Approved</strong> (id=5)<br>
+              rejected → <strong>Rejected</strong> (id=6)<br>
+              revision_required → <strong>Revision Required</strong> (id=4)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/status</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Override status manual (admin action)</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">status_id</td><td class="field-type">int</td><td><span class="req">REQ</span></td><td class="field-note">ID dari proposal_statuses</td></tr>
+          <tr><td class="field-name">note</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Alasan perubahan manual</td></tr>
+        </table>
+      </div>
+    </div>
+  </div><!-- /f02 -->
+
+  <!-- F-03 SPK -->
+  <div class="section" id="f03">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(34,197,94,.12)">📄</div>
+      <div><h2>F-03 — SPK / Kontrak</h2><div class="section-desc">Pembuatan dan penandatanganan kontrak kerja</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/contract</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Isi data SPK/kontrak</span></div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body — multipart/form-data</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">scope_of_work</td><td class="field-type">text</td><td><span class="req">REQ</span></td><td class="field-note">Detail fitur & deliverables</td></tr>
+              <tr><td class="field-name">total_amount</td><td class="field-type">decimal</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">payment_terms_description</td><td class="field-type">text</td><td><span class="req">REQ</span></td><td class="field-note">Skema termin pembayaran</td></tr>
+              <tr><td class="field-name">maintenance_warranty_months</td><td class="field-type">int</td><td><span class="opt">OPT</span></td><td class="field-note">Default: 3</td></tr>
+              <tr><td class="field-name">start_date</td><td class="field-type">date</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">target_completion_date</td><td class="field-type">date</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">contract_file</td><td class="field-type">file</td><td><span class="opt">OPT</span></td><td class="field-note">PDF, max 10MB → contract_file_url</td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Notes</div>
+            <div class="notes-box">
+              Auto-generate <strong>spk_number</strong> dan <strong>project_code</strong>.<br><br>
+              Status → <strong>Active</strong> (id=7) setelah SPK disimpan.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/contract/sign</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Tandai kontrak sudah ditandatangani</span></div>
+      <div class="ep-body">
+        <div class="block-title">Request Body — multipart/form-data</div>
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">contract_file</td><td class="field-type">file</td><td><span class="opt">OPT</span></td><td class="field-note">Upload ulang versi yang sudah di-TTD jika belum</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Set <strong>is_signed=true</strong>, <strong>signed_at=now()</strong>.</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/contract/pm</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Assign Project Manager (dosen)</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">pm_id</td><td class="field-type">int</td><td><span class="req">REQ</span></td><td class="field-note">users.id, harus role dosen</td></tr>
+        </table>
+      </div>
+    </div>
+  </div><!-- /f03 -->
+
+  <!-- F-04 TIM -->
+  <div class="section" id="f04">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(52,211,153,.12)">👨‍💻</div>
+      <div><h2>F-04 — Penugasan Tim</h2><div class="section-desc">Assign mahasiswa ke proyek dengan role spesifik</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/team</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-dosen">dosen</span><span class="role-badge r-mhs">mahasiswa</span></div>
+      <span class="ep-desc">List anggota tim proyek</span></div>
+      <div class="ep-body"><div class="notes-box">Return: [{student: {id, name, nim, avatar}, role: {id, name}, joined_at}]. Mahasiswa hanya bisa lihat tim proyeknya sendiri.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/proposals/<span class="param">{id}</span>/team</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Tambah mahasiswa ke tim</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">student_id</td><td class="field-type">int</td><td><span class="req">REQ</span></td><td class="field-note">users.id, harus role mahasiswa</td></tr>
+          <tr><td class="field-name">role_id</td><td class="field-type">int</td><td><span class="req">REQ</span></td><td class="field-note">FK project_roles.id</td></tr>
+          <tr><td class="field-name">joined_at</td><td class="field-type">date</td><td><span class="opt">OPT</span></td><td class="field-note">Default: today</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Cek unique constraint (proposal_id, student_id). Bisa batch: terima array members[].</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PUT">PUT</span><span class="ep-path">/proposals/<span class="param">{id}</span>/team/<span class="param">{memberId}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Ganti role anggota tim</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th></tr>
+          <tr><td class="field-name">role_id</td><td class="field-type">int</td><td><span class="req">REQ</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method DELETE">DELETE</span><span class="ep-path">/proposals/<span class="param">{id}</span>/team/<span class="param">{memberId}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Keluarkan anggota dari tim</span></div>
+      <div class="ep-body"><div class="notes-box">Cek dulu apakah mahasiswa punya task yang belum selesai di proyek ini. Jika ya, return 422.</div></div>
+    </div>
+  </div><!-- /f04 -->
+
+  <!-- F-05 TASKS -->
+  <div class="section" id="f05">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(251,146,60,.12)">✅</div>
+      <div><h2>F-05 — Tasks & Progress Report</h2><div class="section-desc">Manajemen task + laporan sprint oleh mahasiswa, review oleh dosen PM</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-dosen">dosen</span><span class="role-badge r-mhs">mahasiswa</span></div>
+      <span class="ep-desc">List semua task di proyek</span></div>
+      <div class="ep-body">
+        <div class="block-title">Query Params</div>
+        <table class="field-table">
+          <tr><th>Param</th><th>Type</th><th>Keterangan</th></tr>
+          <tr><td class="field-name">status</td><td class="field-type">string</td><td class="field-note">TODO|IN_PROGRESS|TESTING|DONE</td></tr>
+          <tr><td class="field-name">assigned_to</td><td class="field-type">int</td><td class="field-note">Filter by student user id</td></tr>
+          <tr><td class="field-name">category_id</td><td class="field-type">int</td><td class="field-note">Filter by kategori</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px"><strong>Mahasiswa:</strong> auto-scope ke task miliknya saja (<code>assigned_student_id = auth()->id()</code>).</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks</span>
+      <div class="roles"><span class="role-badge r-dosen">dosen</span><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Buat task baru</span></div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">title</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">Max 255</td></tr>
+              <tr><td class="field-name">description</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">category_id</td><td class="field-type">int</td><td><span class="opt">OPT</span></td><td class="field-note">FK task_categories</td></tr>
+              <tr><td class="field-name">assigned_student_id</td><td class="field-type">int</td><td><span class="opt">OPT</span></td><td class="field-note">Harus anggota tim proyek ini</td></tr>
+              <tr><td class="field-name">priority</td><td class="field-type">enum</td><td><span class="opt">OPT</span></td><td class="field-note">LOW|MEDIUM|HIGH|CRITICAL, default MEDIUM</td></tr>
+              <tr><td class="field-name">due_date</td><td class="field-type">date</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Notes</div>
+            <div class="notes-box">Status awal: <strong>TODO</strong>. Progress awal: <strong>0%</strong>. PM review status awal: <strong>PENDING</strong>.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks/<span class="param">{taskId}</span></span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-dosen">dosen</span><span class="role-badge r-mhs">mahasiswa</span></div>
+      <span class="ep-desc">Detail satu task</span></div>
+      <div class="ep-body"><div class="notes-box">Mahasiswa hanya bisa akses task miliknya. Include: assignee, category, pm_notes, pm_status.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks/<span class="param">{taskId}</span>/progress</span>
+      <div class="roles"><span class="role-badge r-mhs">mahasiswa</span></div>
+      <span class="ep-desc">Submit progress report (F-05 Mahasiswa)</span></div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body — multipart/form-data</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">achieved_summary</td><td class="field-type">text</td><td><span class="req">REQ</span></td><td class="field-note">Pencapaian minggu ini</td></tr>
+              <tr><td class="field-name">blockers_summary</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note">Kendala / blocker</td></tr>
+              <tr><td class="field-name">progress_percentage</td><td class="field-type">decimal</td><td><span class="req">REQ</span></td><td class="field-note">0.00 – 100.00</td></tr>
+              <tr><td class="field-name">status</td><td class="field-type">enum</td><td><span class="req">REQ</span></td><td class="field-note">TODO|IN_PROGRESS|TESTING|DONE</td></tr>
+              <tr><td class="field-name">report_attachment</td><td class="field-type">file</td><td><span class="opt">OPT</span></td><td class="field-note">Max 10MB → report_attachment_url</td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Notes</div>
+            <div class="notes-box">Hanya bisa update task miliknya. Reset <strong>pm_status → PENDING</strong> setiap kali mahasiswa update (PM harus review ulang).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks/<span class="param">{taskId}</span>/review</span>
+      <div class="roles"><span class="role-badge r-dosen">dosen</span></div>
+      <span class="ep-desc">Review progress report (F-05 Dosen PM)</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">pm_notes</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note">Catatan / feedback</td></tr>
+          <tr><td class="field-name">pm_status</td><td class="field-type">enum</td><td><span class="req">REQ</span></td><td class="field-note">APPROVED | NEEDS_IMPROVEMENT</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Auto-set <strong>pm_reviewed_at=now()</strong>.</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PUT">PUT</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks/<span class="param">{taskId}</span></span>
+      <div class="roles"><span class="role-badge r-dosen">dosen</span><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Edit metadata task (judul, assignee, due date, dll)</span></div>
+      <div class="ep-body">
+        <div class="block-title">Request Body — semua optional</div>
+        <table class="field-table">
+          <tr><td class="field-name">title, description, category_id, assigned_student_id, priority, due_date</td><td class="field-note">Field yang boleh diubah oleh PM</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method DELETE">DELETE</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks/<span class="param">{taskId}</span></span>
+      <div class="roles"><span class="role-badge r-dosen">dosen</span><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Hapus task</span></div>
+      <div class="ep-body"><div class="notes-box">Hanya bisa hapus task yang masih TODO atau belum punya progress report. Jika sudah ada progress_percentage > 0, return 422.</div></div>
+    </div>
+  </div><!-- /f05 -->
+
+  <!-- F-06 UAT -->
+  <div class="section" id="f06">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(168,85,247,.12)">🧪</div>
+      <div><h2>F-06 — UAT</h2><div class="section-desc">User Acceptance Testing — buat sesi, isi item, sign-off klien</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/uat</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-dosen">dosen</span></div>
+      <span class="ep-desc">Detail UAT proyek + semua item</span></div>
+      <div class="ep-body"><div class="notes-box">Return uat_result + uat_items[]. Jika belum ada UAT, return 404.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/proposals/<span class="param">{id}</span>/uat</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Buat sesi UAT + item sekaligus</span></div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">session_date</td><td class="field-type">date</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">overall_result</td><td class="field-type">enum</td><td><span class="req">REQ</span></td><td class="field-note">PASSED | FAILED | PARTIAL</td></tr>
+              <tr><td class="field-name">client_notes</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">items</td><td class="field-type">array</td><td><span class="req">REQ</span></td><td class="field-note">Array of UAT items (lihat di bawah)</td></tr>
+              <tr><td class="field-name">items[].feature_name</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">items[].test_scenario</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">items[].result</td><td class="field-type">enum</td><td><span class="req">REQ</span></td><td class="field-note">PASSED | FAILED | BUG_FOUND</td></tr>
+              <tr><td class="field-name">items[].bug_severity</td><td class="field-type">enum</td><td><span class="opt">OPT</span></td><td class="field-note">MINOR | MAJOR | CRITICAL</td></tr>
+              <tr><td class="field-name">items[].bug_description</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">items[].client_feedback</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Notes</div>
+            <div class="notes-box">Proposal harus status <strong>Testing</strong> (id=8). One-to-one: satu proposal satu UAT (unique constraint). Simpan header + items dalam satu transaksi DB.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PUT">PUT</span><span class="ep-path">/proposals/<span class="param">{id}</span>/uat</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Update UAT (revisi item)</span></div>
+      <div class="ep-body"><div class="notes-box">Body sama dengan POST. Replace seluruh items (delete lama, insert baru dalam satu transaksi). Hanya bisa update jika belum di-sign-off klien.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/uat/signoff</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span></div>
+      <span class="ep-desc">Sign-off UAT oleh klien</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">client_signoff_name</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">Nama lengkap yang menandatangani</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Auto-set <strong>signed_off_at=now()</strong>. Jika overall_result=PASSED → update status proposal ke <strong>Handover</strong> (id=9).</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/status/testing</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Tandai proyek masuk fase Testing</span></div>
+      <div class="ep-body"><div class="notes-box">Shortcut: update status → <strong>Testing</strong> (id=8). Trigger ini supaya form UAT bisa dibuka.</div></div>
+    </div>
+  </div><!-- /f06 -->
+
+  <!-- F-07 BAST -->
+  <div class="section" id="f07">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(34,197,94,.12)">📦</div>
+      <div><h2>F-07 — BAST</h2><div class="section-desc">Berita Acara Serah Terima produk kepada klien</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/handover</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-dosen">dosen</span></div>
+      <span class="ep-desc">Detail BAST</span></div>
+      <div class="ep-body"><div class="notes-box">Return handover data + relasi proposal + client. Include tanggal mulai & akhir garansi yang dihitung dari kontrak.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/proposals/<span class="param">{id}</span>/handover</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Buat BAST</span></div>
+      <div class="ep-body">
+        <div class="ep-body-cols">
+          <div>
+            <div class="block-title">Request Body</div>
+            <table class="field-table">
+              <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+              <tr><td class="field-name">repository_url</td><td class="field-type">url</td><td><span class="opt">OPT</span></td><td class="field-note">GitHub/GitLab</td></tr>
+              <tr><td class="field-name">documentation_url</td><td class="field-type">url</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">user_manual_url</td><td class="field-type">url</td><td><span class="opt">OPT</span></td><td class="field-note"></td></tr>
+              <tr><td class="field-name">other_deliverables</td><td class="field-type">array</td><td><span class="opt">OPT</span></td><td class="field-note">JSON: [{label, value}]</td></tr>
+              <tr><td class="field-name">handover_date</td><td class="field-type">date</td><td><span class="req">REQ</span></td><td class="field-note"></td></tr>
+            </table>
+          </div>
+          <div>
+            <div class="block-title">Notes</div>
+            <div class="notes-box">
+              Auto-generate <strong>bast_number</strong>: BAST/TEFA/{Y}/{SEQ}.<br><br>
+              Auto-hitung <strong>maintenance_start_date</strong> = handover_date, <strong>maintenance_end_date</strong> = + warranty_months dari kontrak.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/handover/approve</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span></div>
+      <span class="ep-desc">Klien setujui BAST</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">client_signoff_name</td><td class="field-type">string</td><td><span class="req">REQ</span></td><td class="field-note">Nama pihak klien yang menyetujui</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Set <strong>client_approved=true</strong>, <strong>approved_at=now()</strong>. Update status proposal → <strong>Completed</strong> (id=10).</div>
+      </div>
+    </div>
+  </div><!-- /f07 -->
+
+  <!-- F-08 INVOICE -->
+  <div class="section" id="f08">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(59,130,246,.12)">🧾</div>
+      <div><h2>F-08 — Invoice</h2><div class="section-desc">Generate & kirim invoice PDF per termin</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/invoices</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-jurusan">jurusan</span></div>
+      <span class="ep-desc">List semua termin pembayaran / invoice</span></div>
+      <div class="ep-body"><div class="notes-box">Return payments[] ordered by term_sequence. Include status per termin (PENDING / VERIFIED / REJECTED).</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/invoices/<span class="param">{paymentId}</span>/pdf</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Download PDF invoice termin tertentu</span></div>
+      <div class="ep-body"><div class="notes-box">Generate PDF dengan DomPDF dari data payment + proposal + client_profiles. Return file stream dengan header Content-Disposition: attachment.</div></div>
+    </div>
+  </div><!-- /f08 -->
+
+  <!-- F-09 PEMBAYARAN -->
+  <div class="section" id="f09">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(245,158,11,.12)">💳</div>
+      <div><h2>F-09 — Pembayaran</h2><div class="section-desc">Catat termin, upload bukti (klien), verifikasi (pengurus)</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method POST">POST</span><span class="ep-path">/proposals/<span class="param">{id}</span>/payments</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Buat record termin pembayaran</span></div>
+      <div class="ep-body">
+        <div class="block-title">Request Body</div>
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">term_sequence</td><td class="field-type">int</td><td><span class="req">REQ</span></td><td class="field-note">Termin ke-1, ke-2, dst</td></tr>
+          <tr><td class="field-name">amount</td><td class="field-type">decimal</td><td><span class="req">REQ</span></td><td class="field-note">Jumlah tagihan termin ini</td></tr>
+          <tr><td class="field-name">due_date</td><td class="field-type">date</td><td><span class="opt">OPT</span></td><td class="field-note">Batas waktu bayar (tidak ada kolom di schema, simpan di note atau tambah kolom)</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Status awal: <strong>PENDING</strong>. Dibuat oleh Pengurus sebelum klien upload bukti.</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/payments/<span class="param">{paymentId}</span>/proof</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span></div>
+      <span class="ep-desc">Upload bukti transfer (klien)</span></div>
+      <div class="ep-body">
+        <div class="block-title">Request Body — multipart/form-data</div>
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">payment_date</td><td class="field-type">date</td><td><span class="req">REQ</span></td><td class="field-note">Tanggal transfer</td></tr>
+          <tr><td class="field-name">payment_method</td><td class="field-type">enum</td><td><span class="req">REQ</span></td><td class="field-note">BANK_TRANSFER | VIRTUAL_ACCOUNT | CASH | OTHER</td></tr>
+          <tr><td class="field-name">transfer_reference</td><td class="field-type">string</td><td><span class="opt">OPT</span></td><td class="field-note">Nomor referensi bank</td></tr>
+          <tr><td class="field-name">proof</td><td class="field-type">file</td><td><span class="req">REQ</span></td><td class="field-note">JPG/PNG/PDF, max 5MB → proof_url</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Policy: klien hanya bisa upload ke payment milik proposalnya sendiri. Hanya bisa upload jika status PENDING atau REJECTED.</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/payments/<span class="param">{paymentId}</span>/verify</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Verifikasi bukti bayar (pengurus)</span></div>
+      <div class="ep-body">
+        <table class="field-table">
+          <tr><th>Field</th><th>Type</th><th></th><th>Keterangan</th></tr>
+          <tr><td class="field-name">status</td><td class="field-type">enum</td><td><span class="req">REQ</span></td><td class="field-note">VERIFIED | REJECTED</td></tr>
+          <tr><td class="field-name">verification_notes</td><td class="field-type">text</td><td><span class="opt">OPT</span></td><td class="field-note">Alasan jika ditolak</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Auto-set <strong>verified_by=auth()->id()</strong>, <strong>verified_at=now()</strong>.</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/payments/pending</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">List semua pembayaran yang butuh verifikasi</span></div>
+      <div class="ep-body"><div class="notes-box">Return semua payments dengan status=PENDING yang sudah ada proof_url-nya, dengan relasi ke proposal dan client. Dipakai di halaman verifikasi pembayaran Pengurus.</div></div>
+    </div>
+  </div><!-- /f09 -->
+
+  <!-- DASHBOARD -->
+  <div class="section" id="dashboard">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(98,114,234,.12)">📊</div>
+      <div><h2>Dashboard</h2><div class="section-desc">Aggregasi data per role</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/dashboard/pengurus</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span></div>
+      <span class="ep-desc">Dashboard Pengurus TeFa</span></div>
+      <div class="ep-body"><div class="notes-box">Return: total proposal aktif, breakdown by status, total pemasukan YTD, proposal pending review, pembayaran pending verifikasi, 5 proposal terbaru.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/dashboard/dosen</span>
+      <div class="roles"><span class="role-badge r-dosen">dosen</span></div>
+      <span class="ep-desc">Dashboard Dosen PM</span></div>
+      <div class="ep-body"><div class="notes-box">Return: proyek aktif (scoped ke pm_id=auth), task pending review, progress overview proyek, mahasiswa per proyek.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/dashboard/mahasiswa</span>
+      <div class="roles"><span class="role-badge r-mhs">mahasiswa</span></div>
+      <span class="ep-desc">Dashboard Mahasiswa</span></div>
+      <div class="ep-body"><div class="notes-box">Return: proyek yang diikuti, task milikku (by status), task overdue, progress terakhir yang di-submit, feedback PM terbaru.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/dashboard/klien</span>
+      <div class="roles"><span class="role-badge r-klien">klien</span></div>
+      <span class="ep-desc">Dashboard Klien</span></div>
+      <div class="ep-body"><div class="notes-box">Return: proposal milik klien ini, status timeline per proposal, payment pending (butuh upload bukti), notifikasi terbaru.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/dashboard/jurusan</span>
+      <div class="roles"><span class="role-badge r-jurusan">jurusan</span></div>
+      <span class="ep-desc">Dashboard Jurusan (rekap global)</span></div>
+      <div class="ep-body"><div class="notes-box">Return: total proyek per status, total mahasiswa terlibat (unique), total pemasukan, proyek per semester, grafik tren per bulan.</div></div>
+    </div>
+  </div><!-- /dashboard -->
+
+  <!-- LAPORAN -->
+  <div class="section" id="report">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(52,211,153,.12)">📁</div>
+      <div><h2>Laporan & Export</h2><div class="section-desc">PDF/Excel untuk LPJ dan akreditasi</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/reports/proposals/<span class="param">{id}</span>/pdf</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-jurusan">jurusan</span></div>
+      <span class="ep-desc">Export laporan satu proyek (PDF)</span></div>
+      <div class="ep-body"><div class="notes-box">Generate PDF berisi: info proposal, review, kontrak, tim, summary tasks, UAT, BAST, riwayat pembayaran. DomPDF stream.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/reports/proposals/excel</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-jurusan">jurusan</span></div>
+      <span class="ep-desc">Export rekap semua proyek (Excel)</span></div>
+      <div class="ep-body">
+        <div class="block-title">Query Params</div>
+        <table class="field-table">
+          <tr><th>Param</th><th>Keterangan</th></tr>
+          <tr><td class="field-name">year</td><td class="field-note">Filter tahun, default tahun ini</td></tr>
+          <tr><td class="field-name">status_id</td><td class="field-note">Filter status</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Laravel Excel (Maatwebsite). Kolom: kode proyek, judul, klien, PM, status, tim, total biaya, status bayar, tanggal selesai.</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/reports/finance/summary</span>
+      <div class="roles"><span class="role-badge r-pengurus">pengurus_tefa</span><span class="role-badge r-jurusan">jurusan</span></div>
+      <span class="ep-desc">Rekap keuangan agregat</span></div>
+      <div class="ep-body">
+        <div class="block-title">Query Params</div>
+        <table class="field-table">
+          <tr><td class="field-name">year</td><td class="field-note">Filter tahun</td></tr>
+          <tr><td class="field-name">month</td><td class="field-note">Filter bulan (optional)</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Return: total kontrak, total verified, total pending, breakdown per bulan (untuk chart), top 5 proyek by nilai.</div>
+      </div>
+    </div>
+  </div><!-- /report -->
+
+  <!-- NOTIFIKASI -->
+  <div class="section" id="notif">
+    <div class="section-header">
+      <div class="section-icon" style="background:rgba(251,146,60,.12)">🔔</div>
+      <div><h2>Notifikasi</h2><div class="section-desc">In-app notifications per user</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method GET">GET</span><span class="ep-path">/notifications</span>
+      <div class="roles"><span class="role-badge r-all">ALL</span></div>
+      <span class="ep-desc">List notifikasi user login</span></div>
+      <div class="ep-body">
+        <div class="block-title">Query Params</div>
+        <table class="field-table">
+          <tr><td class="field-name">unread_only</td><td class="field-note">boolean, default false</td></tr>
+          <tr><td class="field-name">per_page</td><td class="field-note">default 20</td></tr>
+        </table>
+        <div class="notes-box" style="margin-top:8px">Pakai Laravel Notifications + Database channel. Return: [{id, type, data, read_at, created_at}].</div>
+      </div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/notifications/<span class="param">{id}</span>/read</span>
+      <div class="roles"><span class="role-badge r-all">ALL</span></div>
+      <span class="ep-desc">Tandai satu notif sebagai dibaca</span></div>
+      <div class="ep-body"><div class="notes-box">Set read_at = now(). Policy: hanya notif milik auth user.</div></div>
+    </div>
+
+    <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+      <span class="method PATCH">PATCH</span><span class="ep-path">/notifications/read-all</span>
+      <div class="roles"><span class="role-badge r-all">ALL</span></div>
+      <span class="ep-desc">Tandai semua notif sebagai dibaca</span></div>
+      <div class="ep-body"><div class="notes-box"><code>auth()->user()->unreadNotifications->markAsRead()</code>. Return count yang diupdate.</div></div>
+    </div>
+  </div><!-- /notif -->
+
+  </div><!-- /tab-be -->
+
+  <!-- ===== FRONTEND TAB ===== -->
+  <div class="tab-panel" id="tab-fe">
+    <div class="notes-box" style="margin-bottom:24px;font-family:sans-serif">
+      Semua call dari frontend diasumsikan menggunakan <strong>Axios</strong> atau <strong>fetch</strong> dengan base URL <code>/api/v1</code> dan header <code>Authorization: Bearer {token}</code> yang disimpan di <code>localStorage/sessionStorage</code> atau state manager. Token didapat saat login/register.
+    </div>
+
+    <!-- AUTH FE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(98,114,234,.15)">🔐</div>
+        <div><h2>Auth Pages</h2></div>
+      </div>
+
+      <div class="subsection-title">Halaman: /register (Klien)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="ep-path">/auth/register</span>
+        <span class="ep-desc">Submit form register klien</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            <strong>Data yang dikumpulkan dari form:</strong><br>
+            name, email, password, password_confirmation, phone_number, company_name, client_type (select), address<br><br>
+            <strong>Setelah sukses:</strong> simpan token ke storage → redirect ke /dashboard
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Halaman: /login (Semua Role)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="ep-path">/auth/login</span>
+        <span class="ep-desc">Submit form login</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            <strong>Data dari form:</strong> email, password<br><br>
+            <strong>Setelah sukses:</strong> simpan token + role ke storage → redirect ke <code>/dashboard/{role}</code><br><br>
+            <strong>Role → route mapping:</strong><br>
+            klien → /dashboard/klien<br>
+            pengurus_tefa → /dashboard/pengurus<br>
+            dosen → /dashboard/dosen<br>
+            mahasiswa → /dashboard/mahasiswa<br>
+            jurusan → /dashboard/jurusan
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Page load (semua halaman yang butuh auth)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/auth/me</span>
+        <span class="ep-desc">Hydrate auth state saat page load</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">Call saat app pertama kali load (App.jsx atau middleware router). Jika 401 → redirect ke /login dan hapus token dari storage.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD FE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(98,114,234,.12)">📊</div>
+        <div><h2>Dashboard Pages</h2></div>
+      </div>
+
+      <div class="subsection-title">Halaman: /dashboard/pengurus</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/dashboard/pengurus</span>
+        <span class="ep-desc">Load data summary dashboard pengurus</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">Panggil sekaligus (bisa parallel Promise.all):<br>
+            1. GET /dashboard/pengurus — summary cards<br>
+            2. GET /notifications?unread_only=true&per_page=5 — notif terbaru<br>
+            3. GET /payments/pending — badge jumlah verifikasi pending
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Halaman: /dashboard/mahasiswa</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/dashboard/mahasiswa</span>
+        <span class="ep-desc">Load dashboard mahasiswa</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Satu call ke /dashboard/mahasiswa sudah cukup. Include task overdue dan progress terakhir.</div></div>
+      </div>
+    </div>
+
+    <!-- PROPOSAL LIST FE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(59,130,246,.12)">📋</div>
+        <div><h2>Proposal Pages</h2></div>
+      </div>
+
+      <div class="subsection-title">Halaman: /proposals (Pengurus — list semua)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/proposals</span>
+        <span class="ep-desc">Load list proposal dengan filter</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            <strong>On mount:</strong> GET /proposals?per_page=15<br>
+            <strong>On filter change:</strong> GET /proposals?status_id={v}&search={q}&per_page=15<br>
+            <strong>Dropdown status:</strong> GET /master/proposal-statuses (sekali, cache di state)
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Halaman: /proposals/new (Klien — form pengajuan)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/master/proposal-categories</span>
+        <span class="ep-desc">Load dropdown kategori saat form mount</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Panggil saat halaman load untuk populate select kategori proyek.</div></div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="ep-path">/proposals</span>
+        <span class="ep-desc">Submit form F-01</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            Kirim sebagai <strong>FormData</strong> karena ada file upload (attachment).<br>
+            Set header: <code>Content-Type: multipart/form-data</code><br>
+            Setelah sukses: redirect ke /proposals/mine
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Halaman: /proposals/{id} (Detail — semua role)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span></span>
+        <span class="ep-desc">Load detail proposal lengkap</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            Satu call untuk semua data. Tampilkan tab sesuai status proposal:<br>
+            • Tab Info Proyek (selalu tampil)<br>
+            • Tab Kontrak (tampil setelah Approved)<br>
+            • Tab Tim & Tasks (tampil setelah Active)<br>
+            • Tab UAT (tampil setelah Testing)<br>
+            • Tab BAST (tampil setelah Handover)<br>
+            • Tab Pembayaran (tampil setelah Active)
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Sub-halaman: Review Kelayakan (Pengurus)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/review</span>
+        <span class="ep-desc">Submit form F-02</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Setelah sukses: refresh detail proposal untuk update timeline status.</div></div>
+      </div>
+
+      <div class="subsection-title">Sub-halaman: SPK / Kontrak (Pengurus)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/users?role=dosen</span>
+        <span class="ep-desc">Load dropdown Dosen PM saat form kontrak dibuka</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Populate select field PM di form kontrak.</div></div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/contract</span>
+        <span class="ep-desc">Submit form F-03</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">FormData karena ada file contract. Setelah sukses: redirect ke tab Tim.</div></div>
+      </div>
+    </div>
+
+    <!-- TIM & TASK FE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(52,211,153,.12)">✅</div>
+        <div><h2>Tim & Task Pages</h2></div>
+      </div>
+
+      <div class="subsection-title">Halaman: /proposals/{id}/team (Pengurus — kelola tim)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/team</span>
+        <span class="ep-desc">Load anggota tim saat ini</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Panggil parallel:<br>1. GET /proposals/{id}/team<br>2. GET /users?role=mahasiswa (untuk dropdown tambah anggota)<br>3. GET /master/project-roles (untuk dropdown role)</div></div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="ep-path">/proposals/<span class="param">{id}</span>/team</span>
+        <span class="ep-desc">Tambah anggota — update list tanpa full reload</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Setelah sukses: append row baru ke tabel tim di UI (optimistic update atau refetch).</div></div>
+      </div>
+
+      <div class="subsection-title">Halaman: /proposals/{id}/tasks (Kanban board)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks</span>
+        <span class="ep-desc">Load semua task untuk render Kanban</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            Group hasil di frontend berdasarkan status (TODO/IN_PROGRESS/TESTING/DONE) untuk render 4 kolom Kanban.<br><br>
+            Parallel call:<br>
+            1. GET /proposals/{id}/tasks<br>
+            2. GET /master/task-categories (untuk filter/badge)<br>
+            3. GET /proposals/{id}/team (untuk dropdown assign saat buat task baru)
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Modal: Submit Progress Report (Mahasiswa)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks/<span class="param">{taskId}</span>/progress</span>
+        <span class="ep-desc">Submit progress dari modal/form</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            FormData karena ada file attachment.<br>
+            Input yang dikumpulkan: achieved_summary (textarea), blockers_summary (textarea), progress_percentage (slider 0-100), status (select), report_attachment (file input).<br>
+            Setelah sukses: update kartu task di Kanban sesuai status baru.
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Modal: Review Progress (Dosen PM)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/tasks/<span class="param">{taskId}</span>/review</span>
+        <span class="ep-desc">Submit review dari modal</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Input: pm_notes (textarea), pm_status (radio: APPROVED / NEEDS_IMPROVEMENT). Setelah sukses: update badge status review di kartu task.</div></div>
+      </div>
+    </div>
+
+    <!-- UAT BAST FE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(168,85,247,.12)">🧪</div>
+        <div><h2>UAT & BAST Pages</h2></div>
+      </div>
+
+      <div class="subsection-title">Halaman: /proposals/{id}/uat (Pengurus)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/uat</span>
+        <span class="ep-desc">Load data UAT (jika ada)</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Jika 404 → tampilkan form create UAT. Jika ada data → tampilkan hasil UAT + tombol edit jika belum sign-off.</div></div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="ep-path">/proposals/<span class="param">{id}</span>/uat</span>
+        <span class="ep-desc">Submit UAT — kirim header + items sekaligus</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            UI menggunakan dynamic form: tombol "Tambah Fitur" append row baru ke array items.<br>
+            Kirim sebagai JSON (tidak ada file upload di UAT).<br>
+            Content-Type: application/json
+          </div>
+        </div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/uat/signoff</span>
+        <span class="ep-desc">Sign-off UAT (Klien)</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Tampilkan modal konfirmasi dengan input nama penandatangan. Setelah sukses: update UI — sembunyikan tombol sign-off, tampilkan badge "Signed" + timestamp.</div></div>
+      </div>
+
+      <div class="subsection-title">Halaman: /proposals/{id}/bast (Pengurus)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="ep-path">/proposals/<span class="param">{id}</span>/handover</span>
+        <span class="ep-desc">Submit form BAST</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Other deliverables diinput sebagai pasangan label-value yang bisa ditambah dinamis (seperti UAT items). Setelah sukses: redirect ke halaman BAST view untuk klien review.</div></div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/handover/approve</span>
+        <span class="ep-desc">Klien setujui BAST</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Modal konfirmasi + input nama. Setelah sukses: proposal status → Completed. Tampilkan halaman sukses/penutup proyek.</div></div>
+      </div>
+    </div>
+
+    <!-- PEMBAYARAN FE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(245,158,11,.12)">💳</div>
+        <div><h2>Pembayaran Pages</h2></div>
+      </div>
+
+      <div class="subsection-title">Halaman: /proposals/{id}/payments (Semua role yang berhak)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/invoices</span>
+        <span class="ep-desc">Load list termin pembayaran</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Render tabel termin: no termin, jumlah, status badge, tombol upload bukti (klien) / tombol verifikasi (pengurus) / tombol unduh invoice (keduanya).</div></div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/payments/<span class="param">{paymentId}</span>/proof</span>
+        <span class="ep-desc">Upload bukti transfer — form di modal (Klien)</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            Input di modal: payment_date (datepicker), payment_method (select), transfer_reference (text), proof (file input — preview gambar sebelum upload).<br>
+            Kirim sebagai FormData.<br>
+            Setelah sukses: update status badge termin → "Menunggu Verifikasi".
+          </div>
+        </div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/proposals/<span class="param">{id}</span>/payments/<span class="param">{paymentId}</span>/verify</span>
+        <span class="ep-desc">Verifikasi bukti (Pengurus) — modal konfirmasi</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Modal: tampilkan preview gambar bukti transfer, input verification_notes, tombol "Verifikasi" (hijau) dan "Tolak" (merah). Setelah sukses: update badge status.</div></div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/proposals/<span class="param">{id}</span>/invoices/<span class="param">{paymentId}</span>/pdf</span>
+        <span class="ep-desc">Unduh PDF invoice</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            Trigger dengan <code>window.open(url)</code> atau <code>&lt;a href="{url}" download&gt;</code>.<br>
+            Backend return sebagai file stream dengan header Content-Disposition: attachment.
+          </div>
+        </div>
+      </div>
+
+      <div class="subsection-title">Halaman: /payments/verify (Pengurus — verifikasi terpusat)</div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/payments/pending</span>
+        <span class="ep-desc">Load semua pembayaran yang butuh verifikasi</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Tampilkan sebagai tabel dengan kolom: kode proyek, nama klien, termin ke-, jumlah, tanggal bayar, aksi (lihat bukti + verifikasi/tolak).</div></div>
+      </div>
+    </div>
+
+    <!-- NOTIF FE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon" style="background:rgba(251,146,60,.12)">🔔</div>
+        <div><h2>Notifikasi (Komponen Global)</h2></div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="ep-path">/notifications?unread_only=true&per_page=10</span>
+        <span class="ep-desc">Load badge + dropdown notif di navbar</span></div>
+        <div class="ep-body">
+          <div class="notes-box" style="font-family:sans-serif">
+            Panggil saat navbar mount dan setiap 60 detik (polling interval).<br>
+            Badge: tampilkan count unread.<br>
+            Dropdown: list 10 notif terbaru.
+          </div>
+        </div>
+      </div>
+      <div class="endpoint"><div class="ep-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="ep-path">/notifications/read-all</span>
+        <span class="ep-desc">Tandai semua dibaca — klik "Tandai semua dibaca"</span></div>
+        <div class="ep-body"><div class="notes-box" style="font-family:sans-serif">Setelah sukses: reset badge ke 0, update semua item di dropdown menjadi gaya "read" (teks lebih muted).</div></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-fe -->
+
+</main>
+</div><!-- /shell -->
+
+<script>
+function toggle(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+function scrollTo(id, el) {
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth', block:'start'});
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+// Expand first endpoint in each section by default
+document.querySelectorAll('.endpoint:first-of-type .ep-header').forEach(h => {
+  h.nextElementSibling.classList.add('open');
+});
+</script>
+</body>
+</html>

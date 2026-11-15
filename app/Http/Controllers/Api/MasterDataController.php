@@ -18,7 +18,7 @@ class MasterDataController extends Controller
         path: '/categories',
         summary: 'List semua kategori proposal',
         description: 'Mengambil seluruh kategori proposal. Endpoint publik, tidak memerlukan autentikasi.',
-        tags: ['Categories'],
+        tags: ['Master Data'],
         responses: [
             new OA\Response(
                 response: 200,

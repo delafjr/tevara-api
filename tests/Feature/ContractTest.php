@@ -110,7 +110,7 @@ class ContractTest extends TestCase
         $this->assertDatabaseHas('proposal_status_histories', [
             'proposal_id' => $this->proposal->id,
             'status_id'   => 7,
-            'note'        => 'SPK/Kontrak diterbitkan',
+            'note'        => 'Proposal disetujui & SPK/Kontrak diterbitkan',
         ]);
     }
 

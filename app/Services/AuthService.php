@@ -6,10 +6,16 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
+    public function __construct(
+        private readonly NotificationService $notifications
+    ) {}
+
     public function register(array $data): array
     {
         $user = User::create([
@@ -19,7 +25,16 @@ class AuthService
             'phone_number' => $data['phone_number'] ?? null,
         ]);
 
-        $user->assignRole($data['role'] ?? 'mahasiswa');
+        $role = $data['role'] ?? 'mahasiswa';
+        $user->assignRole($role);
+
+        if (in_array($role, ['klien', 'jurusan'], true)) {
+            $this->notifications->notifyRole('pengurus_tefa', 'client.registration_requested', [
+                'name'  => $user->name,
+                'email' => $user->email,
+                'role'  => $role,
+            ]);
+        }
 
         return $this->authenticatedPayload($user);
     }
@@ -32,6 +47,60 @@ class AuthService
             throw ValidationException::withMessages([
                 'email' => ['Email atau password salah.'],
             ]);
+        }
+
+        return $this->authenticatedPayload($user);
+    }
+
+    public function loginWithGoogle(string $idToken): array
+    {
+        try {
+            $request = Http::timeout(10);
+            if (app()->environment('local', 'testing') || config('services.google.verify_ssl') === false) {
+                $request = $request->withoutVerifying();
+            }
+
+            $response = $request->get('https://oauth2.googleapis.com/tokeninfo', [
+                'id_token' => $idToken,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Google Auth verification error: ' . $e->getMessage());
+            throw ValidationException::withMessages([
+                'id_token' => ['Gagal menghubungi server verifikasi Google.'],
+            ]);
+        }
+
+        if (! $response->successful()) {
+            throw ValidationException::withMessages([
+                'id_token' => ['Token Google tidak valid atau sudah kadaluarsa.'],
+            ]);
+        }
+
+        $payload = $response->json();
+        $expectedClientId = config('services.google.client_id');
+
+        if (! empty($expectedClientId) && ($payload['aud'] ?? null) !== $expectedClientId) {
+            throw ValidationException::withMessages([
+                'id_token' => ['Google Client ID tidak cocok.'],
+            ]);
+        }
+
+        if (empty($payload['email'])) {
+            throw ValidationException::withMessages([
+                'id_token' => ['Email tidak ditemukan dari akun Google.'],
+            ]);
+        }
+
+        $user = User::firstOrCreate(
+            ['email' => $payload['email']],
+            [
+                'name'     => $payload['name'] ?? $payload['email'],
+                'password' => Hash::make(Str::random(32)),
+            ]
+        );
+
+        if ($user->wasRecentlyCreated || $user->roles()->doesntExist()) {
+            $user->assignRole('mahasiswa');
         }
 
         return $this->authenticatedPayload($user);

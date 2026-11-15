@@ -523,5 +523,51 @@ class ProposalSeeder extends Seeder
                 'status_id'        => $status('Rejected'),
             ]
         );
+
+        // ════════════════════════════════════════════════════════
+        // PROPOSAL 7 — REVISION REQUIRED (Butuh Revisi)
+        // Sistem Manajemen Inventaris & Logistik Gudang Terpadu
+        // Klien: PT. Maju Bersama Sentosa (PIC: Budi Santoso)
+        // ════════════════════════════════════════════════════════
+        $pRev = Proposal::firstOrCreate(
+            ['proposal_code' => 'PRSL-2026-005'],
+            [
+                'client_id'        => $picBudi->id,
+                'title'            => 'Sistem Manajemen Inventaris & Logistik Gudang Terpadu',
+                'background'       => 'PT. Maju Bersama Sentosa membutuhkan sistem manajemen pergudangan otomatis untuk melacak pergerakan inventaris barang keluar dan masuk secara real-time. Sistem saat ini masih manual menggunakan pencatatan buku dan spreadsheet sehingga sering terjadi selisih stok fisik dan keterlambatan laporan ke manajemen.',
+                'target_audience'  => 'Staff gudang, staf purchasing, operator logistik, dan manajemen inventaris',
+                'category_id'      => $cat('Web'),
+                'desired_deadline' => '2027-04-30',
+                'estimated_budget' => 55000000.00,
+                'reviewer_id'      => $pengurus->id,
+                'complexity_level' => 'MEDIUM',
+                'risk_analysis'    => 'Integrasi barcode scanner fisik dan audit opname stok berkala memerlukan optimasi query database.',
+                'estimated_cost'   => 38000000.00,
+                'review_notes'     => 'Estimasi anggaran diajukan (Rp 55.000.000) melebihi standar biaya proyek sejenis di TeFa. Mohon sesuaikan harga/anggaran menjadi maksimal Rp 38.000.000 – Rp 40.000.000. Selain itu, mohon lengkapi deskripsi fitur pada modul audit stok opname.',
+                'reviewed_at'      => '2026-10-26 14:00:00',
+                'status_id'        => $status('Revision Required'),
+            ]
+        );
+
+        Module::firstOrCreate(
+            ['proposal_id' => $pRev->id, 'title' => 'Pencatatan Barang Masuk & Keluar'],
+            ['description' => 'Pencatatan penerimaan barang dari supplier, integrasi barcode scan SKU, dan surat jalan pengiriman cabang.']
+        );
+        Module::firstOrCreate(
+            ['proposal_id' => $pRev->id, 'title' => 'Manajemen Stok & Lokasi Rak Gudang'],
+            ['description' => 'Penempatan multi-warehouse, bin location per rak gudang, dan notifikasi peringatan batas minimum stok (safety stock).']
+        );
+        Module::firstOrCreate(
+            ['proposal_id' => $pRev->id, 'title' => 'Pelaporan & Audit Stok Opname'],
+            ['description' => 'Laporan mutasi pergerakan barang, rekonsiliasi selisih stok fisik dan sistem, serta ekspor data ke format spreadsheet dan PDF.']
+        );
+
+        $pRev->statusHistories()->updateOrCreate(
+            ['proposal_id' => $pRev->id, 'status_id' => $status('Revision Required')],
+            [
+                'note'       => 'Estimasi anggaran diajukan (Rp 55.000.000) melebihi standar biaya proyek sejenis di TeFa. Mohon sesuaikan harga/anggaran menjadi maksimal Rp 38.000.000 – Rp 40.000.000. Selain itu, mohon lengkapi deskripsi fitur pada modul audit stok opname.',
+                'changed_by' => $pengurus->id,
+            ]
+        );
     }
 }
