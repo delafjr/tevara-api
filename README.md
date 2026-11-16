@@ -111,17 +111,13 @@ Seluruh endpoint di project ini menggunakan trait `App\Traits\ApiResponse` agar 
 
 ## 4. Daftar Endpoint yang Tersedia
 
-Semua endpoint API diawali dengan prefiks `/api/v1/`:
+Semua endpoint aplikasi memakai prefiks `/api/v1/`. Daftar endpoint, metode HTTP, parameter, format request, autentikasi, dan contoh response yang terbaru tersedia di Swagger UI:
 
-| Method | Endpoint | Fungsi | Status Code |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/hello` | Endpoint percobaan (*Hello World*) | `200 OK` |
-| `GET` | `/api/v1/ping` | Healthcheck (cek apakah server hidup) | `200 OK` |
-| `GET` | `/api/v1/users` | Mengambil seluruh daftar user | `200 OK` |
-| `POST` | `/api/v1/users` | Menambahkan user baru | `201 Created` |
-| `GET` | `/api/v1/users/{id}` | Mengambil detail 1 user berdasarkan ID | `200 OK` / `404` |
-| `PUT` | `/api/v1/users/{id}` | Mengubah data user berdasarkan ID | `200 OK` / `404` |
-| `DELETE` | `/api/v1/users/{id}` | Menghapus user berdasarkan ID | `200 OK` / `404` |
+```text
+http://127.0.0.1:8000/api/documentation
+```
+
+Jalankan `php artisan l5-swagger:generate` setelah menambah atau mengubah dokumentasi OpenAPI pada atribut controller. Spesifikasi JSON yang dihasilkan berada di `storage/api-docs/api-docs.json`; jangan mengedit file hasil generate secara manual. Pastikan dokumentasi untuk setiap route tetap cocok dengan `routes/api.php` dan aturan validasi/controller terkait.
 
 ---
 

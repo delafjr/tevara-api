@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
-#[OA\Tag(name: 'F-05: Tasks & Progress', description: 'Manajemen task + laporan sprint oleh mahasiswa, review oleh dosen PM')]
 final class TaskController extends Controller
 {
     use ApiResponse;
@@ -229,7 +228,7 @@ final class TaskController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/tasks/{taskId}/progress',
         summary: 'Submit progress report (Mahasiswa)',
-        description: 'Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update. Progress 100% otomatis menjadi TESTING (menunggu review PM); status DONE tidak bisa ditetapkan mahasiswa.',
+        description: 'Mahasiswa mengirim laporan progres; pm_status kembali ke PENDING. Progress 100% otomatis menjadi TESTING. Status DONE hanya diterima jika progress 100%, tetapi akan tetap diubah menjadi TESTING sampai direview PM.',
         security: [['bearerAuth' => []]],
         tags: ['F-05: Tasks & Progress'],
         parameters: [
@@ -241,12 +240,48 @@ final class TaskController extends Controller
             content: new OA\MediaType(
                 mediaType: 'multipart/form-data',
                 schema: new OA\Schema(
+                    required: ['achieved_summary', 'progress_percentage', 'status'],
                     properties: [
                         new OA\Property(property: 'achieved_summary', type: 'string', description: 'Pencapaian minggu ini'),
                         new OA\Property(property: 'blockers_summary', type: 'string', nullable: true, description: 'Kendala / blocker'),
                         new OA\Property(property: 'progress_percentage', type: 'number', description: '0.00 - 100.00'),
-                        new OA\Property(property: 'status', type: 'string', enum: ['TODO', 'IN_PROGRESS', 'TESTING', 'DONE']),
-                        new OA\Property(property: 'report_attachment', type: 'string', format: 'binary', description: 'Max 10MB'),
+                        new OA\Property(property: 'status', type: 'string', enum: ['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'], description: 'DONE hanya valid jika progress 100%; server tetap mengubahnya menjadi TESTING sampai review PM.'),
+                        new OA\Property(property: 'report_attachment', type: 'string', format: 'binary', description: 'File lampiran opsional.'),
+                        new OA\Property(property: 'report_attachment_url', type: 'string', nullable: true, maxLength: 500, description: 'URL lampiran opsional sebagai alternatif upload file.'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Progress berhasil diperbarui'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Task tidak ditemukan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+        ]
+    )]
+    #[OA\Post(
+        path: '/proposals/{id}/tasks/{taskId}/progress',
+        summary: 'Submit progress report (Mahasiswa)',
+        description: 'Kompatibilitas untuk pengiriman form multipart. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-05: Tasks & Progress'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'taskId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['achieved_summary', 'progress_percentage', 'status'],
+                    properties: [
+                        new OA\Property(property: 'achieved_summary', type: 'string', description: 'Pencapaian minggu ini'),
+                        new OA\Property(property: 'blockers_summary', type: 'string', nullable: true, description: 'Kendala / blocker'),
+                        new OA\Property(property: 'progress_percentage', type: 'number', minimum: 0, maximum: 100),
+                        new OA\Property(property: 'status', type: 'string', enum: ['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'], description: 'DONE hanya valid jika progress 100%; server tetap mengubahnya menjadi TESTING sampai review PM.'),
+                        new OA\Property(property: 'report_attachment', type: 'string', format: 'binary', description: 'File lampiran opsional.'),
+                        new OA\Property(property: 'report_attachment_url', type: 'string', nullable: true, maxLength: 500, description: 'URL lampiran opsional sebagai alternatif upload file.'),
                     ]
                 )
             )
@@ -441,7 +476,37 @@ final class TaskController extends Controller
                     new OA\Property(property: 'title', type: 'string', nullable: true),
                     new OA\Property(property: 'description', type: 'string', nullable: true),
                     new OA\Property(property: 'category_id', type: 'integer', nullable: true),
-                    new OA\Property(property: 'assigned_student_id', type: 'integer', nullable: true),
+                    new OA\Property(property: 'assigned_student_id', type: 'integer', nullable: true, description: 'User ID mahasiswa yang merupakan anggota tim proposal.'),
+                    new OA\Property(property: 'priority', type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+                    new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Task berhasil diperbarui'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 404, description: 'Task tidak ditemukan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+        ]
+    )]
+    #[OA\Patch(
+        path: '/proposals/{id}/tasks/{taskId}',
+        summary: 'Edit metadata task',
+        description: 'Dosen PM atau Pengurus TeFa mengubah metadata task. PATCH menjalankan validasi dan proses yang sama dengan PUT.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-05: Tasks & Progress'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'taskId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: false,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', nullable: true, maxLength: 255),
+                    new OA\Property(property: 'description', type: 'string', nullable: true),
+                    new OA\Property(property: 'category_id', type: 'integer', nullable: true),
+                    new OA\Property(property: 'assigned_student_id', type: 'integer', nullable: true, description: 'User ID mahasiswa yang merupakan anggota tim proposal.'),
                     new OA\Property(property: 'priority', type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
                     new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true),
                 ]

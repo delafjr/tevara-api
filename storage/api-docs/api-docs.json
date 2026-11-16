@@ -1218,9 +1218,10 @@
         "/payments/{paymentId}/invoice": {
             "get": {
                 "tags": [
-                    "F-09: Pembayaran"
+                    "F-08: Invoice"
                 ],
-                "summary": "Download invoice for a payment term",
+                "summary": "Unduh invoice untuk termin pembayaran",
+                "description": "Mengunduh invoice PDF untuk termin pembayaran milik klien yang sedang login.",
                 "operationId": "470a32d822e1a3e2253f6dc025d2d99e",
                 "parameters": [
                     {
@@ -1259,6 +1260,114 @@
             }
         },
         "/proposals/{id}/contract": {
+            "post": {
+                "tags": [
+                    "F-03: SPK & Kontrak"
+                ],
+                "summary": "Isi data SPK / Kontrak (Pengurus TeFa)",
+                "description": "Kompatibilitas untuk pengiriman form multipart. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.",
+                "operationId": "e23338e5143522903b7e666e6207d15c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "scope_of_work",
+                                    "total_amount",
+                                    "start_date",
+                                    "target_completion_date"
+                                ],
+                                "properties": {
+                                    "spk_number": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 100
+                                    },
+                                    "scope_of_work": {
+                                        "type": "string"
+                                    },
+                                    "total_amount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "payment_terms_description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "maintenance_warranty_months": {
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
+                                    },
+                                    "start_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "target_completion_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "contract_file": {
+                                        "description": "PDF, DOC, atau DOCX; max 10 MB.",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "pm_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "terms": {
+                                        "description": "Array termin dalam JSON string; item berisi amount dan opsional term_sequence, payment_date, name/notes.",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "members": {
+                                        "description": "Array anggota dalam JSON string; item berisi student_id (atau user_id), role_id, dan opsional joined_at.",
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Data SPK berhasil disimpan dan status menjadi Active"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "patch": {
                 "tags": [
                     "F-03: SPK & Kontrak"
@@ -1286,11 +1395,15 @@
                                 "required": [
                                     "scope_of_work",
                                     "total_amount",
-                                    "payment_terms_description",
                                     "start_date",
                                     "target_completion_date"
                                 ],
                                 "properties": {
+                                    "spk_number": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 100
+                                    },
                                     "scope_of_work": {
                                         "type": "string",
                                         "example": "Pengembangan modul backend REST API, database MySQL, dan integrasi frontend."
@@ -1302,12 +1415,15 @@
                                     },
                                     "payment_terms_description": {
                                         "type": "string",
-                                        "example": "Termin 1: 50% setelah penandatanganan SPK. Termin 2: 50% setelah BAST disetujui."
+                                        "example": "Termin 1: 50% setelah penandatanganan SPK. Termin 2: 50% setelah BAST disetujui.",
+                                        "nullable": true
                                     },
                                     "maintenance_warranty_months": {
                                         "type": "integer",
                                         "example": 3,
-                                        "default": 3
+                                        "nullable": true,
+                                        "default": 3,
+                                        "minimum": 0
                                     },
                                     "start_date": {
                                         "type": "string",
@@ -1320,9 +1436,24 @@
                                         "example": "2027-02-28"
                                     },
                                     "contract_file": {
-                                        "description": "File SPK/Kontrak (PDF, max 10MB)",
+                                        "description": "File SPK/Kontrak (PDF, DOC, atau DOCX, max 10 MB).",
                                         "type": "string",
                                         "format": "binary"
+                                    },
+                                    "pm_id": {
+                                        "description": "ID user dosen yang menjadi PM.",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "terms": {
+                                        "description": "Array termin dalam JSON string; setiap item berisi amount dan opsional term_sequence, payment_date, name/notes.",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "members": {
+                                        "description": "Array anggota dalam JSON string; setiap item berisi student_id (atau user_id), role_id, dan opsional joined_at.",
+                                        "type": "string",
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -1371,6 +1502,65 @@
             }
         },
         "/proposals/{id}/contract/sign": {
+            "post": {
+                "tags": [
+                    "F-03: SPK & Kontrak"
+                ],
+                "summary": "Tandai kontrak telah ditandatangani (Pengurus TeFa)",
+                "description": "Kompatibilitas untuk pengiriman form multipart. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.",
+                "operationId": "ff887af64a718bd5df0fc5ec164fc026",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "contract_file": {
+                                        "description": "PDF yang sudah ditandatangani, max 10 MB.",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Kontrak berhasil ditandatangani"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "patch": {
                 "tags": [
                     "F-03: SPK & Kontrak"
@@ -1924,8 +2114,8 @@
                                         "maxLength": 255
                                     },
                                     "background": {
-                                        "description": "Minimal 100 karakter",
-                                        "type": "string"
+                                        "type": "string",
+                                        "maxLength": 500
                                     },
                                     "target_audience": {
                                         "type": "string",
@@ -1952,6 +2142,208 @@
                                             "properties": {
                                                 "title": {
                                                     "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Revisi proposal berhasil disimpan dan disubmit ke pengurus TEFA"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "description": "Proposal tidak dalam status revisi / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-01: Pengajuan Proposal"
+                ],
+                "summary": "Update / kirim revisi proposal (Klien)",
+                "description": "Kompatibilitas untuk pengiriman form revisi. Menjalankan validasi dan proses yang sama dengan PUT pada endpoint ini.",
+                "operationId": "ebb3217903e62c38c4485b192d4244ab",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "background",
+                                    "category_id",
+                                    "desired_deadline"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "background": {
+                                        "type": "string",
+                                        "maxLength": 500
+                                    },
+                                    "target_audience": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "type": "integer"
+                                    },
+                                    "desired_deadline": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "estimated_budget": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "modules": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "title"
+                                            ],
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string",
+                                                    "maxLength": 255
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Revisi proposal berhasil disimpan dan disubmit ke pengurus TEFA"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "description": "Proposal tidak dalam status revisi / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "F-01: Pengajuan Proposal"
+                ],
+                "summary": "Update / kirim revisi proposal (Klien)",
+                "description": "Memperbarui data proposal berstatus Draft atau Revision Required. Setelah diperbarui, status kembali menjadi Submitted. Metode PATCH menjalankan validasi dan proses yang sama dengan PUT.",
+                "operationId": "f8598d328baf0ca486d0c5c1beea1abd",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "background",
+                                    "category_id",
+                                    "desired_deadline"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "background": {
+                                        "type": "string",
+                                        "maxLength": 500
+                                    },
+                                    "target_audience": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "type": "integer"
+                                    },
+                                    "desired_deadline": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "estimated_budget": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "modules": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "title"
+                                            ],
+                                            "properties": {
+                                                "title": {
+                                                    "type": "string",
+                                                    "maxLength": 255
                                                 },
                                                 "description": {
                                                     "type": "string",
@@ -2043,7 +2435,7 @@
                     "F-07: BAST"
                 ],
                 "summary": "Siapkan BAST oleh Pengurus TeFa",
-                "description": "Hanya dapat disiapkan setelah UAT terakhir lulus dan telah ditandatangani klien.",
+                "description": "Hanya dapat disiapkan setelah UAT terakhir lulus dan telah ditandatangani klien. Nomor BAST dan tanggal serah terima tidak boleh dimanipulasi manual.",
                 "operationId": "70936820cd601b3a186c156ea249a64d",
                 "parameters": [
                     {
@@ -2071,6 +2463,7 @@
                                         "format": "uri"
                                     },
                                     "documentation_file": {
+                                        "description": "File lampiran aman: PDF, DOCX, ZIP (maks 10MB)",
                                         "type": "string",
                                         "format": "binary",
                                         "nullable": true
@@ -2120,7 +2513,7 @@
                     "F-07: BAST"
                 ],
                 "summary": "Setujui BAST oleh PIC Klien",
-                "description": "Mencatat persetujuan PIC, tanggal serah terima resmi, status Completed, dan awal masa garansi keesokan hari.",
+                "description": "Mencatat persetujuan PIC, tanggal serah terima resmi yang di-generate server, status Completed, dan awal masa garansi adalah tanggal_serah_terima + 1 hari (addDay()), serta tanggal_akhir_garansi dihitung berdasarkan durasi garansi.",
                 "operationId": "5a612fa10583b3c06ff3a1b0d63db836",
                 "parameters": [
                     {
@@ -2148,6 +2541,12 @@
                                     "client_approved": {
                                         "type": "boolean",
                                         "example": true
+                                    },
+                                    "maintenance_warranty_months": {
+                                        "description": "Durasi garansi pilihan klien (bulan)",
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
                                     }
                                 },
                                 "type": "object"
@@ -2197,12 +2596,102 @@
             }
         },
         "/proposals/{id}/review": {
+            "post": {
+                "tags": [
+                    "F-02: Review & Validasi"
+                ],
+                "summary": "Review proposal (Pengurus TeFa)",
+                "description": "Kompatibilitas untuk pengiriman review. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.",
+                "operationId": "529cc658f5069f01e49f285ce0e25ae4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID Proposal",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "decision"
+                                ],
+                                "properties": {
+                                    "complexity_level": {
+                                        "description": "Wajib jika decision=approved.",
+                                        "type": "string",
+                                        "example": "HIGH",
+                                        "enum": [
+                                            "LOW",
+                                            "MEDIUM",
+                                            "HIGH"
+                                        ]
+                                    },
+                                    "risk_analysis": {
+                                        "description": "Wajib jika decision=approved.",
+                                        "type": "string"
+                                    },
+                                    "estimated_cost": {
+                                        "description": "Wajib jika decision=approved.",
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "review_notes": {
+                                        "description": "Wajib untuk decision rejected atau revision_required.",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "decision": {
+                                        "type": "string",
+                                        "example": "approved",
+                                        "enum": [
+                                            "approved",
+                                            "rejected",
+                                            "revision_required"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Review berhasil"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden (bukan pengurus_tefa)"
+                    },
+                    "404": {
+                        "description": "Proposal tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Proposal tidak dalam status yang bisa di-review / validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "patch": {
                 "tags": [
                     "F-02: Review & Validasi"
                 ],
                 "summary": "Review proposal (Pengurus TeFa)",
-                "description": "Melakukan review kelayakan proposal. Hanya bisa dilakukan saat proposal berstatus Submitted (2) atau Under Review (3). Pengurus TeFa mengisi analisis kompleksitas, risiko, estimasi biaya, dan keputusan (approved / rejected / revision_required).",
+                "description": "Melakukan review kelayakan proposal saat status Submitted (2), Under Review (3), atau Revision Required (4). Pengurus TeFa mengirim keputusan (approved / rejected / revision_required); analisis kompleksitas, risiko, dan estimasi biaya wajib jika keputusan approved.",
                 "operationId": "3dd9d5166b2d72be65f53fac7858983b",
                 "parameters": [
                     {
@@ -2222,13 +2711,11 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "complexity_level",
-                                    "risk_analysis",
-                                    "estimated_cost",
                                     "decision"
                                 ],
                                 "properties": {
                                     "complexity_level": {
+                                        "description": "Wajib jika decision=approved.",
                                         "type": "string",
                                         "example": "HIGH",
                                         "enum": [
@@ -2238,15 +2725,18 @@
                                         ]
                                     },
                                     "risk_analysis": {
+                                        "description": "Wajib jika decision=approved.",
                                         "type": "string",
                                         "example": "Risiko integrasi API pihak ketiga cukup tinggi, perlu tim berpengalaman."
                                     },
                                     "estimated_cost": {
+                                        "description": "Wajib jika decision=approved.",
                                         "type": "number",
                                         "format": "double",
                                         "example": 25000000
                                     },
                                     "review_notes": {
+                                        "description": "Wajib untuk decision rejected atau revision_required.",
                                         "type": "string",
                                         "example": "Proposal layak dengan catatan revisi scope modul keuangan.",
                                         "nullable": true
@@ -3003,6 +3493,7 @@
                                         "nullable": true
                                     },
                                     "assigned_student_id": {
+                                        "description": "User ID mahasiswa yang merupakan anggota tim proposal.",
                                         "type": "integer",
                                         "nullable": true
                                     },
@@ -3090,15 +3581,201 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "patch": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Edit metadata task",
+                "description": "Dosen PM atau Pengurus TeFa mengubah metadata task. PATCH menjalankan validasi dan proses yang sama dengan PUT.",
+                "operationId": "353d0e46c55d25d20a2b0c226eb7ed14",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "category_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "assigned_student_id": {
+                                        "description": "User ID mahasiswa yang merupakan anggota tim proposal.",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "enum": [
+                                            "LOW",
+                                            "MEDIUM",
+                                            "HIGH",
+                                            "CRITICAL"
+                                        ]
+                                    },
+                                    "due_date": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Task berhasil diperbarui"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/proposals/{id}/tasks/{taskId}/progress": {
+            "post": {
+                "tags": [
+                    "F-05: Tasks & Progress"
+                ],
+                "summary": "Submit progress report (Mahasiswa)",
+                "description": "Kompatibilitas untuk pengiriman form multipart. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.",
+                "operationId": "ba1be1d4839fd7738f836316251ab503",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "achieved_summary",
+                                    "progress_percentage",
+                                    "status"
+                                ],
+                                "properties": {
+                                    "achieved_summary": {
+                                        "description": "Pencapaian minggu ini",
+                                        "type": "string"
+                                    },
+                                    "blockers_summary": {
+                                        "description": "Kendala / blocker",
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "progress_percentage": {
+                                        "type": "number",
+                                        "maximum": 100,
+                                        "minimum": 0
+                                    },
+                                    "status": {
+                                        "description": "DONE hanya valid jika progress 100%; server tetap mengubahnya menjadi TESTING sampai review PM.",
+                                        "type": "string",
+                                        "enum": [
+                                            "TODO",
+                                            "IN_PROGRESS",
+                                            "TESTING",
+                                            "DONE"
+                                        ]
+                                    },
+                                    "report_attachment": {
+                                        "description": "File lampiran opsional.",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "report_attachment_url": {
+                                        "description": "URL lampiran opsional sebagai alternatif upload file.",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Progress berhasil diperbarui"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Task tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "patch": {
                 "tags": [
                     "F-05: Tasks & Progress"
                 ],
                 "summary": "Submit progress report (Mahasiswa)",
-                "description": "Mahasiswa submit laporan progres. Reset pm_status → PENDING setiap update. Progress 100% otomatis menjadi TESTING (menunggu review PM); status DONE tidak bisa ditetapkan mahasiswa.",
+                "description": "Mahasiswa mengirim laporan progres; pm_status kembali ke PENDING. Progress 100% otomatis menjadi TESTING. Status DONE hanya diterima jika progress 100%, tetapi akan tetap diubah menjadi TESTING sampai direview PM.",
                 "operationId": "53101df59bc7b26a0bc09cfe53d664c7",
                 "parameters": [
                     {
@@ -3123,6 +3800,11 @@
                     "content": {
                         "multipart/form-data": {
                             "schema": {
+                                "required": [
+                                    "achieved_summary",
+                                    "progress_percentage",
+                                    "status"
+                                ],
                                 "properties": {
                                     "achieved_summary": {
                                         "description": "Pencapaian minggu ini",
@@ -3138,6 +3820,7 @@
                                         "type": "number"
                                     },
                                     "status": {
+                                        "description": "DONE hanya valid jika progress 100%; server tetap mengubahnya menjadi TESTING sampai review PM.",
                                         "type": "string",
                                         "enum": [
                                             "TODO",
@@ -3147,9 +3830,15 @@
                                         ]
                                     },
                                     "report_attachment": {
-                                        "description": "Max 10MB",
+                                        "description": "File lampiran opsional.",
                                         "type": "string",
                                         "format": "binary"
+                                    },
+                                    "report_attachment_url": {
+                                        "description": "URL lampiran opsional sebagai alternatif upload file.",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 500
                                     }
                                 },
                                 "type": "object"
@@ -5399,17 +6088,17 @@
                 ]
             }
         },
-        "/users/{id}": {
+        "/users/{user}": {
             "get": {
                 "tags": [
                     "Users"
                 ],
                 "summary": "Detail user",
                 "description": "Mengambil detail data user spesifik berdasarkan ID.",
-                "operationId": "44154112522eab07fbe01b1907cd1507",
+                "operationId": "b3ee55cd13394829c1233a608b64c7c6",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "user",
                         "in": "path",
                         "description": "ID User",
                         "required": true,
@@ -5462,10 +6151,10 @@
                 ],
                 "summary": "Update data user",
                 "description": "Memperbarui informasi user yang sudah ada.",
-                "operationId": "7521891788bb39bc9a09a95e5eaca89c",
+                "operationId": "8e9bb284d9310fc4e2c14684e52d11f1",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "user",
                         "in": "path",
                         "description": "ID User",
                         "required": true,
@@ -5496,6 +6185,7 @@
                                         "example": "newpassword123"
                                     },
                                     "password_confirmation": {
+                                        "description": "Wajib jika password dikirim.",
                                         "type": "string",
                                         "format": "password",
                                         "example": "newpassword123"
@@ -5506,15 +6196,9 @@
                                         "nullable": true
                                     },
                                     "role": {
+                                        "description": "Nama role yang tersedia di aplikasi.",
                                         "type": "string",
-                                        "example": "mahasiswa",
-                                        "enum": [
-                                            "klien",
-                                            "pengurus_tefa",
-                                            "dosen",
-                                            "mahasiswa",
-                                            "jurusan"
-                                        ]
+                                        "example": "mahasiswa"
                                     }
                                 },
                                 "type": "object"
@@ -5568,10 +6252,10 @@
                 ],
                 "summary": "Hapus user",
                 "description": "Menghapus (soft delete) user berdasarkan ID.",
-                "operationId": "f349744fd3d118237de5e4b67023e915",
+                "operationId": "2c4f9ca2e1d62e408f49ac50ba2280de",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "user",
                         "in": "path",
                         "description": "ID User",
                         "required": true,
@@ -5611,6 +6295,88 @@
                     },
                     "404": {
                         "description": "User tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update data user (partial update)",
+                "description": "Memperbarui informasi user yang sudah ada. Field bersifat opsional; password_confirmation wajib jika password dikirim.",
+                "operationId": "c38a150a418aceadb3fc260b5f1d5fdb",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "description": "ID User",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "John Updated",
+                                        "maxLength": 100
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "john_updated@example.com"
+                                    },
+                                    "password": {
+                                        "description": "Gunakan bersama password_confirmation.",
+                                        "type": "string",
+                                        "format": "password"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password"
+                                    },
+                                    "phone_number": {
+                                        "type": "string",
+                                        "example": "628987654321",
+                                        "nullable": true,
+                                        "maxLength": 20
+                                    },
+                                    "role": {
+                                        "description": "Nama role yang tersedia di aplikasi.",
+                                        "type": "string",
+                                        "example": "mahasiswa",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User berhasil diupdate"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "User tidak ditemukan"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
                     }
                 },
                 "security": [
@@ -6101,10 +6867,6 @@
             "description": "Manajemen User (CRUD)"
         },
         {
-            "name": "Dashboard",
-            "description": "Dashboard per Role"
-        },
-        {
             "name": "Master Data",
             "description": "Data master kategori proposal, status, role tim proyek, dan kategori task"
         },
@@ -6137,8 +6899,16 @@
             "description": "Berita Acara Serah Terima dan persetujuan klien setelah UAT PASSED"
         },
         {
+            "name": "F-08: Invoice",
+            "description": "Pembuatan nomor invoice dan unduh invoice PDF untuk termin pembayaran"
+        },
+        {
             "name": "F-09: Pembayaran",
             "description": "Catat termin pembayaran, upload bukti transfer oleh klien, verifikasi oleh dosen/PM"
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard per Role"
         },
         {
             "name": "Notifications",
