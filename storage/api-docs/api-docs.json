@@ -595,6 +595,10 @@
                                                     "type": "integer",
                                                     "example": 1
                                                 },
+                                                "invoice_number": {
+                                                    "type": "string",
+                                                    "example": "INV/2026/000001"
+                                                },
                                                 "term_sequence": {
                                                     "type": "integer",
                                                     "example": 1
@@ -1202,6 +1206,49 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/payments/{paymentId}/invoice": {
+            "get": {
+                "tags": [
+                    "F-09: Pembayaran"
+                ],
+                "summary": "Download invoice for a payment term",
+                "operationId": "470a32d822e1a3e2253f6dc025d2d99e",
+                "parameters": [
+                    {
+                        "name": "paymentId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Invoice PDF",
+                        "content": {
+                            "application/pdf": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invoice is not owned by the authenticated client"
+                    },
+                    "404": {
+                        "description": "Payment not found"
                     }
                 },
                 "security": [
@@ -2107,35 +2154,24 @@
                 "requestBody": {
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
-                                    "handover_date",
                                     "repository_url",
-                                    "documentation_url",
-                                    "user_manual_url",
+                                    "documentation_file",
                                     "client_signoff_name",
                                     "client_approved",
-                                    "maintenance_warranty_months",
-                                    "maintenance_start_date",
-                                    "maintenance_end_date"
+                                    "maintenance_warranty_months"
                                 ],
                                 "properties": {
-                                    "handover_date": {
-                                        "type": "string",
-                                        "format": "date"
-                                    },
                                     "repository_url": {
                                         "type": "string",
                                         "format": "uri"
                                     },
-                                    "documentation_url": {
+                                    "documentation_file": {
+                                        "description": "Lampiran fisik dokumentasi API (PDF/DOC/DOCX, max 10MB)",
                                         "type": "string",
-                                        "format": "uri"
-                                    },
-                                    "user_manual_url": {
-                                        "type": "string",
-                                        "format": "uri"
+                                        "format": "binary"
                                     },
                                     "handover_notes": {
                                         "type": "string",
@@ -2151,14 +2187,6 @@
                                     "maintenance_warranty_months": {
                                         "type": "integer",
                                         "example": 3
-                                    },
-                                    "maintenance_start_date": {
-                                        "type": "string",
-                                        "format": "date"
-                                    },
-                                    "maintenance_end_date": {
-                                        "type": "string",
-                                        "format": "date"
                                     },
                                     "maintenance_notes": {
                                         "type": "string",
@@ -6130,6 +6158,26 @@
                     "phone_number": {
                         "type": "string",
                         "example": "6288228893279",
+                        "nullable": true
+                    },
+                    "nidn": {
+                        "type": "string",
+                        "example": "0000000001",
+                        "nullable": true
+                    },
+                    "department": {
+                        "type": "string",
+                        "example": "Teknik Informatika",
+                        "nullable": true
+                    },
+                    "nim": {
+                        "type": "string",
+                        "example": "4.33.25.1.14",
+                        "nullable": true
+                    },
+                    "study_program": {
+                        "type": "string",
+                        "example": "D3 Teknik Informatika",
                         "nullable": true
                     },
                     "company_name": {
