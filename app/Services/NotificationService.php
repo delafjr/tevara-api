@@ -63,6 +63,14 @@ final class NotificationService
             'title'   => 'Anda Ditugaskan sebagai PM',
             'message' => 'Anda ditugaskan sebagai Project Manager untuk proposal :code - :title.',
         ],
+        'handover.prepared' => [
+            'title'   => 'BAST Menunggu Persetujuan',
+            'message' => 'BAST proyek :code - :title telah disiapkan dan menunggu persetujuan Anda.',
+        ],
+        'handover.approved' => [
+            'title'   => 'BAST Disetujui Klien',
+            'message' => 'BAST proyek :code - :title telah disetujui oleh PIC Klien.',
+        ],
         'project.team_assigned' => [
             'title'   => 'Anda Ditambahkan ke Proyek',
             'message' => 'Anda ditambahkan ke tim proyek :code - :title sebagai :role.',

@@ -349,7 +349,7 @@ class ProposalController extends Controller
             ->latest()
             ->get()
             ->map(function (Proposal $proposal) {
-                $latestUat = $proposal->projectTeams
+                $latestUat = $proposal->uatResult ?? $proposal->projectTeams
                     ->flatMap(fn ($team) => $team->uatResults)
                     ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
                     ->first();
@@ -368,10 +368,16 @@ class ProposalController extends Controller
                 'handover_date'          => $proposal->handover_date?->toDateString(),
                 'repository_url'         => $proposal->repository_url,
                 'documentation_url'      => $proposal->documentation_url,
+                'user_manual_url'        => $proposal->user_manual_url,
+                'handover_notes'          => $proposal->handover_notes,
+                'handover_deliverables'   => $proposal->handover_deliverables ?? [],
+                'client_signoff_name'     => $proposal->client_signoff_name,
+                'bast_approved_at'        => $proposal->bast_approved_at?->toDateTimeString(),
                 'maintenance'            => $proposal->maintenance ? [
                     'maintenance_warranty_months' => $proposal->maintenance->maintenance_warranty_months,
                     'maintenance_start_date' => $proposal->maintenance->maintenance_start_date?->toDateString(),
                     'maintenance_end_date' => $proposal->maintenance->maintenance_end_date?->toDateString(),
+                    'maintenance_notes' => $proposal->maintenance->maintenance_notes,
                 ] : null,
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
@@ -402,7 +408,9 @@ class ProposalController extends Controller
                     'role'         => $team->role?->name,
                 ])->values(),
                 'latest_uat_result'      => $latestUat?->overall_result,
-                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && !$proposal->client_approved,
+                'uat_signed_off_at'      => $latestUat?->signed_off_at?->toIso8601String(),
+                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && $latestUat?->signed_off_at !== null && !$proposal->client_approved,
+                'bast_prepared'          => filled($proposal->bast_number) && !$proposal->client_approved,
                 'client_approved'        => $proposal->client_approved,
                 ];
             });
