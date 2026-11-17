@@ -233,7 +233,7 @@ final class DashboardController extends Controller
 
         $proposals = Proposal::where('pm_id', $user->id)
             ->orWhere('reviewer_id', $user->id)
-            ->with(['status', 'category', 'client.clientPic.clientProfile.user', 'tasks'])
+            ->with(['status', 'category', 'client.clientPic.clientProfile.user', 'tasks', 'projectTeams.user.studentProfile', 'projectTeams.role'])
             ->get();
 
         $totalProjects = $proposals->count();
