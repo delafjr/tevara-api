@@ -566,7 +566,7 @@ class ProposalController extends Controller
                 abort(403, 'Unauthorized access to this proposal.');
             }
         }
-        if ($user->hasRole('dosen') && $proposal->pm_id !== $user->id) {
+        if ($user->hasRole('dosen') && ! $user->hasRole('pengurus_tefa') && $proposal->pm_id !== $user->id) {
             abort(403, 'Unauthorized access to this proposal.');
         }
 
