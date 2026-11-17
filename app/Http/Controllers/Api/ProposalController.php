@@ -242,7 +242,7 @@ class ProposalController extends Controller
             'modules:id,proposal_id,title,description',
         ])->find($id);
 
-        if (! $proposal || ! in_array($proposal->status?->name, ['Submitted', 'Revision Required'], true)) {
+        if (! $proposal || ! in_array($proposal->status?->name, ['Submitted', 'Under Review', 'Revision Required'], true)) {
             return response()->json(['message' => 'Proposal pending tidak ditemukan.'], 404);
         }
 
@@ -554,7 +554,9 @@ class ProposalController extends Controller
 
         $user = $request->user();
 
-        if ($user->hasRole('klien')) {
+        if ($user->hasRole('pengurus_tefa')) {
+            // Pengurus TeFa berhak melihat seluruh proposal & projek
+        } elseif ($user->hasRole('klien')) {
             $allowed = $proposal->client_id === $user->id;
             if (! $allowed) {
                 $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
@@ -565,9 +567,10 @@ class ProposalController extends Controller
             if (! $allowed) {
                 abort(403, 'Unauthorized access to this proposal.');
             }
-        }
-        if ($user->hasRole('dosen') && $proposal->pm_id !== $user->id) {
-            abort(403, 'Unauthorized access to this proposal.');
+        } elseif ($user->hasRole('dosen')) {
+            if ($proposal->pm_id !== $user->id && $proposal->reviewer_id !== $user->id) {
+                abort(403, 'Unauthorized access to this proposal.');
+            }
         }
 
         if ($user->hasRole('klien')) {
@@ -610,7 +613,7 @@ class ProposalController extends Controller
                     required: ['title', 'background', 'category_id', 'desired_deadline'],
                     properties: [
                         new OA\Property(property: 'title', type: 'string', maxLength: 255),
-                        new OA\Property(property: 'background', type: 'string', description: 'Minimal 100 karakter'),
+                        new OA\Property(property: 'background', type: 'string', maxLength: 500),
                         new OA\Property(property: 'target_audience', type: 'string', nullable: true),
                         new OA\Property(property: 'category_id', type: 'integer'),
                         new OA\Property(property: 'desired_deadline', type: 'string', format: 'date'),
@@ -630,6 +633,92 @@ class ProposalController extends Controller
                         ),
                     ]
                 )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Revisi proposal berhasil disimpan dan disubmit ke pengurus TEFA'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 422, description: 'Proposal tidak dalam status revisi / validasi gagal'),
+        ]
+    )]
+    #[OA\Patch(
+        path: '/proposals/{id}',
+        summary: 'Update / kirim revisi proposal (Klien)',
+        description: 'Memperbarui data proposal berstatus Draft atau Revision Required. Setelah diperbarui, status kembali menjadi Submitted. Metode PATCH menjalankan validasi dan proses yang sama dengan PUT.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-01: Pengajuan Proposal'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['title', 'background', 'category_id', 'desired_deadline'],
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                    new OA\Property(property: 'background', type: 'string', maxLength: 500),
+                    new OA\Property(property: 'target_audience', type: 'string', nullable: true),
+                    new OA\Property(property: 'category_id', type: 'integer'),
+                    new OA\Property(property: 'desired_deadline', type: 'string', format: 'date'),
+                    new OA\Property(property: 'estimated_budget', type: 'number', format: 'float', nullable: true),
+                    new OA\Property(
+                        property: 'modules',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            type: 'object',
+                            required: ['title'],
+                            properties: [
+                                new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                                new OA\Property(property: 'description', type: 'string', nullable: true),
+                            ]
+                        )
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Revisi proposal berhasil disimpan dan disubmit ke pengurus TEFA'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden'),
+            new OA\Response(response: 422, description: 'Proposal tidak dalam status revisi / validasi gagal'),
+        ]
+    )]
+    #[OA\Post(
+        path: '/proposals/{id}',
+        summary: 'Update / kirim revisi proposal (Klien)',
+        description: 'Kompatibilitas untuk pengiriman form revisi. Menjalankan validasi dan proses yang sama dengan PUT pada endpoint ini.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-01: Pengajuan Proposal'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['title', 'background', 'category_id', 'desired_deadline'],
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                    new OA\Property(property: 'background', type: 'string', maxLength: 500),
+                    new OA\Property(property: 'target_audience', type: 'string', nullable: true),
+                    new OA\Property(property: 'category_id', type: 'integer'),
+                    new OA\Property(property: 'desired_deadline', type: 'string', format: 'date'),
+                    new OA\Property(property: 'estimated_budget', type: 'number', format: 'float', nullable: true),
+                    new OA\Property(
+                        property: 'modules',
+                        type: 'array',
+                        nullable: true,
+                        items: new OA\Items(
+                            type: 'object',
+                            required: ['title'],
+                            properties: [
+                                new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                                new OA\Property(property: 'description', type: 'string', nullable: true),
+                            ]
+                        )
+                    ),
+                ]
             )
         ),
         responses: [

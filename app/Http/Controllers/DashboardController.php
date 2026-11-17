@@ -233,7 +233,14 @@ final class DashboardController extends Controller
 
         $proposals = Proposal::where('pm_id', $user->id)
             ->orWhere('reviewer_id', $user->id)
-            ->with(['status', 'category', 'client.clientPic.clientProfile.user', 'tasks'])
+            ->with([
+                'status',
+                'category',
+                'client.clientPic.clientProfile.user',
+                'tasks',
+                'projectTeams.user.studentProfile',
+                'projectTeams.role',
+            ])
             ->get();
 
         $totalProjects = $proposals->count();
@@ -271,12 +278,20 @@ final class DashboardController extends Controller
             $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
 
             return [
-                'id'          => $proposal->id,
-                'title'       => $proposal->title,
-                'client_name' => $proposal->client_company_name,
-                'status'      => $proposal->status?->name ?? '—',
-                'progress'    => $progress,
-                'deadline'    => $deadlineToUse?->toDateString(),
+                'id'            => $proposal->id,
+                'title'         => $proposal->title,
+                'client_name'   => $proposal->client_company_name,
+                'status'        => $proposal->status?->name ?? '—',
+                'progress'      => $progress,
+                'deadline'      => $deadlineToUse?->toDateString(),
+                'category'      => strtolower($proposal->category?->name ?? 'other'),
+                'student_count' => $proposal->projectTeams->count(),
+                'team'          => $proposal->projectTeams->map(fn ($t) => [
+                    'name'  => $t->user?->name ?? '—',
+                    'nim'   => $t->user?->studentProfile?->nim ?? '—',
+                    'prodi' => $t->user?->studentProfile?->study_program ?? '—',
+                    'role'  => $t->role?->name ?? 'Anggota',
+                ])->values()->all(),
             ];
         })->values();
 
@@ -592,6 +607,7 @@ final class DashboardController extends Controller
             'pm',
             'client.clientPic.clientProfile.user',
             'tasks',
+            'projectTeams.user',
         ])
             ->whereHas('status', fn ($q) => $q->whereIn('name', $executedStatuses))
             ->latest('updated_at')
@@ -605,7 +621,10 @@ final class DashboardController extends Controller
 
         $totalClients = ClientProfile::count();
 
-        $totalStudents = ProjectTeam::distinct('user_id')->count('user_id');
+        $totalStudents = ProjectTeam::whereHas('user')->distinct('user_id')->count('user_id');
+
+        $inReviewProjects = Proposal::whereHas('status', fn ($q) => $q->whereIn('name', ['Under Review', 'Revision Required']))->count();
+        $submittedProposals = Proposal::whereHas('status', fn ($q) => $q->where('name', 'Submitted'))->count();
 
         $projects = $proposals->map(function ($proposal) {
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
@@ -622,14 +641,15 @@ final class DashboardController extends Controller
             $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
 
             return [
-                'id'          => $proposal->id,
-                'title'       => $proposal->title,
-                'client_name' => $proposal->client_company_name,
-                'pm_name'     => $proposal->pm?->name ?? '—',
-                'category'    => strtolower($proposal->category?->name ?? 'other'),
-                'status'      => $proposal->status?->name ?? '—',
-                'progress'    => $progress,
-                'deadline'    => $deadlineToUse?->toDateString(),
+                'id'            => $proposal->id,
+                'title'         => $proposal->title,
+                'client_name'   => $proposal->client_company_name,
+                'pm_name'       => $proposal->pm?->name ?? '—',
+                'student_count' => $proposal->projectTeams->whereNotNull('user')->count(),
+                'category'      => strtolower($proposal->category?->name ?? 'other'),
+                'status'        => $proposal->status?->name ?? '—',
+                'progress'      => $progress,
+                'deadline'      => $deadlineToUse?->toDateString(),
             ];
         })->values();
 
@@ -652,6 +672,8 @@ final class DashboardController extends Controller
                 'running_projects'      => $runningProjects,
                 'total_clients'         => $totalClients,
                 'total_students'        => $totalStudents,
+                'in_review_projects'    => $inReviewProjects,
+                'submitted_proposals'   => $submittedProposals,
                 'projects'              => $projects,
                 'category_distribution' => $categoryDistribution,
                 'status_distribution'   => $statusDistribution,

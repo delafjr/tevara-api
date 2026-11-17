@@ -125,6 +125,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::match(['patch', 'post'], 'proposals/{id}/contract/sign', [ProposalContractController::class, 'sign'])->whereNumber('id');
             Route::patch('proposals/{id}/contract/pm', [ProposalContractController::class, 'assignPm'])->whereNumber('id');
         });
+
+        // Unduh berkas SPK/kontrak (pengurus, PM proyek, atau klien/PIC pemilik proposal)
+        Route::middleware('role:pengurus_tefa|dosen|klien')->group(function () {
+            Route::get('proposals/{id}/contract/file', [ProposalContractController::class, 'download'])->whereNumber('id');
+        });
+
         // ── F-04: Penugasan Tim ─────────────────────────
         Route::middleware('role:pengurus_tefa|dosen|mahasiswa')->group(function () {
             Route::get('proposals/{id}/team', [ProposalTeamController::class, 'index'])->whereNumber('id');
@@ -158,21 +164,29 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         Route::middleware('role:dosen')->group(function () {
             Route::get('proposals/{id}/tasks/overview', [TaskController::class, 'overview'])->whereNumber('id');
-            Route::patch('proposals/{id}/tasks/{taskId}/review', [TaskController::class, 'review'])
-                ->whereNumber('id')
-                ->whereNumber('taskId');
         });
+        Route::middleware('role:dosen|pengurus_tefa')->patch('proposals/{id}/tasks/{taskId}/review', [TaskController::class, 'review'])
+            ->whereNumber('id')
+            ->whereNumber('taskId');
 
         // ── F-06: UAT ──────────────────────────────────
         // GET: klien, dosen, pengurus_tefa dapat melihat UAT
         Route::middleware('role:klien|dosen|pengurus_tefa')->group(function () {
+            Route::get('proposals/uats', [UatController::class, 'index']);
             Route::get('proposals/{id}/uat', [UatController::class, 'show'])->whereNumber('id');
         });
 
-        // POST/PUT/setTesting: hanya dosen/pm yang membuat & merevisi UAT
-        Route::middleware('role:dosen|pengurus_tefa')->group(function () {
+        // Klien mengisi hasil UAT; pengurus memeriksa dan menambahkan tindak lanjut.
+        Route::middleware('role:klien')->group(function () {
             Route::post('proposals/{id}/uat', [UatController::class, 'store'])->whereNumber('id');
             Route::put('proposals/{id}/uat', [UatController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware('role:pengurus_tefa')->patch('proposals/{id}/uat/{uatId}/review', [UatController::class, 'review'])
+            ->whereNumber('id')
+            ->whereNumber('uatId');
+
+        Route::middleware('role:dosen|pengurus_tefa')->group(function () {
             Route::patch('proposals/{id}/status/testing', [UatController::class, 'setTesting'])->whereNumber('id');
         });
 
@@ -184,6 +198,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // ── F-09: Pembayaran ────────────────────────────
         // GET payments/pending HARUS didaftarkan sebelum route dengan {paymentId}
         Route::middleware('role:dosen|pengurus_tefa')->group(function () {
+            Route::get('payments', [PaymentController::class, 'index']);
             Route::get('payments/pending', [PaymentController::class, 'pending']);
             Route::post('proposals/{id}/payments', [PaymentController::class, 'store'])->whereNumber('id');
             Route::patch('proposals/{id}/payments/{paymentId}/verify', [PaymentController::class, 'verify'])

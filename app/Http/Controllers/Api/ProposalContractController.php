@@ -7,16 +7,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\ContractStorage;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProposalContractController extends Controller
 {
     public function __construct(
-        private readonly NotificationService $notifications
+        private readonly NotificationService $notifications,
+        private readonly ContractStorage $contracts
     ) {}
 
     #[OA\Patch(
@@ -39,15 +42,19 @@ class ProposalContractController extends Controller
             content: new OA\MediaType(
                 mediaType: 'multipart/form-data',
                 schema: new OA\Schema(
-                    required: ['scope_of_work', 'total_amount', 'payment_terms_description', 'start_date', 'target_completion_date'],
+                    required: ['scope_of_work', 'total_amount', 'start_date', 'target_completion_date'],
                     properties: [
+                        new OA\Property(property: 'spk_number', type: 'string', nullable: true, maxLength: 100),
                         new OA\Property(property: 'scope_of_work', type: 'string', example: 'Pengembangan modul backend REST API, database MySQL, dan integrasi frontend.'),
                         new OA\Property(property: 'total_amount', type: 'number', format: 'double', example: 25000000),
-                        new OA\Property(property: 'payment_terms_description', type: 'string', example: 'Termin 1: 50% setelah penandatanganan SPK. Termin 2: 50% setelah BAST disetujui.'),
-                        new OA\Property(property: 'maintenance_warranty_months', type: 'integer', example: 3, default: 3),
+                        new OA\Property(property: 'payment_terms_description', type: 'string', nullable: true, example: 'Termin 1: 50% setelah penandatanganan SPK. Termin 2: 50% setelah BAST disetujui.'),
+                        new OA\Property(property: 'maintenance_warranty_months', type: 'integer', nullable: true, minimum: 0, example: 3, default: 3),
                         new OA\Property(property: 'start_date', type: 'string', format: 'date', example: '2026-11-01'),
                         new OA\Property(property: 'target_completion_date', type: 'string', format: 'date', example: '2027-02-28'),
-                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'File SPK/Kontrak (PDF, max 10MB)'),
+                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'File SPK/Kontrak (PDF, DOC, atau DOCX, max 10 MB).'),
+                        new OA\Property(property: 'pm_id', type: 'integer', nullable: true, description: 'ID user dosen yang menjadi PM.'),
+                        new OA\Property(property: 'terms', type: 'string', nullable: true, description: 'Array termin dalam JSON string; setiap item berisi amount dan opsional term_sequence, payment_date, name/notes.'),
+                        new OA\Property(property: 'members', type: 'string', nullable: true, description: 'Array anggota dalam JSON string; setiap item berisi student_id (atau user_id), role_id, dan opsional joined_at.'),
                     ]
                 )
             )
@@ -63,6 +70,45 @@ class ProposalContractController extends Controller
                     ]
                 )
             ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
+            new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+        ]
+    )]
+    #[OA\Post(
+        path: '/proposals/{id}/contract',
+        summary: 'Isi data SPK / Kontrak (Pengurus TeFa)',
+        description: 'Kompatibilitas untuk pengiriman form multipart. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-03: SPK & Kontrak'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['scope_of_work', 'total_amount', 'start_date', 'target_completion_date'],
+                    properties: [
+                        new OA\Property(property: 'spk_number', type: 'string', nullable: true, maxLength: 100),
+                        new OA\Property(property: 'scope_of_work', type: 'string'),
+                        new OA\Property(property: 'total_amount', type: 'number', format: 'double'),
+                        new OA\Property(property: 'payment_terms_description', type: 'string', nullable: true),
+                        new OA\Property(property: 'maintenance_warranty_months', type: 'integer', nullable: true, minimum: 0),
+                        new OA\Property(property: 'start_date', type: 'string', format: 'date'),
+                        new OA\Property(property: 'target_completion_date', type: 'string', format: 'date'),
+                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'PDF, DOC, atau DOCX; max 10 MB.'),
+                        new OA\Property(property: 'pm_id', type: 'integer', nullable: true),
+                        new OA\Property(property: 'terms', type: 'string', nullable: true, description: 'Array termin dalam JSON string; item berisi amount dan opsional term_sequence, payment_date, name/notes.'),
+                        new OA\Property(property: 'members', type: 'string', nullable: true, description: 'Array anggota dalam JSON string; item berisi student_id (atau user_id), role_id, dan opsional joined_at.'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Data SPK berhasil disimpan dan status menjadi Active'),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
             new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),
@@ -126,10 +172,9 @@ class ProposalContractController extends Controller
                 $proposal->project_code = $prefixPrj . str_pad((string) $seqPrj, 3, '0', STR_PAD_LEFT);
             }
 
-            // Upload contract file jika disertakan
+            // Upload contract file jika disertakan (disimpan pada disk privat)
             if ($request->hasFile('contract_file')) {
-                $proposal->contract_file_url = $request->file('contract_file')
-                    ->store('contracts', 'public');
+                $proposal->contract_file_url = $this->contracts->store($request->file('contract_file'));
             }
 
             if (!empty($validated['pm_id'])) {
@@ -278,6 +323,34 @@ class ProposalContractController extends Controller
             new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),
         ]
     )]
+    #[OA\Post(
+        path: '/proposals/{id}/contract/sign',
+        summary: 'Tandai kontrak telah ditandatangani (Pengurus TeFa)',
+        description: 'Kompatibilitas untuk pengiriman form multipart. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-03: SPK & Kontrak'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        requestBody: new OA\RequestBody(
+            required: false,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    properties: [
+                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'PDF yang sudah ditandatangani, max 10 MB.'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Kontrak berhasil ditandatangani'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
+            new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+        ]
+    )]
     public function sign(Request $request, int|string $id): JsonResponse
     {
         $proposal = Proposal::findOrFail($id);
@@ -287,8 +360,7 @@ class ProposalContractController extends Controller
         ]);
 
         if ($request->hasFile('contract_file')) {
-            $proposal->contract_file_url = $request->file('contract_file')
-                ->store('contracts', 'public');
+            $proposal->contract_file_url = $this->contracts->store($request->file('contract_file'));
         }
 
         $proposal->is_signed = true;
@@ -372,5 +444,94 @@ class ProposalContractController extends Controller
             'message' => 'Project Manager (Dosen) berhasil ditugaskan',
             'data'    => $proposal->fresh(['pm.lecturerProfile', 'status']),
         ]);
+    }
+
+    #[OA\Get(
+        path: '/proposals/{id}/contract/file',
+        summary: 'Unduh berkas SPK / Kontrak',
+        description: 'Mengunduh berkas SPK/kontrak yang tersimpan pada disk privat. Dapat diakses oleh Pengurus TeFa, PM proyek, serta klien/PIC pemilik proposal.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-03: SPK & Kontrak'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                in: 'path',
+                required: true,
+                description: 'ID Proposal',
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Berkas SPK/kontrak',
+                content: new OA\MediaType(
+                    mediaType: 'application/octet-stream',
+                    schema: new OA\Schema(type: 'string', format: 'binary')
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan pihak yang berhak)'),
+            new OA\Response(response: 404, description: 'Proposal atau berkas tidak ditemukan'),
+        ]
+    )]
+    public function download(Request $request, int|string $id): StreamedResponse|JsonResponse
+    {
+        $proposal = Proposal::findOrFail($id);
+
+        $this->authorizeContractDownload($proposal, $request->user());
+
+        if (empty($proposal->contract_file_url)) {
+            return response()->json([
+                'message' => 'Dokumen SPK belum tersedia untuk proposal ini.',
+            ], 404);
+        }
+
+        $disk = $this->contracts->resolveDisk($proposal->contract_file_url);
+
+        if ($disk === null) {
+            return response()->json([
+                'message' => 'Berkas SPK tidak ditemukan pada penyimpanan.',
+            ], 404);
+        }
+
+        return $disk->download($proposal->contract_file_url, $this->contractFileName($proposal));
+    }
+
+    /**
+     * Hanya Pengurus TeFa, PM proyek, dan klien/PIC pemilik proposal yang
+     * boleh mengunduh dokumen komersial ini.
+     */
+    private function authorizeContractDownload(Proposal $proposal, User $user): void
+    {
+        if ($user->hasRole('pengurus_tefa')) {
+            return;
+        }
+
+        if ((int) $proposal->pm_id === (int) $user->id) {
+            return;
+        }
+
+        if ((int) $proposal->client_id === (int) $user->id) {
+            return;
+        }
+
+        $pic = $user->clientPic()->with('clientProfile:id,user_id')->first();
+        $isPicOfClient = $pic !== null
+            && (int) $pic->clientProfile?->user_id === (int) $proposal->client_id;
+
+        if (! $isPicOfClient) {
+            abort(403, 'Akses ditolak: Anda tidak berhak mengunduh dokumen SPK proyek ini.');
+        }
+    }
+
+    private function contractFileName(Proposal $proposal): string
+    {
+        $base = $proposal->spk_number ?: 'SPK-PROPOSAL-' . $proposal->id;
+        $base = trim((string) preg_replace('/[^A-Za-z0-9._-]+/', '-', $base), '-');
+
+        $extension = pathinfo((string) $proposal->contract_file_url, PATHINFO_EXTENSION);
+
+        return $extension !== '' ? "{$base}.{$extension}" : $base;
     }
 }

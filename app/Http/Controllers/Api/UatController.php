@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProjectTeam;
 use App\Models\Proposal;
+use App\Models\ProposalStatus;
 use App\Models\UatResult;
 use App\Models\UatItem;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,13 +22,102 @@ final class UatController extends Controller
 {
     use ApiResponse;
 
+    public function __construct(private readonly NotificationService $notifications) {}
+
+    // ──────────────────────────────────────────────────────
+    //  0. GET /proposals/uats — Daftar proyek yang layak UAT
+    // ──────────────────────────────────────────────────────
+    #[OA\Get(
+        path: '/proposals/uats',
+        summary: 'Daftar proyek yang layak UAT beserta sesi UAT terbarunya',
+        description: 'Mengambil semua proyek berstatus pengerjaan/pengujian (Active, Testing, Approved, Handover, Completed) beserta data sesi UAT terkini secara efisien tanpa N+1.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-06: UAT'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Daftar proyek UAT',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Daftar proyek UAT'),
+                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Akses ditolak.'),
+        ]
+    )]
+    public function index(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $query = Proposal::query()
+            ->whereHas('status', function ($q) {
+                $q->whereNotIn('name', [
+                    'Draft',
+                    'Submitted',
+                    'Under Review',
+                    'Revision Required',
+                    'Rejected',
+                ]);
+            });
+
+        if ($user->hasRole('pengurus_tefa')) {
+            // Pengurus TeFa can view all eligible proposals
+        } elseif ($user->hasRole('dosen')) {
+            $query->where('pm_id', $user->id);
+        } elseif ($user->hasRole('klien')) {
+            $query->where('client_id', $user->id);
+        } else {
+            abort(403, 'Akses ditolak.');
+        }
+
+        $proposals = $query->with([
+            'status',
+            'client.clientPic.clientProfile.user',
+            'client.clientProfile.user',
+            'uatResult.items',
+            'uatResult.reviewer',
+        ])
+            ->latest('updated_at')
+            ->get();
+
+        $data = $proposals->map(function (Proposal $proposal) {
+            $uat = $proposal->uatResult;
+            $companyName = $proposal->client_company_name;
+
+            return [
+                'id'                  => $proposal->id,
+                'proposal_code'       => $proposal->proposal_code,
+                'title'               => $proposal->title,
+                'client'              => [
+                    'name'         => $proposal->client?->name ?? '—',
+                    'company_name' => $companyName,
+                ],
+                'client_name'         => $companyName,
+                'client_company_name' => $companyName,
+                'status_id'           => $proposal->status_id,
+                'status'              => [
+                    'id'   => $proposal->status?->id,
+                    'name' => $proposal->status?->name ?? '—',
+                ],
+                'status_name'         => $proposal->status?->name ?? '—',
+                'uat'                 => $uat ? $this->formatUat($uat) : null,
+            ];
+        })->values();
+
+        return $this->ok('Daftar proyek UAT', $data);
+    }
+
     // ──────────────────────────────────────────────────────
     //  1. GET /proposals/{id}/uat — Detail UAT + semua item
     // ──────────────────────────────────────────────────────
     #[OA\Get(
         path: '/proposals/{id}/uat',
         summary: 'Detail UAT proyek + semua item',
-        description: 'Mengambil data UAT result beserta seluruh test scenario/item. Dapat diakses oleh Klien pemilik, Dosen PM, dan Pengurus TeFa. Jika belum ada UAT, mengembalikan 404.',
+        description: 'Mengambil sesi UAT terbaru beserta riwayat sesi, hasil per fitur, catatan Pengurus, dan task tindak lanjut. Dapat diakses oleh Klien pemilik, Dosen PM, dan Pengurus TeFa.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
@@ -47,6 +139,9 @@ final class UatController extends Controller
                                 new OA\Property(property: 'proposal_id', type: 'integer', example: 1),
                                 new OA\Property(property: 'session_date', type: 'string', format: 'date', example: '2026-11-04'),
                                 new OA\Property(property: 'overall_result', type: 'string', enum: ['PASSED', 'FAILED', 'PARTIAL'], example: 'PASSED'),
+                                new OA\Property(property: 'review_status', type: 'string', enum: ['PENDING_REVIEW', 'NEEDS_IMPROVEMENT', 'READY_FOR_RETEST', 'APPROVED'], example: 'PENDING_REVIEW'),
+                                new OA\Property(property: 'review_notes', type: 'string', nullable: true),
+                                new OA\Property(property: 'reviewed_at', type: 'string', format: 'date-time', nullable: true),
                                 new OA\Property(property: 'client_notes', type: 'string', nullable: true, example: 'Semua fungsi utama berjalan dengan baik.'),
                                 new OA\Property(property: 'client_signoff_name', type: 'string', nullable: true, example: 'Budi Santoso'),
                                 new OA\Property(property: 'signed_off_at', type: 'string', format: 'date-time', nullable: true, example: '2026-11-04T10:00:00Z'),
@@ -108,15 +203,24 @@ final class UatController extends Controller
 
         $this->authorizeView($proposal, $user);
 
-        $uat = UatResult::with('items')
+        $uat = UatResult::with(['items.tasks.projectTeam.user', 'reviewer'])
             ->where('proposal_id', $proposal->id)
+            ->orderByDesc('id')
             ->first();
 
         if (!$uat) {
             return $this->error('UAT belum tersedia untuk proyek ini.', 404);
         }
 
-        return $this->ok('Data UAT proyek', $this->formatUat($uat));
+        $history = UatResult::with(['items.tasks.projectTeam.user', 'reviewer'])
+            ->where('proposal_id', $proposal->id)
+            ->orderByDesc('id')
+            ->get();
+
+        return $this->ok('Data UAT proyek', [
+            ...$this->formatUat($uat),
+            'uat_history' => $history->map(fn (UatResult $session) => $this->formatUat($session))->all(),
+        ]);
     }
 
     // ──────────────────────────────────────────────────────
@@ -124,8 +228,8 @@ final class UatController extends Controller
     // ──────────────────────────────────────────────────────
     #[OA\Post(
         path: '/proposals/{id}/uat',
-        summary: 'Buat sesi UAT + item sekaligus (Dosen PM / Pengurus TeFa)',
-        description: 'Proposal harus berstatus Testing (id=8). Relasi one-to-one: satu proposal satu hasil UAT. Simpan header sesi dan item-item pengujian dalam satu transaksi DB.',
+        summary: 'Klien mengirim hasil satu sesi UAT',
+        description: 'Klien pemilik mengirim hasil uji setiap fitur pada proyek berstatus Testing. Sistem menghitung hasil keseluruhan dan menyimpan tiap pengiriman sebagai sesi baru. Sesi ulang hanya dapat dibuat setelah seluruh tindak lanjut sesi sebelumnya diverifikasi Pengurus.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
@@ -134,10 +238,8 @@ final class UatController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['session_date', 'overall_result', 'items'],
+                required: ['items'],
                 properties: [
-                    new OA\Property(property: 'session_date', type: 'string', format: 'date', example: '2026-11-04'),
-                    new OA\Property(property: 'overall_result', type: 'string', enum: ['PASSED', 'FAILED', 'PARTIAL'], example: 'PASSED'),
                     new OA\Property(property: 'client_notes', type: 'string', nullable: true, example: 'Pengujian modul utama telah selesai.'),
                     new OA\Property(
                         property: 'items',
@@ -147,7 +249,7 @@ final class UatController extends Controller
                             properties: [
                                 new OA\Property(property: 'feature_name', type: 'string', example: 'Manajemen Proposal'),
                                 new OA\Property(property: 'test_scenario', type: 'string', nullable: true, example: 'Pengajuan proposal dengan lampiran dokumen'),
-                                new OA\Property(property: 'result', type: 'string', enum: ['PASSED', 'FAILED', 'BUG_FOUND'], example: 'PASSED'),
+                                new OA\Property(property: 'result', type: 'string', enum: ['PASSED', 'FAILED', 'BUG_FOUND'], example: 'PASSED', description: 'Hasil yang dipilih Klien untuk fitur ini.'),
                                 new OA\Property(property: 'bug_severity', type: 'string', nullable: true, enum: ['MINOR', 'MAJOR', 'CRITICAL']),
                                 new OA\Property(property: 'bug_description', type: 'string', nullable: true),
                                 new OA\Property(property: 'client_feedback', type: 'string', nullable: true, example: 'Fitur sesuai kebutuhan'),
@@ -180,20 +282,20 @@ final class UatController extends Controller
             ),
             new OA\Response(
                 response: 403,
-                description: 'Akses ditolak (bukan dosen/PM/pengurus)',
+                description: 'Akses ditolak (bukan Klien pemilik proyek)',
                 content: new OA\JsonContent(
                     properties: [
-                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Dosen/PM yang dapat mengelola UAT.'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Klien pemilik proyek yang dapat mengirim hasil UAT.'),
                     ]
                 )
             ),
             new OA\Response(
                 response: 409,
-                description: 'UAT sudah ada',
+                description: 'Sesi masih menunggu pemeriksaan atau perbaikan belum siap diuji ulang',
                 content: new OA\JsonContent(
                     properties: [
                         new OA\Property(property: 'success', type: 'boolean', example: false),
-                        new OA\Property(property: 'message', type: 'string', example: 'UAT untuk proyek ini sudah ada. Gunakan endpoint PUT untuk memperbarui.'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Selesaikan tindak lanjut dan tunggu verifikasi Pengurus sebelum mengirim sesi UAT berikutnya.'),
                     ]
                 )
             ),
@@ -214,22 +316,9 @@ final class UatController extends Controller
         $proposal = Proposal::findOrFail($id);
         $user     = $request->user();
 
-        $this->authorizeManage($user);
-
-        // Proposal harus berstatus Testing (id=8)
-        if ((int) $proposal->status_id !== 8) {
-            return $this->error('Proposal harus berstatus Testing untuk membuat UAT.', 422);
-        }
-
-        // Cek unique constraint
-        $existing = UatResult::where('proposal_id', $proposal->id)->exists();
-        if ($existing) {
-            return $this->error('UAT untuk proyek ini sudah ada. Gunakan endpoint PUT untuk memperbarui.', 409);
-        }
+        $this->authorizeClient($proposal, $user);
 
         $data = $request->validate([
-            'session_date'              => ['required', 'date'],
-            'overall_result'            => ['required', Rule::in(['PASSED', 'FAILED', 'PARTIAL'])],
             'client_notes'              => ['nullable', 'string'],
             'items'                     => ['required', 'array', 'min:1'],
             'items.*.feature_name'      => ['required', 'string', 'max:255'],
@@ -240,11 +329,34 @@ final class UatController extends Controller
             'items.*.client_feedback'   => ['nullable', 'string'],
         ]);
 
-        $uat = DB::transaction(function () use ($data, $proposal) {
+        foreach ($data['items'] as $index => $item) {
+            if (in_array($item['result'], ['FAILED', 'BUG_FOUND'], true)
+                && blank($item['bug_description'] ?? $item['client_feedback'] ?? null)) {
+                return $this->error('Jelaskan temuan pada setiap fitur yang belum sesuai.', 422, [
+                    "items.{$index}.bug_description" => ['Catatan temuan wajib diisi untuk hasil yang belum sesuai.'],
+                ]);
+            }
+        }
+
+        $overallResult = $this->calculateOverallResult($data['items']);
+
+        $uat = DB::transaction(function () use ($data, $proposal, $user, $overallResult) {
+            $lockedProposal = Proposal::with('status')->whereKey($proposal->id)->lockForUpdate()->firstOrFail();
+            if (strtolower($lockedProposal->status?->name ?? '') !== 'testing') {
+                return $this->error('Proposal harus berstatus Testing untuk membuat UAT.', 422);
+            }
+
+            $latest = UatResult::where('proposal_id', $lockedProposal->id)->latest('id')->lockForUpdate()->first();
+            if ($latest && $latest->review_status !== 'READY_FOR_RETEST') {
+                return $this->error('Sesi UAT sebelumnya masih diproses. Selesaikan tindak lanjut dan tunggu verifikasi Pengurus sebelum mengirim sesi berikutnya.', 409);
+            }
+
             $uat = UatResult::create([
-                'proposal_id'    => $proposal->id,
-                'session_date'   => $data['session_date'],
-                'overall_result' => $data['overall_result'],
+                'proposal_id'    => $lockedProposal->id,
+                'submitted_by'   => $user->id,
+                'session_date'   => now()->toDateString(),
+                'overall_result' => $overallResult,
+                'review_status'  => 'PENDING_REVIEW',
                 'client_notes'   => $data['client_notes'] ?? null,
             ]);
 
@@ -262,7 +374,16 @@ final class UatController extends Controller
             return $uat->load('items');
         });
 
-        return $this->created('UAT berhasil dibuat', $this->formatUat($uat));
+        if ($uat instanceof JsonResponse) {
+            return $uat;
+        }
+
+        $this->notifications->notifyRole('pengurus_tefa', 'uat.submitted', [
+            'code' => $proposal->proposal_code,
+            'title' => $proposal->title,
+        ], (int) $proposal->id);
+
+        return $this->created('Hasil UAT berhasil dikirim untuk diperiksa.', $this->formatUat($uat));
     }
 
     // ──────────────────────────────────────────────────────
@@ -270,8 +391,8 @@ final class UatController extends Controller
     // ──────────────────────────────────────────────────────
     #[OA\Put(
         path: '/proposals/{id}/uat',
-        summary: 'Update UAT (revisi item)',
-        description: 'Memperbarui hasil UAT dan mengganti seluruh item pengujian (replace dalam satu transaksi). Hanya bisa dilakukan jika UAT belum di-sign-off klien.',
+        summary: 'Perbarui kiriman UAT yang belum diperiksa',
+        description: 'Klien pemilik dapat memperbarui sesi terbaru hanya selama Pengurus belum memeriksanya. Setelah pemeriksaan dimulai, kiriman tidak dapat ditimpa.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
@@ -280,10 +401,8 @@ final class UatController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['session_date', 'overall_result', 'items'],
+                required: ['items'],
                 properties: [
-                    new OA\Property(property: 'session_date', type: 'string', format: 'date', example: '2026-11-04'),
-                    new OA\Property(property: 'overall_result', type: 'string', enum: ['PASSED', 'FAILED', 'PARTIAL'], example: 'PASSED'),
                     new OA\Property(property: 'client_notes', type: 'string', nullable: true, example: 'Revisi minor bug sudah selesai diuji.'),
                     new OA\Property(
                         property: 'items',
@@ -370,22 +489,19 @@ final class UatController extends Controller
         $proposal = Proposal::findOrFail($id);
         $user     = $request->user();
 
-        $this->authorizeManage($user);
+        $this->authorizeClient($proposal, $user);
 
-        $uat = UatResult::where('proposal_id', $proposal->id)->first();
+        $uat = UatResult::where('proposal_id', $proposal->id)->latest('id')->first();
 
         if (!$uat) {
             return $this->error('UAT tidak ditemukan untuk proyek ini.', 404);
         }
 
-        // Hanya bisa update jika belum di-sign-off klien
-        if ($uat->signed_off_at !== null) {
-            return $this->error('UAT sudah di-sign-off oleh klien dan tidak dapat diubah.', 409);
+        if ($uat->review_status !== 'PENDING_REVIEW' || $uat->signed_off_at !== null) {
+            return $this->error('Hasil UAT tidak dapat diubah setelah mulai diperiksa Pengurus.', 409);
         }
 
         $data = $request->validate([
-            'session_date'              => ['required', 'date'],
-            'overall_result'            => ['required', Rule::in(['PASSED', 'FAILED', 'PARTIAL'])],
             'client_notes'              => ['nullable', 'string'],
             'items'                     => ['required', 'array', 'min:1'],
             'items.*.feature_name'      => ['required', 'string', 'max:255'],
@@ -396,10 +512,20 @@ final class UatController extends Controller
             'items.*.client_feedback'   => ['nullable', 'string'],
         ]);
 
-        $uat = DB::transaction(function () use ($uat, $data) {
+        foreach ($data['items'] as $index => $item) {
+            if (in_array($item['result'], ['FAILED', 'BUG_FOUND'], true)
+                && blank($item['bug_description'] ?? $item['client_feedback'] ?? null)) {
+                return $this->error('Jelaskan temuan pada setiap fitur yang belum sesuai.', 422, [
+                    "items.{$index}.bug_description" => ['Catatan temuan wajib diisi untuk hasil yang belum sesuai.'],
+                ]);
+            }
+        }
+
+        $overallResult = $this->calculateOverallResult($data['items']);
+        $uat = DB::transaction(function () use ($uat, $data, $overallResult) {
             $uat->update([
-                'session_date'   => $data['session_date'],
-                'overall_result' => $data['overall_result'],
+                'session_date'   => now()->toDateString(),
+                'overall_result' => $overallResult,
                 'client_notes'   => $data['client_notes'] ?? null,
             ]);
 
@@ -423,13 +549,148 @@ final class UatController extends Controller
         return $this->ok('UAT berhasil diperbarui', $this->formatUat($uat));
     }
 
+    #[OA\Patch(
+        path: '/proposals/{id}/uat/{uatId}/review',
+        summary: 'Pengurus memeriksa hasil UAT dan meneruskan tindak lanjut',
+        description: 'Pengurus dapat menyetujui hasil yang seluruh fiturnya lulus atau membuat checklist perbaikan sebagai Task untuk mahasiswa anggota tim proyek. UAT ulang hanya dibuka setelah seluruh Task perbaikan disetujui.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-06: UAT'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'uatId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['decision'],
+                properties: [
+                    new OA\Property(property: 'decision', type: 'string', enum: ['APPROVED', 'NEEDS_IMPROVEMENT']),
+                    new OA\Property(property: 'review_notes', type: 'string', nullable: true),
+                    new OA\Property(
+                        property: 'corrections',
+                        type: 'array',
+                        description: 'Wajib diisi jika decision NEEDS_IMPROVEMENT.',
+                        items: new OA\Items(
+                            required: ['item_id', 'note', 'assigned_student_id'],
+                            properties: [
+                                new OA\Property(property: 'item_id', type: 'integer'),
+                                new OA\Property(property: 'note', type: 'string'),
+                                new OA\Property(property: 'assigned_student_id', type: 'integer', description: 'Mahasiswa anggota tim proyek.'),
+                                new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true),
+                            ]
+                        )
+                    ),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Pemeriksaan UAT berhasil disimpan'),
+            new OA\Response(response: 403, description: 'Hanya Pengurus TeFa'),
+            new OA\Response(response: 404, description: 'Proposal, sesi, atau item tidak ditemukan'),
+            new OA\Response(response: 409, description: 'Sesi sudah pernah diperiksa'),
+            new OA\Response(response: 422, description: 'Keputusan tidak sesuai dengan hasil atau data checklist tidak valid'),
+        ]
+    )]
+    public function review(Request $request, int|string $id, int|string $uatId): JsonResponse
+    {
+        $proposal = Proposal::findOrFail($id);
+        $user = $request->user();
+        $uat = UatResult::with('items')
+            ->where('proposal_id', $proposal->id)
+            ->findOrFail($uatId);
+
+        if ($uat->review_status !== 'PENDING_REVIEW') {
+            return $this->error('Sesi UAT ini sudah diperiksa dan tidak dapat diubah.', 409);
+        }
+
+        $data = $request->validate([
+            'decision' => ['required', Rule::in(['APPROVED', 'NEEDS_IMPROVEMENT'])],
+            'review_notes' => ['nullable', 'string'],
+            'corrections' => ['required_if:decision,NEEDS_IMPROVEMENT', 'array', 'min:1'],
+            'corrections.*.item_id' => ['required', 'integer', 'distinct'],
+            'corrections.*.note' => ['required', 'string', 'max:5000'],
+            'corrections.*.assigned_student_id' => ['required', 'integer', 'exists:users,id'],
+            'corrections.*.due_date' => ['nullable', 'date'],
+        ]);
+
+        if ($data['decision'] === 'APPROVED'
+            && ($uat->overall_result !== 'PASSED' || $uat->items->contains(fn (UatItem $item) => $item->result !== 'PASSED'))) {
+            return $this->error('Hasil UAT hanya dapat disetujui jika seluruh fitur berstatus sesuai.', 422);
+        }
+
+        $corrections = $data['corrections'] ?? [];
+        $correctionItemIds = collect($corrections)->pluck('item_id')->map(fn ($value) => (int) $value);
+        $failedItemIds = $uat->items
+            ->whereIn('result', ['FAILED', 'BUG_FOUND'])
+            ->pluck('id');
+
+        if ($data['decision'] === 'NEEDS_IMPROVEMENT' && $failedItemIds->diff($correctionItemIds)->isNotEmpty()) {
+            return $this->error('Tambahkan satu poin tindak lanjut untuk setiap fitur yang belum sesuai.', 422);
+        }
+
+        $teams = ProjectTeam::where('proposal_id', $proposal->id)->get()->keyBy('user_id');
+        foreach ($corrections as $index => $correction) {
+            if (! $uat->items->contains('id', (int) $correction['item_id'])) {
+                return $this->error('Item UAT tidak ditemukan pada sesi ini.', 422, [
+                    "corrections.{$index}.item_id" => ['Pilih item dari sesi UAT yang sedang diperiksa.'],
+                ]);
+            }
+            if (! $teams->has((int) $correction['assigned_student_id'])) {
+                return $this->error('Mahasiswa yang ditunjuk bukan anggota tim proyek ini.', 422, [
+                    "corrections.{$index}.assigned_student_id" => ['Pilih mahasiswa anggota tim proyek.'],
+                ]);
+            }
+        }
+
+        $uat = DB::transaction(function () use ($data, $corrections, $teams, $uat, $user, $proposal) {
+            $uat->update([
+                'review_status' => $data['decision'] === 'APPROVED' ? 'APPROVED' : 'NEEDS_IMPROVEMENT',
+                'review_notes' => $data['review_notes'] ?? null,
+                'reviewed_by' => $user->id,
+                'reviewed_at' => now(),
+            ]);
+
+            foreach ($corrections as $correction) {
+                $item = $uat->items->firstWhere('id', (int) $correction['item_id']);
+                $item->update(['review_notes' => $correction['note']]);
+
+                $task = $proposal->tasks()->create([
+                    'uat_item_id' => $item->id,
+                    'project_team_id' => $teams->get((int) $correction['assigned_student_id'])->id,
+                    'title' => 'Tindak lanjut UAT: ' . $item->feature_name,
+                    'description' => $correction['note'],
+                    'priority' => 'HIGH',
+                    'due_date' => $correction['due_date'] ?? null,
+                    'status' => 'TODO',
+                    'progress_percentage' => 0,
+                    'pm_status' => 'PENDING',
+                ]);
+
+                $this->notifications->notify((int) $correction['assigned_student_id'], 'task.assigned', [
+                    'task' => $task->title,
+                    'code' => $proposal->proposal_code,
+                ], (int) $proposal->id);
+            }
+
+            return $uat->load(['items.tasks.projectTeam.user', 'reviewer']);
+        });
+
+        $this->notifications->notifyClient($proposal, 'uat.reviewed', [
+            'code' => $proposal->proposal_code,
+            'title' => $proposal->title,
+            'status' => $data['decision'] === 'APPROVED' ? 'disetujui' : 'perlu perbaikan',
+        ]);
+
+        return $this->ok('Pemeriksaan UAT berhasil disimpan.', $this->formatUat($uat));
+    }
+
     // ──────────────────────────────────────────────────────
     //  4. PATCH /proposals/{id}/uat/signoff — Sign-off oleh klien
     // ──────────────────────────────────────────────────────
     #[OA\Patch(
         path: '/proposals/{id}/uat/signoff',
-        summary: 'Sign-off UAT oleh klien',
-        description: 'Menandatangani persetujuan UAT oleh klien. Otomatis mengisi signed_off_at=now(). Jika overall_result=PASSED, status proposal otomatis beralih ke Handover (id=9).',
+        summary: 'Klien mengesahkan UAT yang sudah disetujui Pengurus',
+        description: 'Hanya sesi terbaru berstatus APPROVED dan seluruh fitur PASSED yang dapat disahkan. Waktu pengesahan dicatat server; proyek berpindah ke Handover setelah persetujuan Klien.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
@@ -520,7 +781,7 @@ final class UatController extends Controller
             return $this->error('Anda bukan klien dari proyek ini.', 403);
         }
 
-        $uat = UatResult::where('proposal_id', $proposal->id)->first();
+        $uat = UatResult::where('proposal_id', $proposal->id)->latest('id')->first();
 
         if (!$uat) {
             return $this->error('UAT tidak ditemukan untuk proyek ini.', 404);
@@ -530,11 +791,20 @@ final class UatController extends Controller
             return $this->error('UAT sudah di-sign-off sebelumnya.', 409);
         }
 
+        if ($uat->review_status !== 'APPROVED' || $uat->overall_result !== 'PASSED') {
+            return $this->error('UAT hanya dapat disahkan setelah Pengurus menyetujui hasil yang seluruh fiturnya sesuai.', 422);
+        }
+
+        $handoverStatusId = ProposalStatus::where('name', 'Handover')->value('id');
+        if (! $handoverStatusId) {
+            return $this->error('Status Handover belum terdaftar pada data master.', 422);
+        }
+
         $data = $request->validate([
             'client_signoff_name' => ['required', 'string', 'max:255'],
         ]);
 
-        DB::transaction(function () use ($uat, $data, $proposal) {
+        DB::transaction(function () use ($uat, $data, $proposal, $handoverStatusId) {
             $uat->update([
                 'client_signoff_name' => $data['client_signoff_name'],
                 'signed_off_at'       => now(),
@@ -542,7 +812,7 @@ final class UatController extends Controller
 
             // Jika PASSED → update proposal ke status Handover (id=9)
             if ($uat->overall_result === 'PASSED') {
-                $proposal->update(['status_id' => 9]);
+                $proposal->update(['status_id' => $handoverStatusId]);
             }
         });
 
@@ -557,7 +827,7 @@ final class UatController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/status/testing',
         summary: 'Tandai proyek masuk fase Testing (Dosen PM / Pengurus TeFa)',
-        description: 'Mengubah status proposal menjadi Testing (id=8) agar sesi UAT dapat dibuat.',
+        description: 'Mengubah status proposal menjadi Testing menggunakan data status master agar Klien dapat memulai UAT.',
         security: [['bearerAuth' => []]],
         tags: ['F-06: UAT'],
         parameters: [
@@ -618,7 +888,12 @@ final class UatController extends Controller
 
         $this->authorizeManage($user);
 
-        $proposal->update(['status_id' => 8]);
+        $testingStatusId = ProposalStatus::where('name', 'Testing')->value('id');
+        if (! $testingStatusId) {
+            return $this->error('Status Testing belum terdaftar pada data master.', 422);
+        }
+
+        $proposal->update(['status_id' => $testingStatusId]);
 
         return $this->ok('Status proyek berhasil diperbarui ke Testing.', [
             'id'        => $proposal->id,
@@ -630,18 +905,21 @@ final class UatController extends Controller
     //  Helpers
     // ──────────────────────────────────────────────────────
 
-    /** Hanya dosen/pm yang bisa manage UAT (create/update). */
-    private function authorizeManage(mixed $user): void
+    private function authorizeClient(Proposal $proposal, mixed $user): void
     {
-        if (!$user->hasAnyRole(['dosen', 'pengurus_tefa'])) {
-            abort(403, 'Hanya Dosen/PM yang dapat mengelola UAT.');
+        if (! $user->hasRole('klien') || (int) $proposal->client_id !== (int) $user->id) {
+            abort(403, 'Hanya Klien pemilik proyek yang dapat mengirim hasil UAT.');
         }
     }
 
     /** Klien, dosen, dan pengurus dapat melihat UAT. */
     private function authorizeView(mixed $proposal, mixed $user): void
     {
-        if ($user->hasAnyRole(['dosen', 'pengurus_tefa'])) {
+        if ($user->hasRole('pengurus_tefa')) {
+            return;
+        }
+
+        if ($user->hasRole('dosen') && (int) $proposal->pm_id === (int) $user->id) {
             return;
         }
 
@@ -660,12 +938,21 @@ final class UatController extends Controller
             'project_team_id'     => $uat->project_team_id,
             'session_date'        => $uat->session_date?->toDateString(),
             'overall_result'      => $uat->overall_result,
+            'review_status'       => $uat->review_status
+                ?? ($uat->signed_off_at !== null && $uat->overall_result === 'PASSED' ? 'APPROVED' : 'PENDING_REVIEW'),
+            'review_notes'        => $uat->review_notes,
+            'reviewed_by'         => $uat->reviewer ? [
+                'id' => $uat->reviewer->id,
+                'name' => $uat->reviewer->name,
+            ] : null,
+            'reviewed_at'         => $uat->reviewed_at?->toIso8601String(),
+            'submitted_by'        => $uat->submitted_by,
             'client_notes'        => $uat->client_notes,
             'client_signoff_name' => $uat->client_signoff_name,
             'signed_off_at'       => $uat->signed_off_at?->toIso8601String(),
             'created_at'          => $uat->created_at?->toIso8601String(),
             'updated_at'          => $uat->updated_at?->toIso8601String(),
-            'uat_items'           => $uat->items->map(fn (UatItem $item) => $this->formatItem($item)),
+            'uat_items'           => $uat->items->map(fn (UatItem $item) => $this->formatItem($item))->all(),
         ];
     }
 
@@ -680,6 +967,32 @@ final class UatController extends Controller
             'bug_severity'    => $item->bug_severity,
             'bug_description' => $item->bug_description,
             'client_feedback' => $item->client_feedback,
+            'review_notes'    => $item->review_notes,
+            'tasks'           => $item->relationLoaded('tasks')
+                ? $item->tasks->map(fn ($task) => [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'description' => $task->description,
+                    'status' => $task->status,
+                    'pm_status' => $task->pm_status,
+                    'assignee' => $task->projectTeam?->user ? [
+                        'id' => $task->projectTeam->user->id,
+                        'name' => $task->projectTeam->user->name,
+                    ] : null,
+                ])->all()
+                : [],
         ];
+    }
+
+    private function calculateOverallResult(array $items): string
+    {
+        $results = collect($items)->pluck('result');
+        $passed = $results->filter(fn ($result) => $result === 'PASSED')->count();
+
+        if ($passed === $results->count()) {
+            return 'PASSED';
+        }
+
+        return $passed === 0 ? 'FAILED' : 'PARTIAL';
     }
 }

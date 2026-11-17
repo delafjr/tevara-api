@@ -14,10 +14,16 @@ class UatItem extends Model
         'bug_severity',
         'bug_description',
         'client_feedback',
+        'review_notes',
     ];
 
     public function uatResult()
     {
         return $this->belongsTo(UatResult::class);
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
     }
 }
