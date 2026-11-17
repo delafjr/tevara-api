@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Contract / SPK Disk
+    |--------------------------------------------------------------------------
+    |
+    | Berkas SPK/kontrak bersifat privat. Disk di bawah ini dapat diganti ke
+    | object storage (S3, Cloudflare R2, Backblaze B2) hanya lewat env tanpa
+    | mengubah kode aplikasi.
+    |
+    */
+
+    'contracts_disk' => env('CONTRACTS_DISK', 'local'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
