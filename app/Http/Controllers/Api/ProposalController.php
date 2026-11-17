@@ -242,7 +242,7 @@ class ProposalController extends Controller
             'modules:id,proposal_id,title,description',
         ])->find($id);
 
-        if (! $proposal || ! in_array($proposal->status?->name, ['Submitted', 'Revision Required'], true)) {
+        if (! $proposal || ! in_array($proposal->status?->name, ['Submitted', 'Under Review', 'Revision Required'], true)) {
             return response()->json(['message' => 'Proposal pending tidak ditemukan.'], 404);
         }
 
@@ -554,7 +554,9 @@ class ProposalController extends Controller
 
         $user = $request->user();
 
-        if ($user->hasRole('klien')) {
+        if ($user->hasRole('pengurus_tefa')) {
+            // Pengurus TeFa berhak melihat seluruh proposal & projek
+        } elseif ($user->hasRole('klien')) {
             $allowed = $proposal->client_id === $user->id;
             if (! $allowed) {
                 $clientProfile = $user->clientProfile ?? $user->clientPic?->clientProfile;
@@ -565,9 +567,10 @@ class ProposalController extends Controller
             if (! $allowed) {
                 abort(403, 'Unauthorized access to this proposal.');
             }
-        }
-        if ($user->hasRole('dosen') && $proposal->pm_id !== $user->id) {
-            abort(403, 'Unauthorized access to this proposal.');
+        } elseif ($user->hasRole('dosen')) {
+            if ($proposal->pm_id !== $user->id && $proposal->reviewer_id !== $user->id) {
+                abort(403, 'Unauthorized access to this proposal.');
+            }
         }
 
         if ($user->hasRole('klien')) {

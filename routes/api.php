@@ -184,6 +184,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // ── F-09: Pembayaran ────────────────────────────
         // GET payments/pending HARUS didaftarkan sebelum route dengan {paymentId}
         Route::middleware('role:dosen|pengurus_tefa')->group(function () {
+            Route::get('payments', [PaymentController::class, 'index']);
             Route::get('payments/pending', [PaymentController::class, 'pending']);
             Route::post('proposals/{id}/payments', [PaymentController::class, 'store'])->whereNumber('id');
             Route::patch('proposals/{id}/payments/{paymentId}/verify', [PaymentController::class, 'verify'])

@@ -501,6 +501,26 @@ final class PaymentController extends Controller
             ),
         ]
     )]
+    public function index(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Hanya dosen atau pengurus_tefa
+        if (!$user->hasAnyRole(['dosen', 'pengurus_tefa'])) {
+            return $this->error('Akses ditolak.', 403);
+        }
+
+        $payments = Payment::with(['proposal.client', 'proposal.status'])
+            ->latest('payment_date')
+            ->latest('id')
+            ->get();
+
+        return $this->ok(
+            'Daftar seluruh transaksi pembayaran',
+            $payments->map(fn (Payment $p) => $this->formatPaymentWithRelation($p))
+        );
+    }
+
     public function pending(Request $request): JsonResponse
     {
         $user = $request->user();
