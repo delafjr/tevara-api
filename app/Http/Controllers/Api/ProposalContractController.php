@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProjectRole;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\ContractDocumentService;
@@ -224,19 +225,23 @@ class ProposalContractController extends Controller
             }
             if (is_array($members) && count($members) > 0) {
                 $proposal->projectTeams()->delete();
+                $seenUserIds = [];
                 foreach ($members as $m) {
                     $studentId = $m['student_id'] ?? $m['user_id'] ?? null;
                     $roleId = $m['role_id'] ?? null;
-                    if ($studentId && $roleId) {
+                    if ($studentId && $roleId && !in_array((int) $studentId, $seenUserIds, true)) {
+                        $seenUserIds[] = (int) $studentId;
                         $team = $proposal->projectTeams()->create([
                             'user_id'   => (int) $studentId,
                             'role_id'   => (int) $roleId,
                             'joined_at' => !empty($m['joined_at']) ? $m['joined_at'] : $validated['start_date'],
                         ]);
 
+                        $roleName = $team->role?->name ?? ProjectRole::find((int) $roleId)?->name ?? 'Anggota';
+
                         $addedMembers[] = [
                             'user_id' => (int) $studentId,
-                            'role'    => $team->role?->name ?? 'Anggota',
+                            'role'    => $roleName,
                         ];
                     }
                 }
@@ -266,7 +271,7 @@ class ProposalContractController extends Controller
 
         foreach ($addedMembers as $member) {
             $this->notifications->notify($member['user_id'], 'project.team_assigned', [
-                'code'  => $proposal->proposal_code,
+                'code'  => $proposal->project_code ?? $proposal->proposal_code,
                 'title' => $proposal->title,
                 'role'  => $member['role'],
             ], (int) $proposal->id);

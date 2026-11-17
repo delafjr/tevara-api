@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\ProjectRole;
 use App\Models\Proposal;
 use App\Models\ProposalCategory;
 use App\Models\ProposalStatus;
@@ -264,6 +265,60 @@ class ContractTest extends TestCase
 
         $this->get("/api/v1/proposals/{$this->proposal->id}/contract/file")
             ->assertForbidden();
+    }
+
+    public function test_pengurus_can_assign_team_members_and_notifications_are_dispatched(): void
+    {
+        ProjectRole::firstOrCreate(['id' => 1], ['name' => 'UI/UX']);
+        ProjectRole::firstOrCreate(['id' => 2], ['name' => 'Frontend']);
+
+        $mhs2 = User::factory()->create(['name' => 'Mahasiswa 2']);
+        $mhs2->assignRole('mahasiswa');
+
+        Sanctum::actingAs($this->pengurus);
+
+        $payload = [
+            'scope_of_work'               => 'Pembangunan API dan frontend.',
+            'total_amount'                => 20000000,
+            'payment_terms_description'   => 'Termin 1: 50%, Termin 2: 50%',
+            'maintenance_warranty_months' => 3,
+            'start_date'                  => '2026-11-01',
+            'target_completion_date'      => '2027-01-31',
+            'pm_id'                       => $this->dosen->id,
+            'members'                     => [
+                ['student_id' => $this->mahasiswa->id, 'role_id' => 1, 'joined_at' => '2026-11-01'],
+                ['student_id' => $mhs2->id, 'role_id' => 2, 'joined_at' => '2026-11-01'],
+            ],
+        ];
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/contract", $payload);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Data SPK/kontrak berhasil disimpan');
+
+        $this->assertDatabaseHas('project_teams', [
+            'proposal_id' => $this->proposal->id,
+            'user_id'     => $this->mahasiswa->id,
+            'role_id'     => 1,
+        ]);
+
+        $this->assertDatabaseHas('project_teams', [
+            'proposal_id' => $this->proposal->id,
+            'user_id'     => $mhs2->id,
+            'role_id'     => 2,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $this->mahasiswa->id,
+            'type'        => 'project.team_assigned',
+            'proposal_id' => $this->proposal->id,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $mhs2->id,
+            'type'        => 'project.team_assigned',
+            'proposal_id' => $this->proposal->id,
+        ]);
     }
 
     public function test_download_returns_404_when_contract_file_is_absent(): void
