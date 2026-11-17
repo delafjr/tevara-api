@@ -200,4 +200,49 @@ class UatWorkflowTest extends TestCase
             'items' => [['feature_name' => 'Masuk', 'result' => 'PASSED']],
         ])->assertStatus(409);
     }
+
+    public function test_pengurus_can_get_uat_proposals_list_filtered_by_eligible_statuses(): void
+    {
+        $rejectedStatus = ProposalStatus::firstOrCreate(['name' => 'Rejected']);
+        $underReviewStatus = ProposalStatus::firstOrCreate(['name' => 'Under Review']);
+        $category = ProposalCategory::firstOrCreate(['name' => 'Web']);
+
+        // Create rejected and under review proposals
+        Proposal::create([
+            'client_id' => $this->client->id,
+            'title' => 'Rejected Project',
+            'background' => str_repeat('Details. ', 5),
+            'category_id' => $category->id,
+            'status_id' => $rejectedStatus->id,
+            'proposal_code' => 'PRSL-2026-REJ',
+        ]);
+
+        Proposal::create([
+            'client_id' => $this->client->id,
+            'title' => 'Under Review Project',
+            'background' => str_repeat('Details. ', 5),
+            'category_id' => $category->id,
+            'status_id' => $underReviewStatus->id,
+            'proposal_code' => 'PRSL-2026-UR',
+        ]);
+
+        Sanctum::actingAs($this->pengurus);
+        $response = $this->getJson('/api/v1/proposals/uats')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $data = $response->json('data');
+        $this->assertNotEmpty($data);
+
+        $codes = collect($data)->pluck('proposal_code')->all();
+        $this->assertContains('PRSL-2026-001', $codes);
+        $this->assertNotContains('PRSL-2026-REJ', $codes);
+        $this->assertNotContains('PRSL-2026-UR', $codes);
+    }
+
+    public function test_mahasiswa_cannot_get_uat_proposals(): void
+    {
+        Sanctum::actingAs($this->student);
+        $this->getJson('/api/v1/proposals/uats')->assertForbidden();
+    }
 }

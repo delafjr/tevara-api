@@ -25,6 +25,93 @@ final class UatController extends Controller
     public function __construct(private readonly NotificationService $notifications) {}
 
     // ──────────────────────────────────────────────────────
+    //  0. GET /proposals/uats — Daftar proyek yang layak UAT
+    // ──────────────────────────────────────────────────────
+    #[OA\Get(
+        path: '/proposals/uats',
+        summary: 'Daftar proyek yang layak UAT beserta sesi UAT terbarunya',
+        description: 'Mengambil semua proyek berstatus pengerjaan/pengujian (Active, Testing, Approved, Handover, Completed) beserta data sesi UAT terkini secara efisien tanpa N+1.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-06: UAT'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Daftar proyek UAT',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'success', type: 'boolean', example: true),
+                        new OA\Property(property: 'message', type: 'string', example: 'Daftar proyek UAT'),
+                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Akses ditolak.'),
+        ]
+    )]
+    public function index(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $query = Proposal::query()
+            ->whereHas('status', function ($q) {
+                $q->whereNotIn('name', [
+                    'Draft',
+                    'Submitted',
+                    'Under Review',
+                    'Revision Required',
+                    'Rejected',
+                ]);
+            });
+
+        if ($user->hasRole('pengurus_tefa')) {
+            // Pengurus TeFa can view all eligible proposals
+        } elseif ($user->hasRole('dosen')) {
+            $query->where('pm_id', $user->id);
+        } elseif ($user->hasRole('klien')) {
+            $query->where('client_id', $user->id);
+        } else {
+            abort(403, 'Akses ditolak.');
+        }
+
+        $proposals = $query->with([
+            'status',
+            'client.clientPic.clientProfile.user',
+            'client.clientProfile.user',
+            'uatResult.items',
+            'uatResult.reviewer',
+        ])
+            ->latest('updated_at')
+            ->get();
+
+        $data = $proposals->map(function (Proposal $proposal) {
+            $uat = $proposal->uatResult;
+            $companyName = $proposal->client_company_name;
+
+            return [
+                'id'                  => $proposal->id,
+                'proposal_code'       => $proposal->proposal_code,
+                'title'               => $proposal->title,
+                'client'              => [
+                    'name'         => $proposal->client?->name ?? '—',
+                    'company_name' => $companyName,
+                ],
+                'client_name'         => $companyName,
+                'client_company_name' => $companyName,
+                'status_id'           => $proposal->status_id,
+                'status'              => [
+                    'id'   => $proposal->status?->id,
+                    'name' => $proposal->status?->name ?? '—',
+                ],
+                'status_name'         => $proposal->status?->name ?? '—',
+                'uat'                 => $uat ? $this->formatUat($uat) : null,
+            ];
+        })->values();
+
+        return $this->ok('Daftar proyek UAT', $data);
+    }
+
+    // ──────────────────────────────────────────────────────
     //  1. GET /proposals/{id}/uat — Detail UAT + semua item
     // ──────────────────────────────────────────────────────
     #[OA\Get(
