@@ -8,6 +8,7 @@ class Task extends Model
 {
     protected $fillable = [
         'proposal_id',
+        'uat_item_id',
         'project_team_id',
         'category_id',
         'title',
@@ -33,6 +34,11 @@ class Task extends Model
     public function proposal()
     {
         return $this->belongsTo(Proposal::class);
+    }
+
+    public function uatItem()
+    {
+        return $this->belongsTo(UatItem::class);
     }
 
     public function projectTeam()

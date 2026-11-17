@@ -121,7 +121,12 @@ class Proposal extends Model
 
     public function uatResult()
     {
-        return $this->hasOne(UatResult::class);
+        return $this->hasOne(UatResult::class)->latestOfMany();
+    }
+
+    public function uatResults()
+    {
+        return $this->hasMany(UatResult::class)->orderByDesc('id');
     }
 
     public function maintenance()

@@ -286,4 +286,201 @@ class HandoverTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonValidationErrors('handover');
     }
+
+    public function test_endpoint_prepare_menolak_input_nomor_bast_dan_tanggal_serah_terima(): void
+    {
+        Storage::fake('public');
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+        Sanctum::actingAs($this->pengurus);
+
+        // Uji coba memanipulasi nomor_bast
+        $response = $this->postJson("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'nomor_bast' => 'BAST/MANIPULASI/2026/999',
+            'repository_url' => 'https://example.test/repository',
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
+            'maintenance_warranty_months' => 3,
+        ]);
+        $response->assertStatus(422);
+
+        // Uji coba memanipulasi tanggal_serah_terima
+        $response2 = $this->postJson("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'tanggal_serah_terima' => '2026-01-01',
+            'repository_url' => 'https://example.test/repository',
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
+            'maintenance_warranty_months' => 3,
+        ]);
+        $response2->assertStatus(422);
+    }
+
+    public function test_endpoint_approve_menolak_input_nomor_bast_dan_tanggal_serah_terima(): void
+    {
+        Storage::fake('public');
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+        Sanctum::actingAs($this->pengurus);
+        $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
+            'maintenance_warranty_months' => 3,
+        ])->assertOk();
+
+        Sanctum::actingAs($this->client);
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/handover/approve", [
+            'client_signoff_name' => 'PIC Klien',
+            'client_approved' => true,
+            'nomor_bast' => 'BAST/HACK/001',
+        ]);
+        $response->assertStatus(422);
+
+        $response2 = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/handover/approve", [
+            'client_signoff_name' => 'PIC Klien',
+            'client_approved' => true,
+            'tanggal_serah_terima' => '2026-01-01',
+        ]);
+        $response2->assertStatus(422);
+    }
+
+    public function test_validasi_file_dokumentasi_api_membatasi_ekstensi_dan_ukuran_maksimal(): void
+    {
+        Storage::fake('public');
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+        Sanctum::actingAs($this->pengurus);
+
+        // Ekstensi tidak aman (.php / .exe)
+        $invalidExtension = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'documentation_file' => UploadedFile::fake()->create('exploit.php', 20, 'text/x-php'),
+            'handover_deliverables' => json_encode([[
+                'name' => 'Aplikasi',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]]),
+            'maintenance_warranty_months' => 3,
+        ]);
+        $invalidExtension->assertStatus(422)->assertJsonValidationErrors('documentation_file');
+
+        // Ukuran melebihi 10MB (10241 KB)
+        $oversizedFile = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'documentation_file' => UploadedFile::fake()->create('large-docs.zip', 11000, 'application/zip'),
+            'handover_deliverables' => json_encode([[
+                'name' => 'Aplikasi',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]]),
+            'maintenance_warranty_months' => 3,
+        ]);
+        $oversizedFile->assertStatus(422)->assertJsonValidationErrors('documentation_file');
+
+        // Ekstensi aman .zip diperbolehkan
+        $validZip = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'documentation_file' => UploadedFile::fake()->create('docs.zip', 1000, 'application/zip'),
+            'handover_deliverables' => json_encode([[
+                'name' => 'Aplikasi',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]]),
+            'maintenance_warranty_months' => 3,
+        ]);
+        $validZip->assertOk();
+
+        // Ekstensi aman .docx diperbolehkan
+        $validDocx = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'documentation_file' => UploadedFile::fake()->create('docs.docx', 1000, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+            'handover_deliverables' => json_encode([[
+                'name' => 'Aplikasi',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]]),
+            'maintenance_warranty_months' => 6,
+        ]);
+        $validDocx->assertOk();
+    }
+
+    public function test_kalkulasi_tanggal_mulai_dan_akhir_garansi_sesuai_pilihan_durasi(): void
+    {
+        Storage::fake('public');
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+        Sanctum::actingAs($this->pengurus);
+        $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
+            'maintenance_warranty_months' => 3,
+        ])->assertOk();
+
+        Sanctum::actingAs($this->client);
+        // Klien memilih durasi garansi 6 bulan saat approve
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/handover/approve", [
+            'client_signoff_name' => 'PIC Klien',
+            'client_approved' => true,
+            'maintenance_warranty_months' => 6,
+        ]);
+
+        $response->assertOk();
+        $expectedStartDate = now()->addDay()->toDateString();
+        $expectedEndDate = now()->addDay()->addMonthsNoOverflow(6)->toDateString();
+
+        $this->assertSame($expectedStartDate, substr((string) $response->json('data.maintenance.maintenance_start_date'), 0, 10));
+        $this->assertSame($expectedEndDate, substr((string) $response->json('data.maintenance.maintenance_end_date'), 0, 10));
+        $this->assertSame(6, (int) $response->json('data.maintenance.maintenance_warranty_months'));
+    }
 }

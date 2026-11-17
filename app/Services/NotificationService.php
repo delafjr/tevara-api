@@ -91,6 +91,18 @@ final class NotificationService
             'title'   => 'Review Task',
             'message' => 'Task ":task" telah direview: :status.',
         ],
+        'uat.submitted' => [
+            'title'   => 'Hasil UAT Menunggu Pemeriksaan',
+            'message' => 'Klien telah mengirim hasil UAT untuk proyek :code - :title.',
+        ],
+        'uat.reviewed' => [
+            'title'   => 'Pemeriksaan UAT Selesai',
+            'message' => 'Hasil UAT proyek :code - :title :status.',
+        ],
+        'uat.retest_ready' => [
+            'title'   => 'Proyek Siap Diuji Ulang',
+            'message' => 'Seluruh tindak lanjut UAT proyek :code - :title telah diverifikasi.',
+        ],
     ];
 
     /**

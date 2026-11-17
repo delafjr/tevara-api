@@ -552,9 +552,10 @@ final class PaymentController extends Controller
 
     #[OA\Get(
         path: '/payments/{paymentId}/invoice',
-        summary: 'Download invoice for a payment term',
+        summary: 'Unduh invoice untuk termin pembayaran',
+        description: 'Mengunduh invoice PDF untuk termin pembayaran milik klien yang sedang login.',
         security: [['bearerAuth' => []]],
-        tags: ['F-09: Pembayaran'],
+        tags: ['F-08: Invoice'],
         parameters: [
             new OA\Parameter(name: 'paymentId', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],

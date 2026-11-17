@@ -100,7 +100,7 @@ final class ProposalHandoverController extends Controller
     #[OA\Post(
         path: '/proposals/{id}/handover/prepare',
         summary: 'Siapkan BAST oleh Pengurus TeFa',
-        description: 'Hanya dapat disiapkan setelah UAT terakhir lulus dan telah ditandatangani klien.',
+        description: 'Hanya dapat disiapkan setelah UAT terakhir lulus dan telah ditandatangani klien. Nomor BAST dan tanggal serah terima tidak boleh dimanipulasi manual.',
         security: [['bearerAuth' => []]],
         tags: ['F-07: BAST'],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
@@ -112,7 +112,7 @@ final class ProposalHandoverController extends Controller
                     required: ['repository_url', 'handover_deliverables', 'maintenance_warranty_months'],
                     properties: [
                         new OA\Property(property: 'repository_url', type: 'string', format: 'uri'),
-                        new OA\Property(property: 'documentation_file', type: 'string', format: 'binary', nullable: true),
+                        new OA\Property(property: 'documentation_file', type: 'string', format: 'binary', nullable: true, description: 'File lampiran aman: PDF, DOCX, ZIP (maks 10MB)'),
                         new OA\Property(property: 'user_manual_url', type: 'string', format: 'uri', nullable: true),
                         new OA\Property(property: 'handover_notes', type: 'string', nullable: true),
                         new OA\Property(property: 'handover_deliverables', type: 'string', description: 'JSON array berisi nama, jenis, jumlah, satuan, kondisi, dan keterangan setiap hasil/barang yang diserahkan.'),
@@ -126,6 +126,13 @@ final class ProposalHandoverController extends Controller
     )]
     public function prepare(Request $request, int|string $id): JsonResponse
     {
+        // Tolak jika ada yang mencoba memanipulasi nomor_bast atau tanggal_serah_terima
+        if ($request->hasAny(['nomor_bast', 'bast_number', 'tanggal_serah_terima', 'handover_date'])) {
+            throw ValidationException::withMessages([
+                'nomor_bast' => ['Nomor BAST dan tanggal serah terima tidak boleh dimanipulasi secara manual. Nilai ini di-generate murni di sisi server saat request diproses.'],
+            ]);
+        }
+
         $proposal = Proposal::with('maintenance')->findOrFail($id);
         $this->assertUatSignedAndPassed($proposal);
 
@@ -144,7 +151,7 @@ final class ProposalHandoverController extends Controller
             'documentation_file' => [
                 $proposal->documentation_url ? 'nullable' : 'required',
                 'file',
-                'mimes:pdf,doc,docx',
+                'mimes:pdf,docx,zip,doc',
                 'max:10240',
             ],
             'user_manual_url' => ['nullable', 'url', 'max:255'],
@@ -158,6 +165,17 @@ final class ProposalHandoverController extends Controller
             'handover_deliverables.*.notes' => ['nullable', 'string', 'max:2000'],
             'maintenance_warranty_months' => ['required', 'integer', 'min:0'],
             'maintenance_notes' => ['nullable', 'string'],
+            'nomor_bast' => ['prohibited'],
+            'bast_number' => ['prohibited'],
+            'tanggal_serah_terima' => ['prohibited'],
+            'handover_date' => ['prohibited'],
+        ], [
+            'documentation_file.mimes' => 'Berkas lampiran dokumentasi API harus berformat aman: .pdf, .docx, atau .zip.',
+            'documentation_file.max' => 'Ukuran berkas lampiran dokumentasi API maksimal 10 MB.',
+            'nomor_bast.prohibited' => 'Nomor BAST tidak boleh dimanipulasi manual.',
+            'bast_number.prohibited' => 'Nomor BAST tidak boleh dimanipulasi manual.',
+            'tanggal_serah_terima.prohibited' => 'Tanggal serah terima tidak boleh dimanipulasi manual.',
+            'handover_date.prohibited' => 'Tanggal serah terima tidak boleh dimanipulasi manual.',
         ]);
 
         $wasPrepared = filled($proposal->bast_number);
@@ -245,7 +263,7 @@ final class ProposalHandoverController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/handover/approve',
         summary: 'Setujui BAST oleh PIC Klien',
-        description: 'Mencatat persetujuan PIC, tanggal serah terima resmi, status Completed, dan awal masa garansi keesokan hari.',
+        description: 'Mencatat persetujuan PIC, tanggal serah terima resmi yang di-generate server, status Completed, dan awal masa garansi adalah tanggal_serah_terima + 1 hari (addDay()), serta tanggal_akhir_garansi dihitung berdasarkan durasi garansi.',
         security: [['bearerAuth' => []]],
         tags: ['F-07: BAST'],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
@@ -256,6 +274,7 @@ final class ProposalHandoverController extends Controller
                 properties: [
                     new OA\Property(property: 'client_signoff_name', type: 'string'),
                     new OA\Property(property: 'client_approved', type: 'boolean', example: true),
+                    new OA\Property(property: 'maintenance_warranty_months', type: 'integer', minimum: 0, nullable: true, description: 'Durasi garansi pilihan klien (bulan)'),
                 ]
             )
         ),
@@ -263,6 +282,13 @@ final class ProposalHandoverController extends Controller
     )]
     public function approve(Request $request, int|string $id): JsonResponse
     {
+        // Tolak jika ada yang mencoba memanipulasi nomor_bast atau tanggal_serah_terima
+        if ($request->hasAny(['nomor_bast', 'bast_number', 'tanggal_serah_terima', 'handover_date'])) {
+            throw ValidationException::withMessages([
+                'nomor_bast' => ['Nomor BAST dan tanggal serah terima tidak boleh dimanipulasi secara manual. Nilai ini di-generate murni di sisi server saat request diproses.'],
+            ]);
+        }
+
         $proposal = Proposal::with(['status', 'maintenance'])->findOrFail($id);
         $this->authorizeClient($proposal, $request);
 
@@ -279,9 +305,21 @@ final class ProposalHandoverController extends Controller
         $validated = $request->validate([
             'client_signoff_name' => ['required', 'string', 'max:255'],
             'client_approved' => ['required', 'accepted'],
+            'maintenance_warranty_months' => ['nullable', 'integer', 'min:0'],
+            'nomor_bast' => ['prohibited'],
+            'bast_number' => ['prohibited'],
+            'tanggal_serah_terima' => ['prohibited'],
+            'handover_date' => ['prohibited'],
+        ], [
+            'nomor_bast.prohibited' => 'Nomor BAST tidak boleh dimanipulasi manual.',
+            'bast_number.prohibited' => 'Nomor BAST tidak boleh dimanipulasi manual.',
+            'tanggal_serah_terima.prohibited' => 'Tanggal serah terima tidak boleh dimanipulasi manual.',
+            'handover_date.prohibited' => 'Tanggal serah terima tidak boleh dimanipulasi manual.',
         ]);
 
+        // Murni di-generate di sisi server saat request diproses
         $handoverDate = now();
+        // Logika kalkulasi tanggal mulai garansi: tanggal_serah_terima + 1 hari (addDay())
         $maintenanceStartDate = $handoverDate->copy()->addDay();
 
         $approvedProposal = DB::transaction(function () use ($proposal, $validated, $request, $handoverDate, $maintenanceStartDate) {
@@ -314,12 +352,21 @@ final class ProposalHandoverController extends Controller
                 ['proposal_id' => $lockedProposal->id],
                 ['maintenance_warranty_months' => 0]
             );
+
+            // Durasi garansi sesuai pilihan klien jika dikirimkan, atau durasi yang sudah disepakati sebelumnya
+            $warrantyMonths = array_key_exists('maintenance_warranty_months', $validated) && $validated['maintenance_warranty_months'] !== null
+                ? (int) $validated['maintenance_warranty_months']
+                : (int) ($maintenance->maintenance_warranty_months ?? 0);
+
+            // Tanggal akhir garansi: tanggal mulai garansi + durasi garansi
+            $maintenanceEndDate = $maintenanceStartDate
+                ->copy()
+                ->addMonthsNoOverflow($warrantyMonths);
+
             $maintenance->forceFill([
+                'maintenance_warranty_months' => $warrantyMonths,
                 'maintenance_start_date' => $maintenanceStartDate->toDateString(),
-                'maintenance_end_date' => $maintenanceStartDate
-                    ->copy()
-                    ->addMonthsNoOverflow((int) $maintenance->maintenance_warranty_months)
-                    ->toDateString(),
+                'maintenance_end_date' => $maintenanceEndDate->toDateString(),
             ])->save();
 
             $lockedProposal->statusHistories()->create([
