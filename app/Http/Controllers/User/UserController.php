@@ -168,14 +168,14 @@ final class UserController extends Controller
     }
 
     #[OA\Get(
-        path: '/users/{id}',
+        path: '/users/{user}',
         summary: 'Detail user',
         description: 'Mengambil detail data user spesifik berdasarkan ID.',
         security: [['bearerAuth' => []]],
         tags: ['Users'],
         parameters: [
             new OA\Parameter(
-                name: 'id',
+                name: 'user',
                 in: 'path',
                 required: true,
                 description: 'ID User',
@@ -216,14 +216,14 @@ final class UserController extends Controller
     }
 
     #[OA\Put(
-        path: '/users/{id}',
+        path: '/users/{user}',
         summary: 'Update data user',
         description: 'Memperbarui informasi user yang sudah ada.',
         security: [['bearerAuth' => []]],
         tags: ['Users'],
         parameters: [
             new OA\Parameter(
-                name: 'id',
+                name: 'user',
                 in: 'path',
                 required: true,
                 description: 'ID User',
@@ -237,9 +237,9 @@ final class UserController extends Controller
                     new OA\Property(property: 'name', type: 'string', example: 'John Updated'),
                     new OA\Property(property: 'email', type: 'string', format: 'email', example: 'john_updated@example.com'),
                     new OA\Property(property: 'password', type: 'string', format: 'password', example: 'newpassword123'),
-                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'newpassword123'),
+                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', description: 'Wajib jika password dikirim.', example: 'newpassword123'),
                     new OA\Property(property: 'phone_number', type: 'string', nullable: true, example: '628987654321'),
-                    new OA\Property(property: 'role', type: 'string', enum: ['klien', 'pengurus_tefa', 'dosen', 'mahasiswa', 'jurusan'], example: 'mahasiswa'),
+                    new OA\Property(property: 'role', type: 'string', description: 'Nama role yang tersedia di aplikasi.', example: 'mahasiswa'),
                 ]
             )
         ),
@@ -255,6 +255,41 @@ final class UserController extends Controller
                     ]
                 )
             ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 404, description: 'User tidak ditemukan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+        ]
+    )]
+    #[OA\Patch(
+        path: '/users/{user}',
+        summary: 'Update data user (partial update)',
+        description: 'Memperbarui informasi user yang sudah ada. Field bersifat opsional; password_confirmation wajib jika password dikirim.',
+        security: [['bearerAuth' => []]],
+        tags: ['Users'],
+        parameters: [
+            new OA\Parameter(
+                name: 'user',
+                in: 'path',
+                required: true,
+                description: 'ID User',
+                schema: new OA\Schema(type: 'integer', example: 1)
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', maxLength: 100, example: 'John Updated'),
+                    new OA\Property(property: 'email', type: 'string', format: 'email', example: 'john_updated@example.com'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', description: 'Gunakan bersama password_confirmation.'),
+                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
+                    new OA\Property(property: 'phone_number', type: 'string', nullable: true, maxLength: 20, example: '628987654321'),
+                    new OA\Property(property: 'role', type: 'string', nullable: true, description: 'Nama role yang tersedia di aplikasi.', example: 'mahasiswa'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'User berhasil diupdate'),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 404, description: 'User tidak ditemukan'),
             new OA\Response(response: 422, description: 'Validasi gagal'),
@@ -278,14 +313,14 @@ final class UserController extends Controller
     }
 
     #[OA\Delete(
-        path: '/users/{id}',
+        path: '/users/{user}',
         summary: 'Hapus user',
         description: 'Menghapus (soft delete) user berdasarkan ID.',
         security: [['bearerAuth' => []]],
         tags: ['Users'],
         parameters: [
             new OA\Parameter(
-                name: 'id',
+                name: 'user',
                 in: 'path',
                 required: true,
                 description: 'ID User',

@@ -636,6 +636,12 @@ class TaskTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonPath('data.summary.total', 2)
-            ->assertJsonPath('data.summary.pending_review', 1);
+            ->assertJsonPath('data.summary.pending_review', 1)
+            ->assertJsonStructure([
+                'data' => [
+                    'team_members',
+                    'tasks',
+                ],
+            ]);
     }
 }
