@@ -157,6 +157,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // ── F-06: UAT ──────────────────────────────────
         // GET: klien, dosen, pengurus_tefa dapat melihat UAT
         Route::middleware('role:klien|dosen|pengurus_tefa')->group(function () {
+            Route::get('proposals/uats', [UatController::class, 'index']);
             Route::get('proposals/{id}/uat', [UatController::class, 'show'])->whereNumber('id');
         });
 
