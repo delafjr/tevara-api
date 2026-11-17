@@ -125,6 +125,12 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::match(['patch', 'post'], 'proposals/{id}/contract/sign', [ProposalContractController::class, 'sign'])->whereNumber('id');
             Route::patch('proposals/{id}/contract/pm', [ProposalContractController::class, 'assignPm'])->whereNumber('id');
         });
+
+        // Unduh berkas SPK/kontrak (pengurus, PM proyek, atau klien/PIC pemilik proposal)
+        Route::middleware('role:pengurus_tefa|dosen|klien')->group(function () {
+            Route::get('proposals/{id}/contract/file', [ProposalContractController::class, 'download'])->whereNumber('id');
+        });
+
         // ── F-04: Penugasan Tim ─────────────────────────
         Route::middleware('role:pengurus_tefa|dosen|mahasiswa')->group(function () {
             Route::get('proposals/{id}/team', [ProposalTeamController::class, 'index'])->whereNumber('id');
