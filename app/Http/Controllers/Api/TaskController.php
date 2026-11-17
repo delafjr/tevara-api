@@ -377,7 +377,7 @@ final class TaskController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/tasks/{taskId}/review',
         summary: 'Review progress report (Dosen PM)',
-        description: 'Dosen PM mereview laporan progres mahasiswa. Auto-set pm_reviewed_at = now().',
+        description: 'Dosen PM mereview seluruh task proyek yang memiliki laporan; Pengurus TeFa hanya dapat memverifikasi task tindak lanjut UAT. Auto-set pm_reviewed_at = now().',
         security: [['bearerAuth' => []]],
         tags: ['F-05: Tasks & Progress'],
         parameters: [
@@ -405,16 +405,19 @@ final class TaskController extends Controller
         $proposal = Proposal::findOrFail($id);
         $user     = $request->user();
 
-        // Hanya dosen yang merupakan PM proyek ini
-        if (!$user->hasRole('dosen')) {
-            abort(403, 'Akses ditolak: Hanya Dosen PM yang bisa mereview task.');
+        $isPengurus = $user->hasRole('pengurus_tefa');
+        if (! $isPengurus && ! $user->hasRole('dosen')) {
+            abort(403, 'Akses ditolak: Hanya Dosen PM atau Pengurus TeFa yang bisa mereview task.');
         }
 
-        if ($proposal->pm_id !== $user->id) {
+        if (! $isPengurus && (int) $proposal->pm_id !== (int) $user->id) {
             abort(403, 'Akses ditolak: Anda bukan PM untuk proyek ini.');
         }
 
         $task = Task::where('proposal_id', $proposal->id)->findOrFail($taskId);
+        if ($isPengurus && ! $task->uat_item_id) {
+            abort(403, 'Pengurus TeFa hanya dapat memverifikasi task tindak lanjut UAT.');
+        }
 
         if (! $task->hasSubmittedReport()) {
             return $this->error('Task belum memiliki laporan progres yang bisa direview.', 422);
@@ -443,13 +446,29 @@ final class TaskController extends Controller
 
         $task->update($updateData);
 
-        $task->load(['projectTeam.user.studentProfile', 'category']);
+        $task->load(['projectTeam.user.studentProfile', 'category', 'uatItem.uatResult']);
 
         if ($task->projectTeam?->user_id) {
             $this->notifications->notify((int) $task->projectTeam->user_id, 'task.reviewed', [
                 'task'   => $task->title,
                 'status' => $validated['pm_status'] === 'APPROVED' ? 'Disetujui' : 'Perlu perbaikan',
             ], (int) $proposal->id);
+        }
+
+        if ($task->uatItem?->uatResult && $validated['pm_status'] === 'APPROVED') {
+            $uat = $task->uatItem->uatResult;
+            $followupTasks = Task::whereHas('uatItem', fn ($query) => $query->where('uat_result_id', $uat->id))->get();
+            if ($followupTasks->isNotEmpty() && $followupTasks->every(fn (Task $followup) => $followup->pm_status === 'APPROVED')) {
+                $uat->update([
+                    'review_status' => 'READY_FOR_RETEST',
+                    'reviewed_by' => $user->id,
+                    'reviewed_at' => now(),
+                ]);
+                $this->notifications->notifyClient($proposal, 'uat.retest_ready', [
+                    'code' => $proposal->proposal_code,
+                    'title' => $proposal->title,
+                ]);
+            }
         }
 
         return $this->ok('Review task berhasil disimpan', $this->formatTask($task));

@@ -11,6 +11,11 @@ class UatResult extends Model
         'project_team_id',
         'session_date',
         'overall_result',
+        'review_status',
+        'review_notes',
+        'submitted_by',
+        'reviewed_by',
+        'reviewed_at',
         'client_notes',
         'client_signoff_name',
         'signed_off_at',
@@ -18,6 +23,7 @@ class UatResult extends Model
 
     protected $casts = [
         'session_date'  => 'date',
+        'reviewed_at'   => 'datetime',
         'signed_off_at' => 'datetime',
     ];
 
@@ -34,5 +40,15 @@ class UatResult extends Model
     public function items()
     {
         return $this->hasMany(UatItem::class);
+    }
+
+    public function submitter()
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

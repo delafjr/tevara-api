@@ -158,10 +158,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         Route::middleware('role:dosen')->group(function () {
             Route::get('proposals/{id}/tasks/overview', [TaskController::class, 'overview'])->whereNumber('id');
-            Route::patch('proposals/{id}/tasks/{taskId}/review', [TaskController::class, 'review'])
-                ->whereNumber('id')
-                ->whereNumber('taskId');
         });
+        Route::middleware('role:dosen|pengurus_tefa')->patch('proposals/{id}/tasks/{taskId}/review', [TaskController::class, 'review'])
+            ->whereNumber('id')
+            ->whereNumber('taskId');
 
         // ── F-06: UAT ──────────────────────────────────
         // GET: klien, dosen, pengurus_tefa dapat melihat UAT
@@ -169,10 +169,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('proposals/{id}/uat', [UatController::class, 'show'])->whereNumber('id');
         });
 
-        // POST/PUT/setTesting: hanya dosen/pm yang membuat & merevisi UAT
-        Route::middleware('role:dosen|pengurus_tefa')->group(function () {
+        // Klien mengisi hasil UAT; pengurus memeriksa dan menambahkan tindak lanjut.
+        Route::middleware('role:klien')->group(function () {
             Route::post('proposals/{id}/uat', [UatController::class, 'store'])->whereNumber('id');
             Route::put('proposals/{id}/uat', [UatController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware('role:pengurus_tefa')->patch('proposals/{id}/uat/{uatId}/review', [UatController::class, 'review'])
+            ->whereNumber('id')
+            ->whereNumber('uatId');
+
+        Route::middleware('role:dosen|pengurus_tefa')->group(function () {
             Route::patch('proposals/{id}/status/testing', [UatController::class, 'setTesting'])->whereNumber('id');
         });
 

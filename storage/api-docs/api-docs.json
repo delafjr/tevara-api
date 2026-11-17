@@ -3873,7 +3873,7 @@
                     "F-05: Tasks & Progress"
                 ],
                 "summary": "Review progress report (Dosen PM)",
-                "description": "Dosen PM mereview laporan progres mahasiswa. Auto-set pm_reviewed_at = now().",
+                "description": "Dosen PM mereview seluruh task proyek yang memiliki laporan; Pengurus TeFa hanya dapat memverifikasi task tindak lanjut UAT. Auto-set pm_reviewed_at = now().",
                 "operationId": "19313992efc039bc9a6e6f378d8d52ce",
                 "parameters": [
                     {
@@ -4022,7 +4022,7 @@
                     "F-06: UAT"
                 ],
                 "summary": "Detail UAT proyek + semua item",
-                "description": "Mengambil data UAT result beserta seluruh test scenario/item. Dapat diakses oleh Klien pemilik, Dosen PM, dan Pengurus TeFa. Jika belum ada UAT, mengembalikan 404.",
+                "description": "Mengambil sesi UAT terbaru beserta riwayat sesi, hasil per fitur, catatan Pengurus, dan task tindak lanjut. Dapat diakses oleh Klien pemilik, Dosen PM, dan Pengurus TeFa.",
                 "operationId": "819dbac6e7796f8f0a5a76f35947358e",
                 "parameters": [
                     {
@@ -4074,6 +4074,25 @@
                                                         "FAILED",
                                                         "PARTIAL"
                                                     ]
+                                                },
+                                                "review_status": {
+                                                    "type": "string",
+                                                    "example": "PENDING_REVIEW",
+                                                    "enum": [
+                                                        "PENDING_REVIEW",
+                                                        "NEEDS_IMPROVEMENT",
+                                                        "READY_FOR_RETEST",
+                                                        "APPROVED"
+                                                    ]
+                                                },
+                                                "review_notes": {
+                                                    "type": "string",
+                                                    "nullable": true
+                                                },
+                                                "reviewed_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
                                                 },
                                                 "client_notes": {
                                                     "type": "string",
@@ -4215,8 +4234,8 @@
                 "tags": [
                     "F-06: UAT"
                 ],
-                "summary": "Update UAT (revisi item)",
-                "description": "Memperbarui hasil UAT dan mengganti seluruh item pengujian (replace dalam satu transaksi). Hanya bisa dilakukan jika UAT belum di-sign-off klien.",
+                "summary": "Perbarui kiriman UAT yang belum diperiksa",
+                "description": "Klien pemilik dapat memperbarui sesi terbaru hanya selama Pengurus belum memeriksanya. Setelah pemeriksaan dimulai, kiriman tidak dapat ditimpa.",
                 "operationId": "f0f5f4062ca2118b7940e1de324d71d4",
                 "parameters": [
                     {
@@ -4236,25 +4255,9 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "session_date",
-                                    "overall_result",
                                     "items"
                                 ],
                                 "properties": {
-                                    "session_date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2026-11-04"
-                                    },
-                                    "overall_result": {
-                                        "type": "string",
-                                        "example": "PASSED",
-                                        "enum": [
-                                            "PASSED",
-                                            "FAILED",
-                                            "PARTIAL"
-                                        ]
-                                    },
                                     "client_notes": {
                                         "type": "string",
                                         "example": "Revisi minor bug sudah selesai diuji.",
@@ -4440,8 +4443,8 @@
                 "tags": [
                     "F-06: UAT"
                 ],
-                "summary": "Buat sesi UAT + item sekaligus (Dosen PM / Pengurus TeFa)",
-                "description": "Proposal harus berstatus Testing (id=8). Relasi one-to-one: satu proposal satu hasil UAT. Simpan header sesi dan item-item pengujian dalam satu transaksi DB.",
+                "summary": "Klien mengirim hasil satu sesi UAT",
+                "description": "Klien pemilik mengirim hasil uji setiap fitur pada proyek berstatus Testing. Sistem menghitung hasil keseluruhan dan menyimpan tiap pengiriman sebagai sesi baru. Sesi ulang hanya dapat dibuat setelah seluruh tindak lanjut sesi sebelumnya diverifikasi Pengurus.",
                 "operationId": "46ab6b17de05c921666d3405ff1642c7",
                 "parameters": [
                     {
@@ -4461,25 +4464,9 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "session_date",
-                                    "overall_result",
                                     "items"
                                 ],
                                 "properties": {
-                                    "session_date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2026-11-04"
-                                    },
-                                    "overall_result": {
-                                        "type": "string",
-                                        "example": "PASSED",
-                                        "enum": [
-                                            "PASSED",
-                                            "FAILED",
-                                            "PARTIAL"
-                                        ]
-                                    },
                                     "client_notes": {
                                         "type": "string",
                                         "example": "Pengujian modul utama telah selesai.",
@@ -4503,6 +4490,7 @@
                                                     "nullable": true
                                                 },
                                                 "result": {
+                                                    "description": "Hasil yang dipilih Klien untuk fitur ini.",
                                                     "type": "string",
                                                     "example": "PASSED",
                                                     "enum": [
@@ -4580,14 +4568,14 @@
                         }
                     },
                     "403": {
-                        "description": "Akses ditolak (bukan dosen/PM/pengurus)",
+                        "description": "Akses ditolak (bukan Klien pemilik proyek)",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Hanya Dosen/PM yang dapat mengelola UAT."
+                                            "example": "Hanya Klien pemilik proyek yang dapat mengirim hasil UAT."
                                         }
                                     },
                                     "type": "object"
@@ -4596,7 +4584,7 @@
                         }
                     },
                     "409": {
-                        "description": "UAT sudah ada",
+                        "description": "Sesi masih menunggu pemeriksaan atau perbaikan belum siap diuji ulang",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4607,7 +4595,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "UAT untuk proyek ini sudah ada. Gunakan endpoint PUT untuk memperbarui."
+                                            "example": "Selesaikan tindak lanjut dan tunggu verifikasi Pengurus sebelum mengirim sesi UAT berikutnya."
                                         }
                                     },
                                     "type": "object"
@@ -4643,13 +4631,118 @@
                 ]
             }
         },
+        "/proposals/{id}/uat/{uatId}/review": {
+            "patch": {
+                "tags": [
+                    "F-06: UAT"
+                ],
+                "summary": "Pengurus memeriksa hasil UAT dan meneruskan tindak lanjut",
+                "description": "Pengurus dapat menyetujui hasil yang seluruh fiturnya lulus atau membuat checklist perbaikan sebagai Task untuk mahasiswa anggota tim proyek. UAT ulang hanya dibuka setelah seluruh Task perbaikan disetujui.",
+                "operationId": "bca72267234c59c6c0f2b592179f1a36",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "uatId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "decision"
+                                ],
+                                "properties": {
+                                    "decision": {
+                                        "type": "string",
+                                        "enum": [
+                                            "APPROVED",
+                                            "NEEDS_IMPROVEMENT"
+                                        ]
+                                    },
+                                    "review_notes": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "corrections": {
+                                        "description": "Wajib diisi jika decision NEEDS_IMPROVEMENT.",
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "item_id",
+                                                "note",
+                                                "assigned_student_id"
+                                            ],
+                                            "properties": {
+                                                "item_id": {
+                                                    "type": "integer"
+                                                },
+                                                "note": {
+                                                    "type": "string"
+                                                },
+                                                "assigned_student_id": {
+                                                    "description": "Mahasiswa anggota tim proyek.",
+                                                    "type": "integer"
+                                                },
+                                                "due_date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Pemeriksaan UAT berhasil disimpan"
+                    },
+                    "403": {
+                        "description": "Hanya Pengurus TeFa"
+                    },
+                    "404": {
+                        "description": "Proposal, sesi, atau item tidak ditemukan"
+                    },
+                    "409": {
+                        "description": "Sesi sudah pernah diperiksa"
+                    },
+                    "422": {
+                        "description": "Keputusan tidak sesuai dengan hasil atau data checklist tidak valid"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/proposals/{id}/uat/signoff": {
             "patch": {
                 "tags": [
                     "F-06: UAT"
                 ],
-                "summary": "Sign-off UAT oleh klien",
-                "description": "Menandatangani persetujuan UAT oleh klien. Otomatis mengisi signed_off_at=now(). Jika overall_result=PASSED, status proposal otomatis beralih ke Handover (id=9).",
+                "summary": "Klien mengesahkan UAT yang sudah disetujui Pengurus",
+                "description": "Hanya sesi terbaru berstatus APPROVED dan seluruh fitur PASSED yang dapat disahkan. Waktu pengesahan dicatat server; proyek berpindah ke Handover setelah persetujuan Klien.",
                 "operationId": "9cbc5aa335462fa0710183ffa88ba913",
                 "parameters": [
                     {
@@ -4811,7 +4904,7 @@
                     "F-06: UAT"
                 ],
                 "summary": "Tandai proyek masuk fase Testing (Dosen PM / Pengurus TeFa)",
-                "description": "Mengubah status proposal menjadi Testing (id=8) agar sesi UAT dapat dibuat.",
+                "description": "Mengubah status proposal menjadi Testing menggunakan data status master agar Klien dapat memulai UAT.",
                 "operationId": "b8911513cbbef66c1e34f5998577c5be",
                 "parameters": [
                     {
