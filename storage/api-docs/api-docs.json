@@ -4976,7 +4976,7 @@
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Hanya Dosen/PM yang dapat mengelola UAT."
+                                            "example": "Hanya Dosen PM atau Pengurus TeFa yang dapat mengelola status UAT."
                                         }
                                     },
                                     "type": "object"

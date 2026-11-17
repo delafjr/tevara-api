@@ -200,4 +200,53 @@ class UatWorkflowTest extends TestCase
             'items' => [['feature_name' => 'Masuk', 'result' => 'PASSED']],
         ])->assertStatus(409);
     }
+
+    public function test_pengurus_and_dosen_pm_can_set_testing_status(): void
+    {
+        $activeStatus = ProposalStatus::firstOrCreate(['name' => 'Active']);
+        $testingStatus = ProposalStatus::where('name', 'Testing')->firstOrFail();
+
+        $pmUser = User::factory()->create();
+        $pmUser->assignRole('dosen');
+
+        $otherDosen = User::factory()->create();
+        $otherDosen->assignRole('dosen');
+
+        $proposal = Proposal::create([
+            'client_id' => $this->client->id,
+            'title' => 'Proposal for Testing Status',
+            'background' => str_repeat('Background test. ', 6),
+            'category_id' => $this->proposal->category_id,
+            'status_id' => $activeStatus->id,
+            'proposal_code' => 'PRSL-2026-002',
+            'pm_id' => $pmUser->id,
+        ]);
+
+        // Client cannot set testing
+        Sanctum::actingAs($this->client);
+        $this->patchJson("/api/v1/proposals/{$proposal->id}/status/testing")->assertForbidden();
+
+        // Other dosen cannot set testing
+        Sanctum::actingAs($otherDosen);
+        $this->patchJson("/api/v1/proposals/{$proposal->id}/status/testing")->assertForbidden();
+
+        // Dosen PM can set testing
+        Sanctum::actingAs($pmUser);
+        $this->patchJson("/api/v1/proposals/{$proposal->id}/status/testing")
+            ->assertOk()
+            ->assertJsonPath('data.status_id', $testingStatus->id);
+
+        $this->assertSame($testingStatus->id, $proposal->fresh()->status_id);
+
+        // Reset to active to test pengurus
+        $proposal->update(['status_id' => $activeStatus->id]);
+
+        // Pengurus TeFa can set testing
+        Sanctum::actingAs($this->pengurus);
+        $this->patchJson("/api/v1/proposals/{$proposal->id}/status/testing")
+            ->assertOk()
+            ->assertJsonPath('data.status_id', $testingStatus->id);
+
+        $this->assertSame($testingStatus->id, $proposal->fresh()->status_id);
+    }
 }

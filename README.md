@@ -121,6 +121,7 @@ Jalankan `php artisan l5-swagger:generate` setelah menambah atau mengubah dokume
 
 ### Alur UAT dan relasi data
 
+- Dosen PM atau Pengurus TeFa menandai proyek masuk fase Testing lewat `PATCH /api/v1/proposals/{id}/status/testing` agar Klien dapat mulai mengisi hasil pengujian.
 - Klien pemilik proyek mengirim hasil pengujian lewat `POST /api/v1/proposals/{id}/uat`. Sistem menghitung hasil keseluruhan dari hasil setiap fitur dan menyimpan satu sesi baru.
 - Pengurus membaca sesi terbaru lewat `GET /api/v1/proposals/{id}/uat`, lalu memeriksanya lewat `PATCH /api/v1/proposals/{id}/uat/{uatId}/review`.
 - Jika ada fitur yang belum sesuai, Pengurus mengirim daftar `corrections`. Setiap poin menjadi satu `tasks` yang ditautkan ke `uat_items` dan anggota `project_teams` yang ditugaskan. Mahasiswa melaporkan progres melalui endpoint task yang sudah ada.

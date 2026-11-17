@@ -779,7 +779,7 @@ final class UatController extends Controller
                 description: 'Akses ditolak',
                 content: new OA\JsonContent(
                     properties: [
-                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Dosen/PM yang dapat mengelola UAT.'),
+                        new OA\Property(property: 'message', type: 'string', example: 'Hanya Dosen PM atau Pengurus TeFa yang dapat mengelola status UAT.'),
                     ]
                 )
             ),
@@ -799,7 +799,7 @@ final class UatController extends Controller
         $proposal = Proposal::findOrFail($id);
         $user     = $request->user();
 
-        $this->authorizeManage($user);
+        $this->authorizeManage($user, $proposal);
 
         $testingStatusId = ProposalStatus::where('name', 'Testing')->value('id');
         if (! $testingStatusId) {
@@ -823,6 +823,23 @@ final class UatController extends Controller
         if (! $user->hasRole('klien') || (int) $proposal->client_id !== (int) $user->id) {
             abort(403, 'Hanya Klien pemilik proyek yang dapat mengirim hasil UAT.');
         }
+    }
+
+    /** Hanya dosen PM dan pengurus yang dapat mengelola status UAT. */
+    private function authorizeManage(mixed $user, ?Proposal $proposal = null): void
+    {
+        if ($user->hasRole('pengurus_tefa')) {
+            return;
+        }
+
+        if ($user->hasRole('dosen')) {
+            if ($proposal && (int) $proposal->pm_id !== (int) $user->id) {
+                abort(403, 'Akses ditolak: Anda bukan PM untuk proyek ini.');
+            }
+            return;
+        }
+
+        abort(403, 'Hanya Dosen PM atau Pengurus TeFa yang dapat mengelola status UAT.');
     }
 
     /** Klien, dosen, dan pengurus dapat melihat UAT. */
