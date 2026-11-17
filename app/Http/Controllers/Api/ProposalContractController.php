@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\ContractDocumentService;
 use App\Services\ContractStorage;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,8 @@ class ProposalContractController extends Controller
 {
     public function __construct(
         private readonly NotificationService $notifications,
-        private readonly ContractStorage $contracts
+        private readonly ContractStorage $contracts,
+        private readonly ContractDocumentService $documentService
     ) {}
 
     #[OA\Patch(
@@ -51,7 +53,6 @@ class ProposalContractController extends Controller
                         new OA\Property(property: 'maintenance_warranty_months', type: 'integer', nullable: true, minimum: 0, example: 3, default: 3),
                         new OA\Property(property: 'start_date', type: 'string', format: 'date', example: '2026-11-01'),
                         new OA\Property(property: 'target_completion_date', type: 'string', format: 'date', example: '2027-02-28'),
-                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'File SPK/Kontrak (PDF, DOC, atau DOCX, max 10 MB).'),
                         new OA\Property(property: 'pm_id', type: 'integer', nullable: true, description: 'ID user dosen yang menjadi PM.'),
                         new OA\Property(property: 'terms', type: 'string', nullable: true, description: 'Array termin dalam JSON string; setiap item berisi amount dan opsional term_sequence, payment_date, name/notes.'),
                         new OA\Property(property: 'members', type: 'string', nullable: true, description: 'Array anggota dalam JSON string; setiap item berisi student_id (atau user_id), role_id, dan opsional joined_at.'),
@@ -99,7 +100,6 @@ class ProposalContractController extends Controller
                         new OA\Property(property: 'maintenance_warranty_months', type: 'integer', nullable: true, minimum: 0),
                         new OA\Property(property: 'start_date', type: 'string', format: 'date'),
                         new OA\Property(property: 'target_completion_date', type: 'string', format: 'date'),
-                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'PDF, DOC, atau DOCX; max 10 MB.'),
                         new OA\Property(property: 'pm_id', type: 'integer', nullable: true),
                         new OA\Property(property: 'terms', type: 'string', nullable: true, description: 'Array termin dalam JSON string; item berisi amount dan opsional term_sequence, payment_date, name/notes.'),
                         new OA\Property(property: 'members', type: 'string', nullable: true, description: 'Array anggota dalam JSON string; item berisi student_id (atau user_id), role_id, dan opsional joined_at.'),
@@ -127,7 +127,6 @@ class ProposalContractController extends Controller
             'maintenance_warranty_months' => 'nullable|integer|min:0',
             'start_date'                  => 'required|date',
             'target_completion_date'      => 'required|date|after_or_equal:start_date',
-            'contract_file'               => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'pm_id'                       => 'nullable|integer|exists:users,id',
             'terms'                       => 'nullable',
             'members'                     => 'nullable',
@@ -172,10 +171,8 @@ class ProposalContractController extends Controller
                 $proposal->project_code = $prefixPrj . str_pad((string) $seqPrj, 3, '0', STR_PAD_LEFT);
             }
 
-            // Upload contract file jika disertakan (disimpan pada disk privat)
-            if ($request->hasFile('contract_file')) {
-                $proposal->contract_file_url = $this->contracts->store($request->file('contract_file'));
-            }
+            // Auto-generate dokumen SPK DOCX dari template
+            $proposal->contract_file_url = $this->documentService->generate($proposal);
 
             if (!empty($validated['pm_id'])) {
                 $proposal->pm_id = (int) $validated['pm_id'];
@@ -284,7 +281,7 @@ class ProposalContractController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/contract/sign',
         summary: 'Tandai kontrak telah ditandatangani (Pengurus TeFa)',
-        description: 'Mengubah status kontrak menjadi sudah ditandatangani (is_signed = true, signed_at = now). Opsi untuk mengunggah berkas kontrak bertandatangan.',
+        description: 'Mengubah status kontrak menjadi sudah ditandatangani (is_signed = true, signed_at = now).',
         security: [['bearerAuth' => []]],
         tags: ['F-03: SPK & Kontrak'],
         parameters: [
@@ -296,17 +293,6 @@ class ProposalContractController extends Controller
                 schema: new OA\Schema(type: 'integer', example: 1)
             ),
         ],
-        requestBody: new OA\RequestBody(
-            required: false,
-            content: new OA\MediaType(
-                mediaType: 'multipart/form-data',
-                schema: new OA\Schema(
-                    properties: [
-                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'File kontrak yang sudah di-TTD (PDF, max 10MB)'),
-                    ]
-                )
-            )
-        ),
         responses: [
             new OA\Response(
                 response: 200,
@@ -326,23 +312,12 @@ class ProposalContractController extends Controller
     #[OA\Post(
         path: '/proposals/{id}/contract/sign',
         summary: 'Tandai kontrak telah ditandatangani (Pengurus TeFa)',
-        description: 'Kompatibilitas untuk pengiriman form multipart. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.',
+        description: 'Kompatibilitas. Menjalankan proses yang sama dengan PATCH pada endpoint ini.',
         security: [['bearerAuth' => []]],
         tags: ['F-03: SPK & Kontrak'],
         parameters: [
             new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
-        requestBody: new OA\RequestBody(
-            required: false,
-            content: new OA\MediaType(
-                mediaType: 'multipart/form-data',
-                schema: new OA\Schema(
-                    properties: [
-                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'PDF yang sudah ditandatangani, max 10 MB.'),
-                    ]
-                )
-            )
-        ),
         responses: [
             new OA\Response(response: 200, description: 'Kontrak berhasil ditandatangani'),
             new OA\Response(response: 401, description: 'Unauthenticated'),
@@ -354,14 +329,6 @@ class ProposalContractController extends Controller
     public function sign(Request $request, int|string $id): JsonResponse
     {
         $proposal = Proposal::findOrFail($id);
-
-        $request->validate([
-            'contract_file' => 'nullable|file|mimes:pdf|max:10240',
-        ]);
-
-        if ($request->hasFile('contract_file')) {
-            $proposal->contract_file_url = $this->contracts->store($request->file('contract_file'));
-        }
 
         $proposal->is_signed = true;
         $proposal->signed_at = now();
