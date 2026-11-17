@@ -10,13 +10,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('uat_results', function (Blueprint $table) {
+            $table->index(['proposal_id', 'id']);
             $table->dropUnique('uat_results_proposal_id_unique');
             $table->string('review_status')->nullable()->after('overall_result');
             $table->text('review_notes')->nullable()->after('client_notes');
             $table->foreignId('submitted_by')->nullable()->after('proposal_id')->constrained('users')->nullOnDelete();
             $table->foreignId('reviewed_by')->nullable()->after('submitted_by')->constrained('users')->nullOnDelete();
             $table->timestamp('reviewed_at')->nullable()->after('reviewed_by');
-            $table->index(['proposal_id', 'id']);
         });
 
         Schema::table('uat_items', function (Blueprint $table) {
@@ -48,11 +48,11 @@ return new class extends Migration
         });
 
         Schema::table('uat_results', function (Blueprint $table) {
+            $table->unique('proposal_id');
             $table->dropIndex(['proposal_id', 'id']);
             $table->dropConstrainedForeignId('reviewed_by');
             $table->dropConstrainedForeignId('submitted_by');
             $table->dropColumn(['review_status', 'review_notes', 'reviewed_at']);
-            $table->unique('proposal_id');
         });
     }
 };
