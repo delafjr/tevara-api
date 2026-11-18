@@ -140,6 +140,7 @@ final class UserController extends Controller
             'pic_phone'             => ['nullable', 'string', 'max:20'],
             'pic_position'          => ['nullable', 'string', 'max:100'],
             'pic_password'          => ['nullable', 'string', 'min:8'],
+            'pic_password_confirmation' => ['nullable', 'string'],
         ]);
 
         return DB::transaction(function () use ($validated) {
