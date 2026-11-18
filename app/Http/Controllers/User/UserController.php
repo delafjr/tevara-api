@@ -8,10 +8,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\StoreUserRequest;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Http\Resources\User\UserResource;
+use App\Models\ClientPic;
+use App\Models\ClientProfile;
+use App\Models\User;
 use App\Services\UserService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -119,6 +123,133 @@ final class UserController extends Controller
                 'role'         => $user->getRoleNames()->first(),
             ]
         );
+    }
+
+    public function registerCompany(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'                  => ['required', 'string', 'max:150'],
+            'email'                 => ['required', 'email', 'unique:users,email'],
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string'],
+            'phone_number'          => ['nullable', 'string', 'max:20'],
+            'address'               => ['nullable', 'string', 'max:500'],
+            'client_type'           => ['nullable', 'string', 'in:EXTERNAL,INTERNAL'],
+            'pic_name'              => ['nullable', 'string', 'max:100'],
+            'pic_email'             => ['nullable', 'email', 'unique:users,email'],
+            'pic_phone'             => ['nullable', 'string', 'max:20'],
+            'pic_position'          => ['nullable', 'string', 'max:100'],
+            'pic_password'          => ['nullable', 'string', 'min:8'],
+            'pic_password_confirmation' => ['nullable', 'string'],
+        ]);
+
+        return DB::transaction(function () use ($validated) {
+            $companyUser = User::create([
+                'name'         => $validated['name'],
+                'email'        => $validated['email'],
+                'password'     => $validated['password'],
+                'phone_number' => $validated['phone_number'] ?? null,
+            ]);
+            $companyUser->assignRole('klien');
+
+            $clientProfile = ClientProfile::create([
+                'user_id'     => $companyUser->id,
+                'address'     => $validated['address'] ?? null,
+                'client_type' => $validated['client_type'] ?? 'EXTERNAL',
+            ]);
+
+            if (!empty($validated['pic_name']) && !empty($validated['pic_email'])) {
+                $picUser = User::create([
+                    'name'         => $validated['pic_name'],
+                    'email'        => $validated['pic_email'],
+                    'password'     => $validated['pic_password'] ?? 'Password123!',
+                    'phone_number' => $validated['pic_phone'] ?? null,
+                ]);
+                $picUser->assignRole('klien');
+
+                ClientPic::create([
+                    'client_profile_id' => $clientProfile->id,
+                    'user_id'           => $picUser->id,
+                    'position'          => $validated['pic_position'] ?? 'PIC',
+                ]);
+            }
+
+            // ponytail: flat payload; expand when caller needs full relationship graph.
+            return $this->created(
+                message: 'Perusahaan berhasil didaftarkan.',
+                data: [
+                    'id'           => $companyUser->id,
+                    'name'         => $companyUser->name,
+                    'email'        => $companyUser->email,
+                    'phone_number' => $companyUser->phone_number,
+                    'address'      => $clientProfile->address,
+                    'client_type'  => $clientProfile->client_type,
+                    'role'         => 'klien',
+                ]
+            );
+        });
+    }
+
+    public function listCompanies(): JsonResponse
+    {
+        $companies = ClientProfile::with('user:id,name,email')
+            ->get()
+            ->map(fn ($profile) => [
+                'id'            => $profile->id,
+                'user_id'       => $profile->user_id,
+                'name'          => $profile->user?->name ?? '—',
+                'email'         => $profile->user?->email,
+                'address'       => $profile->address,
+                'client_type'   => $profile->client_type,
+            ]);
+
+        return $this->ok(
+            message: 'Companies retrieved successfully',
+            data: $companies
+        );
+    }
+
+    public function registerPic(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'client_profile_id'     => ['required', 'integer', 'exists:client_profiles,id'],
+            'name'                  => ['required', 'string', 'max:100'],
+            'email'                 => ['required', 'email', 'unique:users,email'],
+            'phone_number'          => ['nullable', 'string', 'max:20'],
+            'position'              => ['nullable', 'string', 'max:100'],
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string'],
+        ]);
+
+        return DB::transaction(function () use ($validated) {
+            $picUser = User::create([
+                'name'         => $validated['name'],
+                'email'        => $validated['email'],
+                'password'     => $validated['password'],
+                'phone_number' => $validated['phone_number'] ?? null,
+            ]);
+            $picUser->assignRole('klien');
+
+            $clientPic = ClientPic::create([
+                'client_profile_id' => $validated['client_profile_id'],
+                'user_id'           => $picUser->id,
+                'position'          => $validated['position'] ?? 'PIC',
+            ]);
+
+            // ponytail: returns flat pic data; include relations when consumer requires nested graph.
+            return $this->created(
+                message: 'PIC berhasil didaftarkan.',
+                data: [
+                    'id'                => $picUser->id,
+                    'client_pic_id'     => $clientPic->id,
+                    'client_profile_id' => $clientPic->client_profile_id,
+                    'name'              => $picUser->name,
+                    'email'             => $picUser->email,
+                    'phone_number'      => $picUser->phone_number,
+                    'position'          => $clientPic->position,
+                ]
+            );
+        });
     }
 
     #[OA\Post(
