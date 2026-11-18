@@ -189,6 +189,68 @@ final class UserController extends Controller
         });
     }
 
+    public function listCompanies(): JsonResponse
+    {
+        $companies = ClientProfile::with('user:id,name,email')
+            ->get()
+            ->map(fn ($profile) => [
+                'id'            => $profile->id,
+                'user_id'       => $profile->user_id,
+                'name'          => $profile->user?->name ?? '—',
+                'email'         => $profile->user?->email,
+                'address'       => $profile->address,
+                'client_type'   => $profile->client_type,
+            ]);
+
+        return $this->ok(
+            message: 'Companies retrieved successfully',
+            data: $companies
+        );
+    }
+
+    public function registerPic(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'client_profile_id'     => ['required', 'integer', 'exists:client_profiles,id'],
+            'name'                  => ['required', 'string', 'max:100'],
+            'email'                 => ['required', 'email', 'unique:users,email'],
+            'phone_number'          => ['nullable', 'string', 'max:20'],
+            'position'              => ['nullable', 'string', 'max:100'],
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string'],
+        ]);
+
+        return DB::transaction(function () use ($validated) {
+            $picUser = User::create([
+                'name'         => $validated['name'],
+                'email'        => $validated['email'],
+                'password'     => $validated['password'],
+                'phone_number' => $validated['phone_number'] ?? null,
+            ]);
+            $picUser->assignRole('klien');
+
+            $clientPic = ClientPic::create([
+                'client_profile_id' => $validated['client_profile_id'],
+                'user_id'           => $picUser->id,
+                'position'          => $validated['position'] ?? 'PIC',
+            ]);
+
+            // ponytail: returns flat pic data; include relations when consumer requires nested graph.
+            return $this->created(
+                message: 'PIC berhasil didaftarkan.',
+                data: [
+                    'id'                => $picUser->id,
+                    'client_pic_id'     => $clientPic->id,
+                    'client_profile_id' => $clientPic->client_profile_id,
+                    'name'              => $picUser->name,
+                    'email'             => $picUser->email,
+                    'phone_number'      => $picUser->phone_number,
+                    'position'          => $clientPic->position,
+                ]
+            );
+        });
+    }
+
     #[OA\Post(
         path: '/users',
         summary: 'Buat user baru',

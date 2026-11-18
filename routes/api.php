@@ -45,9 +45,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('users/company', [UserController::class, 'company'])->name('users.company');
         });
 
-        // Registrasi perusahaan khusus role pengurus_tefa
+        // Registrasi perusahaan & PIC khusus role pengurus_tefa
         Route::middleware('role:pengurus_tefa')->group(function () {
             Route::post('users/company', [UserController::class, 'registerCompany'])->name('users.company.register');
+            Route::post('users/pic', [UserController::class, 'registerPic'])->name('users.pic.register');
+            Route::get('companies', [UserController::class, 'listCompanies'])->name('companies.list');
         });
 
         Route::apiResource('users', UserController::class);

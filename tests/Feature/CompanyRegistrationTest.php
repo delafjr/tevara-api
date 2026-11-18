@@ -84,4 +84,52 @@ class CompanyRegistrationTest extends TestCase
             'position'          => 'Product Manager',
         ]);
     }
+
+    public function test_pengurus_tefa_can_list_companies_and_register_standalone_pic(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('pengurus_tefa');
+        Sanctum::actingAs($admin);
+
+        // Setup existing company
+        $companyUser = User::factory()->create(['name' => 'PT Semen Maju']);
+        $companyUser->assignRole('klien');
+        $profile = \App\Models\ClientProfile::create([
+            'user_id' => $companyUser->id,
+            'address' => 'Semarang',
+        ]);
+
+        // 1. List companies
+        $listRes = $this->getJson('/api/v1/companies');
+        $listRes->assertStatus(Response::HTTP_OK)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.name', 'PT Semen Maju')
+            ->assertJsonPath('data.0.id', $profile->id);
+
+        // 2. Register PIC for existing company
+        $picRes = $this->postJson('/api/v1/users/pic', [
+            'client_profile_id'     => $profile->id,
+            'name'                  => 'Rian Firmansyah',
+            'email'                 => 'rian@semenmaju.com',
+            'position'              => 'Chief Technology Officer',
+            'phone_number'          => '08999999999',
+            'password'              => 'Secret12345!',
+            'password_confirmation' => 'Secret12345!',
+        ]);
+
+        $picRes->assertStatus(Response::HTTP_CREATED)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.name', 'Rian Firmansyah')
+            ->assertJsonPath('data.position', 'Chief Technology Officer');
+
+        $this->assertDatabaseHas('users', [
+            'name'  => 'Rian Firmansyah',
+            'email' => 'rian@semenmaju.com',
+        ]);
+
+        $this->assertDatabaseHas('client_pics', [
+            'client_profile_id' => $profile->id,
+            'position'          => 'Chief Technology Officer',
+        ]);
+    }
 }
