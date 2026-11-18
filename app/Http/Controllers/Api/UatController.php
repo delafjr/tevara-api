@@ -886,7 +886,7 @@ final class UatController extends Controller
         $proposal = Proposal::findOrFail($id);
         $user     = $request->user();
 
-        $this->authorizeManage($user);
+        $this->authorizeManage($user, $proposal);
 
         $testingStatusId = ProposalStatus::where('name', 'Testing')->value('id');
         if (! $testingStatusId) {
@@ -894,6 +894,12 @@ final class UatController extends Controller
         }
 
         $proposal->update(['status_id' => $testingStatusId]);
+
+        $proposal->statusHistories()->create([
+            'status_id'  => $testingStatusId,
+            'note'       => 'Proyek masuk tahap pengujian UAT (Testing)',
+            'changed_by' => $user->id,
+        ]);
 
         return $this->ok('Status proyek berhasil diperbarui ke Testing.', [
             'id'        => $proposal->id,
@@ -904,6 +910,24 @@ final class UatController extends Controller
     // ──────────────────────────────────────────────────────
     //  Helpers
     // ──────────────────────────────────────────────────────
+
+    /** Hanya dosen PM proyek atau pengurus tefa yang dapat mengelola UAT / menandai testing. */
+    private function authorizeManage(mixed $user, ?Proposal $proposal = null): void
+    {
+        if ($user->hasRole('pengurus_tefa')) {
+            return;
+        }
+
+        if ($user->hasRole('dosen')) {
+            if ($proposal && $proposal->pm_id && (int) $proposal->pm_id !== (int) $user->id) {
+                abort(403, 'Hanya Dosen PM dari proyek ini yang dapat menandai status Testing.');
+            }
+
+            return;
+        }
+
+        abort(403, 'Hanya Dosen/PM atau Pengurus TeFa yang dapat mengelola UAT.');
+    }
 
     private function authorizeClient(Proposal $proposal, mixed $user): void
     {

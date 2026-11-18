@@ -245,4 +245,44 @@ class UatWorkflowTest extends TestCase
         Sanctum::actingAs($this->student);
         $this->getJson('/api/v1/proposals/uats')->assertForbidden();
     }
+
+    public function test_pengurus_and_dosen_pm_can_set_proposal_status_to_testing(): void
+    {
+        $activeStatus = ProposalStatus::firstOrCreate(['name' => 'Active']);
+        $this->proposal->update(['status_id' => $activeStatus->id]);
+
+        // Pengurus can set to testing
+        Sanctum::actingAs($this->pengurus);
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/status/testing");
+        $response->assertOk()
+            ->assertJsonPath('data.status_id', ProposalStatus::where('name', 'Testing')->value('id'));
+
+        $this->assertSame('Testing', $this->proposal->fresh()->status->name);
+
+        // Reset to active
+        $this->proposal->update(['status_id' => $activeStatus->id]);
+
+        // Dosen PM assigned can set to testing
+        $dosenPm = User::find($this->proposal->pm_id);
+        $dosenPm->assignRole('dosen');
+        Sanctum::actingAs($dosenPm);
+
+        $responsePm = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/status/testing");
+        $responsePm->assertOk();
+        $this->assertSame('Testing', $this->proposal->fresh()->status->name);
+    }
+
+    public function test_unrelated_dosen_and_student_cannot_set_proposal_status_to_testing(): void
+    {
+        $otherDosen = User::factory()->create();
+        $otherDosen->assignRole('dosen');
+
+        Sanctum::actingAs($otherDosen);
+        $this->patchJson("/api/v1/proposals/{$this->proposal->id}/status/testing")
+            ->assertForbidden();
+
+        Sanctum::actingAs($this->student);
+        $this->patchJson("/api/v1/proposals/{$this->proposal->id}/status/testing")
+            ->assertForbidden();
+    }
 }
