@@ -30,6 +30,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
             Route::post('logout', [AuthController::class, 'logout'])->name('logout');
             Route::get('me',     [AuthController::class, 'me'])->name('me');
+            Route::put('password', [AuthController::class, 'updatePassword'])->name('password');
         });
 
         // ── Notifikasi in-app ──────────────────────────
