@@ -8,10 +8,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\StoreUserRequest;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Http\Resources\User\UserResource;
+use App\Models\ClientPic;
+use App\Models\ClientProfile;
+use App\Models\User;
 use App\Services\UserService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -119,6 +123,70 @@ final class UserController extends Controller
                 'role'         => $user->getRoleNames()->first(),
             ]
         );
+    }
+
+    public function registerCompany(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'                  => ['required', 'string', 'max:150'],
+            'email'                 => ['required', 'email', 'unique:users,email'],
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string'],
+            'phone_number'          => ['nullable', 'string', 'max:20'],
+            'address'               => ['nullable', 'string', 'max:500'],
+            'client_type'           => ['nullable', 'string', 'in:EXTERNAL,INTERNAL'],
+            'pic_name'              => ['nullable', 'string', 'max:100'],
+            'pic_email'             => ['nullable', 'email', 'unique:users,email'],
+            'pic_phone'             => ['nullable', 'string', 'max:20'],
+            'pic_position'          => ['nullable', 'string', 'max:100'],
+            'pic_password'          => ['nullable', 'string', 'min:8'],
+        ]);
+
+        return DB::transaction(function () use ($validated) {
+            $companyUser = User::create([
+                'name'         => $validated['name'],
+                'email'        => $validated['email'],
+                'password'     => $validated['password'],
+                'phone_number' => $validated['phone_number'] ?? null,
+            ]);
+            $companyUser->assignRole('klien');
+
+            $clientProfile = ClientProfile::create([
+                'user_id'     => $companyUser->id,
+                'address'     => $validated['address'] ?? null,
+                'client_type' => $validated['client_type'] ?? 'EXTERNAL',
+            ]);
+
+            if (!empty($validated['pic_name']) && !empty($validated['pic_email'])) {
+                $picUser = User::create([
+                    'name'         => $validated['pic_name'],
+                    'email'        => $validated['pic_email'],
+                    'password'     => $validated['pic_password'] ?? 'Password123!',
+                    'phone_number' => $validated['pic_phone'] ?? null,
+                ]);
+                $picUser->assignRole('klien');
+
+                ClientPic::create([
+                    'client_profile_id' => $clientProfile->id,
+                    'user_id'           => $picUser->id,
+                    'position'          => $validated['pic_position'] ?? 'PIC',
+                ]);
+            }
+
+            // ponytail: flat payload; expand when caller needs full relationship graph.
+            return $this->created(
+                message: 'Perusahaan berhasil didaftarkan.',
+                data: [
+                    'id'           => $companyUser->id,
+                    'name'         => $companyUser->name,
+                    'email'        => $companyUser->email,
+                    'phone_number' => $companyUser->phone_number,
+                    'address'      => $clientProfile->address,
+                    'client_type'  => $clientProfile->client_type,
+                    'role'         => 'klien',
+                ]
+            );
+        });
     }
 
     #[OA\Post(
