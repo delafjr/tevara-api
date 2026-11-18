@@ -20,7 +20,7 @@ class ProposalReviewController extends Controller
     #[OA\Patch(
         path: '/proposals/{id}/review',
         summary: 'Review proposal (Pengurus TeFa)',
-        description: 'Melakukan review kelayakan proposal. Hanya bisa dilakukan saat proposal berstatus Submitted (2) atau Under Review (3). Pengurus TeFa mengisi analisis kompleksitas, risiko, estimasi biaya, dan keputusan (approved / rejected / revision_required).',
+        description: 'Melakukan review kelayakan proposal saat status Submitted (2), Under Review (3), atau Revision Required (4). Pengurus TeFa mengirim keputusan (approved / rejected / revision_required); analisis kompleksitas, risiko, dan estimasi biaya wajib jika keputusan approved.',
         security: [['bearerAuth' => []]],
         tags: ['F-02: Review & Validasi'],
         parameters: [
@@ -35,12 +35,12 @@ class ProposalReviewController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['complexity_level', 'risk_analysis', 'estimated_cost', 'decision'],
+                required: ['decision'],
                 properties: [
-                    new OA\Property(property: 'complexity_level', type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'], example: 'HIGH'),
-                    new OA\Property(property: 'risk_analysis', type: 'string', example: 'Risiko integrasi API pihak ketiga cukup tinggi, perlu tim berpengalaman.'),
-                    new OA\Property(property: 'estimated_cost', type: 'number', format: 'double', example: 25000000),
-                    new OA\Property(property: 'review_notes', type: 'string', nullable: true, example: 'Proposal layak dengan catatan revisi scope modul keuangan.'),
+                    new OA\Property(property: 'complexity_level', type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'], description: 'Wajib jika decision=approved.', example: 'HIGH'),
+                    new OA\Property(property: 'risk_analysis', type: 'string', description: 'Wajib jika decision=approved.', example: 'Risiko integrasi API pihak ketiga cukup tinggi, perlu tim berpengalaman.'),
+                    new OA\Property(property: 'estimated_cost', type: 'number', format: 'double', description: 'Wajib jika decision=approved.', example: 25000000),
+                    new OA\Property(property: 'review_notes', type: 'string', nullable: true, description: 'Wajib untuk decision rejected atau revision_required.', example: 'Proposal layak dengan catatan revisi scope modul keuangan.'),
                     new OA\Property(property: 'decision', type: 'string', enum: ['approved', 'rejected', 'revision_required'], example: 'approved'),
                 ]
             )
@@ -56,6 +56,36 @@ class ProposalReviewController extends Controller
                     ]
                 )
             ),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
+            new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),
+            new OA\Response(response: 422, description: 'Proposal tidak dalam status yang bisa di-review / validasi gagal'),
+        ]
+    )]
+    #[OA\Post(
+        path: '/proposals/{id}/review',
+        summary: 'Review proposal (Pengurus TeFa)',
+        description: 'Kompatibilitas untuk pengiriman review. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.',
+        security: [['bearerAuth' => []]],
+        tags: ['F-02: Review & Validasi'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['decision'],
+                properties: [
+                    new OA\Property(property: 'complexity_level', type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH'], description: 'Wajib jika decision=approved.', example: 'HIGH'),
+                    new OA\Property(property: 'risk_analysis', type: 'string', description: 'Wajib jika decision=approved.'),
+                    new OA\Property(property: 'estimated_cost', type: 'number', format: 'double', description: 'Wajib jika decision=approved.'),
+                    new OA\Property(property: 'review_notes', type: 'string', nullable: true, description: 'Wajib untuk decision rejected atau revision_required.'),
+                    new OA\Property(property: 'decision', type: 'string', enum: ['approved', 'rejected', 'revision_required'], example: 'approved'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Review berhasil'),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Forbidden (bukan pengurus_tefa)'),
             new OA\Response(response: 404, description: 'Proposal tidak ditemukan'),

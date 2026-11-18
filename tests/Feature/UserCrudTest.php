@@ -127,4 +127,34 @@ class UserCrudTest extends TestCase
             'id' => $targetUser->id,
         ]);
     }
+
+    public function test_user_can_update_own_password(): void
+    {
+        Sanctum::actingAs($this->authAdmin);
+
+        $response = $this->putJson('/api/v1/auth/password', [
+            'password'              => 'NewSecretPassword123!',
+            'password_confirmation' => 'NewSecretPassword123!',
+        ]);
+
+        $response->assertStatus(Response::HTTP_OK)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Password berhasil diperbarui');
+
+        $this->authAdmin->refresh();
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('NewSecretPassword123!', $this->authAdmin->password));
+    }
+
+    public function test_user_cannot_update_password_with_mismatched_confirmation(): void
+    {
+        Sanctum::actingAs($this->authAdmin);
+
+        $response = $this->putJson('/api/v1/auth/password', [
+            'password'              => 'NewSecretPassword123!',
+            'password_confirmation' => 'DifferentPassword123!',
+        ]);
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
+            ->assertJsonValidationErrors(['password']);
+    }
 }

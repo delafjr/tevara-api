@@ -63,6 +63,14 @@ final class NotificationService
             'title'   => 'Anda Ditugaskan sebagai PM',
             'message' => 'Anda ditugaskan sebagai Project Manager untuk proposal :code - :title.',
         ],
+        'handover.prepared' => [
+            'title'   => 'BAST Menunggu Persetujuan',
+            'message' => 'BAST proyek :code - :title telah disiapkan dan menunggu persetujuan Anda.',
+        ],
+        'handover.approved' => [
+            'title'   => 'BAST Disetujui Klien',
+            'message' => 'BAST proyek :code - :title telah disetujui oleh PIC Klien.',
+        ],
         'project.team_assigned' => [
             'title'   => 'Anda Ditambahkan ke Proyek',
             'message' => 'Anda ditambahkan ke tim proyek :code - :title sebagai :role.',
@@ -82,6 +90,18 @@ final class NotificationService
         'task.reviewed' => [
             'title'   => 'Review Task',
             'message' => 'Task ":task" telah direview: :status.',
+        ],
+        'uat.submitted' => [
+            'title'   => 'Hasil UAT Menunggu Pemeriksaan',
+            'message' => 'Klien telah mengirim hasil UAT untuk proyek :code - :title.',
+        ],
+        'uat.reviewed' => [
+            'title'   => 'Pemeriksaan UAT Selesai',
+            'message' => 'Hasil UAT proyek :code - :title :status.',
+        ],
+        'uat.retest_ready' => [
+            'title'   => 'Proyek Siap Diuji Ulang',
+            'message' => 'Seluruh tindak lanjut UAT proyek :code - :title telah diverifikasi.',
         ],
     ];
 

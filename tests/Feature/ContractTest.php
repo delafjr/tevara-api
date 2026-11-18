@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\ProjectRole;
 use App\Models\Proposal;
 use App\Models\ProposalCategory;
 use App\Models\ProposalStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -174,5 +177,164 @@ class ContractTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonPath('message', 'User yang dipilih bukan merupakan Dosen.');
+    }
+
+    public function test_contract_upload_is_stored_on_private_disk(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        Sanctum::actingAs($this->pengurus);
+
+        $response = $this->post("/api/v1/proposals/{$this->proposal->id}/contract", [
+            'scope_of_work'               => 'Pembangunan aplikasi inventori.',
+            'total_amount'                => 15000000,
+            'payment_terms_description'   => 'Termin 1: 50%, Termin 2: 50%',
+            'maintenance_warranty_months' => 6,
+            'start_date'                  => '2026-11-01',
+            'target_completion_date'      => '2027-01-31',
+            'contract_file'               => UploadedFile::fake()->create('spk.pdf', 20, 'application/pdf'),
+        ]);
+
+        $response->assertOk();
+
+        $path = $this->proposal->fresh()->contract_file_url;
+
+        $this->assertNotNull($path);
+        $this->assertStringStartsWith('contracts/', $path);
+        Storage::disk('local')->assertExists($path);
+        Storage::disk('public')->assertMissing($path);
+    }
+
+    public function test_pengurus_can_download_contract_file(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('contracts/spk-test.pdf', 'PDF-CONTENT');
+
+        $this->proposal->update([
+            'contract_file_url' => 'contracts/spk-test.pdf',
+            'spk_number'        => 'SPK/TEFA/2026/001',
+        ]);
+
+        Sanctum::actingAs($this->pengurus);
+
+        $response = $this->get("/api/v1/proposals/{$this->proposal->id}/contract/file");
+
+        $response->assertOk();
+        $this->assertSame('PDF-CONTENT', $response->streamedContent());
+        $response->assertHeader('content-disposition', 'attachment; filename=SPK-TEFA-2026-001.pdf');
+    }
+
+    public function test_client_owner_can_download_contract_file(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('contracts/spk-test.pdf', 'PDF-CONTENT');
+
+        $this->proposal->update(['contract_file_url' => 'contracts/spk-test.pdf']);
+
+        Sanctum::actingAs($this->klien);
+
+        $this->get("/api/v1/proposals/{$this->proposal->id}/contract/file")
+            ->assertOk();
+    }
+
+    public function test_assigned_pm_can_download_contract_file(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('contracts/spk-test.pdf', 'PDF-CONTENT');
+
+        $this->proposal->update([
+            'contract_file_url' => 'contracts/spk-test.pdf',
+            'pm_id'             => $this->dosen->id,
+        ]);
+
+        Sanctum::actingAs($this->dosen);
+
+        $this->get("/api/v1/proposals/{$this->proposal->id}/contract/file")
+            ->assertOk();
+    }
+
+    public function test_unrelated_user_cannot_download_contract_file(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('contracts/spk-test.pdf', 'PDF-CONTENT');
+
+        $this->proposal->update(['contract_file_url' => 'contracts/spk-test.pdf']);
+
+        Sanctum::actingAs($this->mahasiswa);
+
+        $this->get("/api/v1/proposals/{$this->proposal->id}/contract/file")
+            ->assertForbidden();
+    }
+
+    public function test_pengurus_can_assign_team_members_and_notifications_are_dispatched(): void
+    {
+        ProjectRole::firstOrCreate(['id' => 1], ['name' => 'UI/UX']);
+        ProjectRole::firstOrCreate(['id' => 2], ['name' => 'Frontend']);
+
+        $mhs2 = User::factory()->create(['name' => 'Mahasiswa 2']);
+        $mhs2->assignRole('mahasiswa');
+
+        Sanctum::actingAs($this->pengurus);
+
+        $payload = [
+            'scope_of_work'               => 'Pembangunan API dan frontend.',
+            'total_amount'                => 20000000,
+            'payment_terms_description'   => 'Termin 1: 50%, Termin 2: 50%',
+            'maintenance_warranty_months' => 3,
+            'start_date'                  => '2026-11-01',
+            'target_completion_date'      => '2027-01-31',
+            'pm_id'                       => $this->dosen->id,
+            'members'                     => [
+                ['student_id' => $this->mahasiswa->id, 'role_id' => 1, 'joined_at' => '2026-11-01'],
+                ['student_id' => $mhs2->id, 'role_id' => 2, 'joined_at' => '2026-11-01'],
+            ],
+        ];
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/contract", $payload);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('message', 'Data SPK/kontrak berhasil disimpan');
+
+        $this->assertDatabaseHas('project_teams', [
+            'proposal_id' => $this->proposal->id,
+            'user_id'     => $this->mahasiswa->id,
+            'role_id'     => 1,
+        ]);
+
+        $this->assertDatabaseHas('project_teams', [
+            'proposal_id' => $this->proposal->id,
+            'user_id'     => $mhs2->id,
+            'role_id'     => 2,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $this->mahasiswa->id,
+            'type'        => 'project.team_assigned',
+            'proposal_id' => $this->proposal->id,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id'     => $mhs2->id,
+            'type'        => 'project.team_assigned',
+            'proposal_id' => $this->proposal->id,
+        ]);
+    }
+
+    public function test_download_returns_404_when_contract_file_is_absent(): void
+    {
+        Storage::fake('local');
+
+        Sanctum::actingAs($this->pengurus);
+
+        $this->get("/api/v1/proposals/{$this->proposal->id}/contract/file")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Dokumen SPK belum tersedia untuk proposal ini.');
+
+        $this->proposal->update(['contract_file_url' => 'contracts/missing.pdf']);
+
+        $this->get("/api/v1/proposals/{$this->proposal->id}/contract/file")
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Berkas SPK tidak ditemukan pada penyimpanan.');
     }
 }

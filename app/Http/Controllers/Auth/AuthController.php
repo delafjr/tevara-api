@@ -12,6 +12,8 @@ use App\Services\AuthService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
 final class AuthController extends Controller
@@ -234,7 +236,65 @@ final class AuthController extends Controller
     {
         return $this->ok(
             message: 'User profile',
-            data: new UserResource($request->user()->load('roles'))
+            data: new UserResource($request->user()->load([
+                'roles',
+                'lecturerProfile',
+                'studentProfile',
+                'clientProfile.user',
+                'clientPic.clientProfile.user',
+            ]))
+        );
+    }
+
+    #[OA\Put(
+        path: '/auth/password',
+        summary: 'Ubah password user yang sedang login',
+        description: 'Memperbarui password user yang sedang terautentikasi.',
+        security: [['bearerAuth' => []]],
+        tags: ['Auth'],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['password', 'password_confirmation'],
+                properties: [
+                    new OA\Property(property: 'current_password', type: 'string', format: 'password', description: 'Password saat ini (opsional)'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password', example: 'PasswordBaru123!'),
+                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'PasswordBaru123!'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Password berhasil diperbarui'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+        ]
+    )]
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $rules = [
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password_confirmation' => ['required', 'string'],
+        ];
+
+        if ($request->filled('current_password')) {
+            $rules['current_password'] = ['required', 'string'];
+        }
+
+        $validated = $request->validate($rules);
+
+        if ($request->filled('current_password') && !Hash::check($validated['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['Password saat ini tidak sesuai.'],
+            ]);
+        }
+
+        $user->password = $validated['password'];
+        $user->save();
+
+        return $this->ok(
+            message: 'Password berhasil diperbarui'
         );
     }
 }

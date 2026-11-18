@@ -111,17 +111,23 @@ Seluruh endpoint di project ini menggunakan trait `App\Traits\ApiResponse` agar 
 
 ## 4. Daftar Endpoint yang Tersedia
 
-Semua endpoint API diawali dengan prefiks `/api/v1/`:
+Semua endpoint aplikasi memakai prefiks `/api/v1/`. Daftar endpoint, metode HTTP, parameter, format request, autentikasi, dan contoh response yang terbaru tersedia di Swagger UI:
 
-| Method | Endpoint | Fungsi | Status Code |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/hello` | Endpoint percobaan (*Hello World*) | `200 OK` |
-| `GET` | `/api/v1/ping` | Healthcheck (cek apakah server hidup) | `200 OK` |
-| `GET` | `/api/v1/users` | Mengambil seluruh daftar user | `200 OK` |
-| `POST` | `/api/v1/users` | Menambahkan user baru | `201 Created` |
-| `GET` | `/api/v1/users/{id}` | Mengambil detail 1 user berdasarkan ID | `200 OK` / `404` |
-| `PUT` | `/api/v1/users/{id}` | Mengubah data user berdasarkan ID | `200 OK` / `404` |
-| `DELETE` | `/api/v1/users/{id}` | Menghapus user berdasarkan ID | `200 OK` / `404` |
+```text
+http://127.0.0.1:8000/api/documentation
+```
+
+Jalankan `php artisan l5-swagger:generate` setelah menambah atau mengubah dokumentasi OpenAPI pada atribut controller. Spesifikasi JSON yang dihasilkan berada di `storage/api-docs/api-docs.json`; jangan mengedit file hasil generate secara manual. Pastikan dokumentasi untuk setiap route tetap cocok dengan `routes/api.php` dan aturan validasi/controller terkait.
+
+### Alur UAT dan relasi data
+
+- Klien pemilik proyek mengirim hasil pengujian lewat `POST /api/v1/proposals/{id}/uat`. Sistem menghitung hasil keseluruhan dari hasil setiap fitur dan menyimpan satu sesi baru.
+- Pengurus membaca sesi terbaru lewat `GET /api/v1/proposals/{id}/uat`, lalu memeriksanya lewat `PATCH /api/v1/proposals/{id}/uat/{uatId}/review`.
+- Jika ada fitur yang belum sesuai, Pengurus mengirim daftar `corrections`. Setiap poin menjadi satu `tasks` yang ditautkan ke `uat_items` dan anggota `project_teams` yang ditugaskan. Mahasiswa melaporkan progres melalui endpoint task yang sudah ada.
+- Setelah seluruh task perbaikan disetujui melalui `PATCH /api/v1/proposals/{id}/tasks/{taskId}/review`, sesi berubah menjadi `READY_FOR_RETEST` dan Klien bisa mengirim sesi UAT berikutnya. Sesi-sesi lama tetap tersimpan.
+- Jika seluruh fitur lulus, Pengurus mengirim keputusan `APPROVED`; Klien kemudian mengesahkan hasil melalui `PATCH /api/v1/proposals/{id}/uat/signoff`. Proyek baru berpindah ke status Handover setelah persetujuan Klien.
+
+Relasi utamanya: satu `proposals` memiliki banyak `uat_results`; setiap sesi UAT memiliki banyak `uat_items`; setiap item yang perlu diperbaiki dapat memiliki `tasks`; task menunjuk ke `project_teams` untuk menentukan mahasiswa penanggung jawab. BAST tetap memakai relasi dan endpoint BAST tersendiri, dan hanya dapat disiapkan setelah sesi UAT terakhir lulus serta disahkan Klien.
 
 ---
 
