@@ -234,7 +234,13 @@ final class AuthController extends Controller
     {
         return $this->ok(
             message: 'User profile',
-            data: new UserResource($request->user()->load('roles'))
+            data: new UserResource($request->user()->load([
+                'roles',
+                'lecturerProfile',
+                'studentProfile',
+                'clientProfile.user',
+                'clientPic.clientProfile.user',
+            ]))
         );
     }
 }
