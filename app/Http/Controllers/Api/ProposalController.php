@@ -255,6 +255,8 @@ class ProposalController extends Controller
             'category_id'      => $proposal->category_id,
             'category_name'    => $proposal->category?->name,
             'delivery_type'    => $proposal->delivery_type,
+            'has_warranty'     => (bool) $proposal->has_warranty,
+            'warranty_months'  => $proposal->warranty_months,
             'status'           => $proposal->status?->name,
             'status_id'        => $proposal->status_id,
             'desired_deadline' => $proposal->desired_deadline?->toDateString(),
@@ -363,6 +365,9 @@ class ProposalController extends Controller
                 'id'                     => $proposal->id,
                 'proposal_code'          => $proposal->proposal_code,
                 'project_code'           => $proposal->project_code,
+                'delivery_type'          => $proposal->delivery_type,
+                'has_warranty'           => (bool) $proposal->has_warranty,
+                'warranty_months'        => $proposal->warranty_months,
                 'spk_number'             => $proposal->spk_number,
                 'contract_file_url'      => $proposal->contract_file_url,
                 'bast_number'            => $proposal->bast_number,
@@ -478,6 +483,8 @@ class ProposalController extends Controller
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'delivery_type'         => ['nullable', 'in:tefa_managed,source_code'],
+            'has_warranty'          => ['nullable', 'boolean'],
+            'warranty_months'       => ['nullable', 'integer', 'min:1', 'required_if:has_warranty,true,1'],
             'desired_deadline'      => ['required', 'date', 'after_or_equal:' . now()->addDays(30)->toDateString()],
             'estimated_budget'      => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'modules'               => ['nullable', 'array'],
@@ -491,6 +498,20 @@ class ProposalController extends Controller
             throw ValidationException::withMessages([
                 'client_id' => ['client_id harus user dengan role klien (PIC) atau jurusan.'],
             ]);
+        }
+
+        if (isset($validated['has_warranty'])) {
+            $validated['has_warranty'] = (bool) $validated['has_warranty'];
+            if (! $validated['has_warranty']) {
+                $validated['warranty_months'] = null;
+            }
+        } else {
+            $validated['has_warranty'] = false;
+            $validated['warranty_months'] = null;
+        }
+
+        if (empty($validated['delivery_type'])) {
+            $validated['delivery_type'] = 'source_code';
         }
 
         $modules = $validated['modules'] ?? [];
@@ -761,12 +782,21 @@ class ProposalController extends Controller
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'delivery_type'         => ['nullable', 'in:tefa_managed,source_code'],
+            'has_warranty'          => ['nullable', 'boolean'],
+            'warranty_months'       => ['nullable', 'integer', 'min:1', 'required_if:has_warranty,true,1'],
             'desired_deadline'      => ['required', 'date'],
             'estimated_budget'      => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'modules'               => ['nullable', 'array'],
             'modules.*.title'       => ['required', 'string', 'max:255'],
             'modules.*.description' => ['nullable', 'string'],
         ]);
+
+        if (isset($validated['has_warranty'])) {
+            $validated['has_warranty'] = (bool) $validated['has_warranty'];
+            if (! $validated['has_warranty']) {
+                $validated['warranty_months'] = null;
+            }
+        }
 
         $modules = $validated['modules'] ?? [];
         unset($validated['modules']);

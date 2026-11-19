@@ -183,7 +183,7 @@ final class ProposalHandoverController extends Controller
         $oldDocumentationPath = $proposal->documentation_url;
 
         try {
-            $preparedProposal = DB::transaction(function () use ($proposal, $validated, $newDocumentationPath) {
+            $preparedProposal = DB::transaction(function () use ($proposal, $validated, $newDocumentationPath, $request) {
                 $lockedProposal = Proposal::query()->lockForUpdate()->findOrFail($proposal->id);
                 $this->assertUatSignedAndPassed($lockedProposal);
 
@@ -203,7 +203,10 @@ final class ProposalHandoverController extends Controller
                     $sequence = (int) $matches[1] + 1;
                 }
 
-                $hasWarranty = (bool) ($validated['has_warranty'] ?? false);
+                $hasWarranty = (bool) ($validated['has_warranty'] ?? ($request->filled('maintenance_warranty_months') && (int) $request->input('maintenance_warranty_months') > 0));
+                $warrantyMonths = $hasWarranty
+                    ? (int) ($validated['warranty_months'] ?? $request->input('maintenance_warranty_months', 0))
+                    : null;
 
                 $lockedProposal->forceFill([
                     'bast_number'          => $lockedProposal->bast_number ?: $prefix.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT),
@@ -217,7 +220,7 @@ final class ProposalHandoverController extends Controller
                     'client_approved'      => false,
                     'bast_approved_at'     => null,
                     'has_warranty'         => $hasWarranty,
-                    'warranty_months'      => $hasWarranty ? (int) ($validated['warranty_months'] ?? 0) : null,
+                    'warranty_months'      => $warrantyMonths,
                     'warranty_start_date'  => null,
                     'warranty_end_date'    => null,
                 ])->save();
@@ -334,6 +337,11 @@ final class ProposalHandoverController extends Controller
                 throw new \RuntimeException('Status proposal Completed belum tersedia.');
             }
 
+            if ($request->filled('maintenance_warranty_months')) {
+                $lockedProposal->has_warranty = true;
+                $lockedProposal->warranty_months = (int) $request->input('maintenance_warranty_months');
+            }
+
             // Hitung tanggal warranty jika has_warranty = true
             $warrantyEndDate = null;
             if ($lockedProposal->has_warranty && $lockedProposal->warranty_months > 0) {
@@ -346,6 +354,8 @@ final class ProposalHandoverController extends Controller
                 'client_approved'     => true,
                 'bast_approved_at'    => $handoverDate,
                 'status_id'           => $completedStatusId,
+                'has_warranty'        => $lockedProposal->has_warranty,
+                'warranty_months'     => $lockedProposal->warranty_months,
                 'warranty_start_date' => $lockedProposal->has_warranty ? $maintenanceStartDate->toDateString() : null,
                 'warranty_end_date'   => $warrantyEndDate,
             ])->save();
