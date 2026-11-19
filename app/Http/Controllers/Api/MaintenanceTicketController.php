@@ -72,6 +72,8 @@ final class MaintenanceTicketController extends Controller
             'priority'    => ['nullable', 'in:low,medium,high'],
         ]);
 
+        abort_unless($proposal->has_warranty, 422, 'Proyek ini tidak memiliki garansi aktif. Tiket maintenance tidak dapat dibuat.');
+
         $ticket = MaintenanceTicket::create([
             'proposal_id'  => $proposal->id,
             'reported_by'  => $request->user()->id,

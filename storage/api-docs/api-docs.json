@@ -2046,6 +2046,15 @@
                                         "type": "integer",
                                         "example": 1
                                     },
+                                    "delivery_type": {
+                                        "description": "tefa_managed = TeFa tetap hosting; source_code = kode diserahkan ke klien",
+                                        "type": "string",
+                                        "default": "source_code",
+                                        "enum": [
+                                            "tefa_managed",
+                                            "source_code"
+                                        ]
+                                    },
                                     "desired_deadline": {
                                         "description": "Minimal H+30 dari hari ini",
                                         "type": "string",

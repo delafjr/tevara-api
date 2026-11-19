@@ -14,6 +14,7 @@ class Proposal extends Model
         'background',
         'target_audience',
         'category_id',
+        'delivery_type',
         'desired_deadline',
         'estimated_budget',
         'attachment_url',
