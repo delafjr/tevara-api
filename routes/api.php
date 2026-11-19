@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\MaintenanceTicketController;
 use App\Http\Controllers\Api\MasterDataController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaymentController;
@@ -201,6 +202,18 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // PATCH signoff: hanya klien
         Route::middleware('role:klien')->group(function () {
             Route::patch('proposals/{id}/uat/signoff', [UatController::class, 'signoff'])->whereNumber('id');
+        });
+
+        // ── F-08: Maintenance Tickets ───────────────────
+        Route::middleware('role:klien|pengurus_tefa')->group(function () {
+            Route::get('proposals/{id}/maintenance-tickets', [MaintenanceTicketController::class, 'index'])->whereNumber('id');
+            Route::post('proposals/{id}/maintenance-tickets', [MaintenanceTicketController::class, 'store'])->whereNumber('id');
+            Route::get('proposals/{id}/maintenance-tickets/{ticketId}', [MaintenanceTicketController::class, 'show'])->whereNumber('id')->whereNumber('ticketId');
+        });
+
+        Route::middleware('role:pengurus_tefa')->group(function () {
+            Route::patch('proposals/{id}/maintenance-tickets/{ticketId}', [MaintenanceTicketController::class, 'update'])->whereNumber('id')->whereNumber('ticketId');
+            Route::delete('proposals/{id}/maintenance-tickets/{ticketId}', [MaintenanceTicketController::class, 'destroy'])->whereNumber('id')->whereNumber('ticketId');
         });
 
         // ── F-09: Pembayaran ────────────────────────────

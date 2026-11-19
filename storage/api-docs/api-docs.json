@@ -15,6 +15,240 @@
         }
     ],
     "paths": {
+        "/proposals/{id}/maintenance-tickets": {
+            "get": {
+                "tags": [
+                    "F-08: Maintenance"
+                ],
+                "summary": "Daftar tiket maintenance sebuah proyek",
+                "operationId": "e208cbe30653baf2a8e42bf70acf0925",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar tiket maintenance"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "F-08: Maintenance"
+                ],
+                "summary": "Buat tiket maintenance baru",
+                "description": "Klien bisa lapor bug. Pengurus TeFa bisa buat tiket inisiatif. `reported_by` otomatis dari token.",
+                "operationId": "5bbc5f4776206169c6a282de2a82a16b",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "example": "medium",
+                                        "enum": [
+                                            "low",
+                                            "medium",
+                                            "high"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Tiket dibuat"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/maintenance-tickets/{ticketId}": {
+            "get": {
+                "tags": [
+                    "F-08: Maintenance"
+                ],
+                "summary": "Detail tiket maintenance",
+                "operationId": "ed751009984848a838e69c70f0f69f21",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "ticketId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail tiket"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "F-08: Maintenance"
+                ],
+                "summary": "Hapus tiket maintenance (Pengurus TeFa)",
+                "operationId": "176535b322ae7bf5e3885425dfa6dff0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "ticketId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tiket dihapus"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "F-08: Maintenance"
+                ],
+                "summary": "Update status/progress tiket (Pengurus TeFa)",
+                "description": "Pengurus TeFa dapat mengubah status, menugaskan handler, dan mengisi resolution_notes. Status `resolved` otomatis mengisi `resolved_at`.",
+                "operationId": "3d544c09724ebe95fda2777acae115b9",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "ticketId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "open",
+                                            "in_progress",
+                                            "resolved"
+                                        ]
+                                    },
+                                    "handled_by": {
+                                        "description": "ID pengurus tefa yang handle",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "resolution_notes": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "enum": [
+                                            "low",
+                                            "medium",
+                                            "high"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tiket diperbarui"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/categories": {
             "get": {
                 "tags": [
@@ -1812,6 +2046,15 @@
                                         "type": "integer",
                                         "example": 1
                                     },
+                                    "delivery_type": {
+                                        "description": "tefa_managed = TeFa tetap hosting; source_code = kode diserahkan ke klien",
+                                        "type": "string",
+                                        "default": "source_code",
+                                        "enum": [
+                                            "tefa_managed",
+                                            "source_code"
+                                        ]
+                                    },
                                     "desired_deadline": {
                                         "description": "Minimal H+30 dari hari ini",
                                         "type": "string",
@@ -2459,8 +2702,7 @@
                             "schema": {
                                 "required": [
                                     "repository_url",
-                                    "handover_deliverables",
-                                    "maintenance_warranty_months"
+                                    "handover_deliverables"
                                 ],
                                 "properties": {
                                     "repository_url": {
@@ -2486,13 +2728,16 @@
                                         "description": "JSON array berisi nama, jenis, jumlah, satuan, kondisi, dan keterangan setiap hasil/barang yang diserahkan.",
                                         "type": "string"
                                     },
-                                    "maintenance_warranty_months": {
-                                        "type": "integer",
-                                        "minimum": 0
+                                    "has_warranty": {
+                                        "description": "Apakah proyek memiliki masa garansi",
+                                        "type": "boolean",
+                                        "example": true
                                     },
-                                    "maintenance_notes": {
-                                        "type": "string",
-                                        "nullable": true
+                                    "warranty_months": {
+                                        "description": "Wajib diisi jika has_warranty = true",
+                                        "type": "integer",
+                                        "nullable": true,
+                                        "minimum": 0
                                     }
                                 },
                                 "type": "object"
@@ -2546,12 +2791,6 @@
                                     "client_approved": {
                                         "type": "boolean",
                                         "example": true
-                                    },
-                                    "maintenance_warranty_months": {
-                                        "description": "Durasi garansi pilihan klien (bulan)",
-                                        "type": "integer",
-                                        "nullable": true,
-                                        "minimum": 0
                                     }
                                 },
                                 "type": "object"
@@ -7103,8 +7342,8 @@
             "description": "Berita Acara Serah Terima dan persetujuan klien setelah UAT PASSED"
         },
         {
-            "name": "F-08: Invoice",
-            "description": "Pembuatan nomor invoice dan unduh invoice PDF untuk termin pembayaran"
+            "name": "F-08: Maintenance",
+            "description": "Tiket pemeliharaan dan garansi proyek pasca serah terima"
         },
         {
             "name": "F-09: Pembayaran",
@@ -7117,6 +7356,10 @@
         {
             "name": "Notifications",
             "description": "Notifikasi in-app per user (list, unread count, tandai dibaca)"
+        },
+        {
+            "name": "F-08: Invoice",
+            "description": "F-08: Invoice"
         }
     ]
 }
