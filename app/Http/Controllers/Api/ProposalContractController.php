@@ -187,15 +187,12 @@ class ProposalContractController extends Controller
             $proposal->status_id                 = 7; // Active (id=7)
             $proposal->save();
 
-            // Set atau update masa garansi pemeliharaan
-            $warrantyMonths = isset($validated['maintenance_warranty_months'])
-                ? (int) $validated['maintenance_warranty_months']
-                : 3;
-
-            $proposal->maintenance()->updateOrCreate(
-                ['proposal_id' => $proposal->id],
-                ['maintenance_warranty_months' => $warrantyMonths]
-            );
+            // Set atau update masa garansi — hanya kalau dikirim dan > 0
+            if (!empty($validated['maintenance_warranty_months'])) {
+                $proposal->has_warranty    = true;
+                $proposal->warranty_months = (int) $validated['maintenance_warranty_months'];
+                $proposal->save();
+            }
 
             // Simpan termin pembayaran jika ada
             $terms = $request->input('terms');
@@ -279,8 +276,7 @@ class ProposalContractController extends Controller
 
         return response()->json([
             'message' => 'Data SPK/kontrak berhasil disimpan',
-            'data'    => $proposal->fresh(['status', 'maintenance', 'pm.lecturerProfile', 'client']),
-        ]);
+            'data'    => $proposal->fresh(['status', 'pm.lecturerProfile', 'client']),        ]);
     }
 
     #[OA\Patch(

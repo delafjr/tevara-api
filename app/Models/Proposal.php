@@ -45,6 +45,10 @@ class Proposal extends Model
         'client_signoff_name',
         'client_approved',
         'bast_approved_at',
+        'has_warranty',
+        'warranty_months',
+        'warranty_start_date',
+        'warranty_end_date',
         'status_id',
     ];
 
@@ -129,9 +133,9 @@ class Proposal extends Model
         return $this->hasMany(UatResult::class)->orderByDesc('id');
     }
 
-    public function maintenance()
+    public function maintenanceTickets()
     {
-        return $this->hasOne(ProjectMaintenance::class);
+        return $this->hasMany(MaintenanceTicket::class);
     }
 
     public function payments()
