@@ -30,6 +30,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::prefix('auth')->name('auth.')->group(function () {
             Route::post('logout', [AuthController::class, 'logout'])->name('logout');
             Route::get('me',     [AuthController::class, 'me'])->name('me');
+            Route::put('password', [AuthController::class, 'updatePassword'])->name('password');
         });
 
         // ── Notifikasi in-app ──────────────────────────
@@ -43,6 +44,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // Data user + perusahaan (khusus klien & jurusan). Harus sebelum apiResource agar tidak tertangkap /users/{id}
         Route::middleware('role:klien|jurusan')->group(function () {
             Route::get('users/company', [UserController::class, 'company'])->name('users.company');
+        });
+
+        // Registrasi perusahaan & PIC khusus role pengurus_tefa
+        Route::middleware('role:pengurus_tefa')->group(function () {
+            Route::post('users/company', [UserController::class, 'registerCompany'])->name('users.company.register');
+            Route::post('users/pic', [UserController::class, 'registerPic'])->name('users.pic.register');
+            Route::get('companies', [UserController::class, 'listCompanies'])->name('companies.list');
         });
 
         Route::apiResource('users', UserController::class);
