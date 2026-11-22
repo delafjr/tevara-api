@@ -251,6 +251,14 @@ class UatWorkflowTest extends TestCase
         $activeStatus = ProposalStatus::firstOrCreate(['name' => 'Active']);
         $this->proposal->update(['status_id' => $activeStatus->id]);
 
+        // Create task with 100% progress so testing can be marked
+        $this->proposal->tasks()->create([
+            'project_team_id' => $this->team->id,
+            'title' => 'Initial Module Task',
+            'status' => 'DONE',
+            'progress_percentage' => 100,
+        ]);
+
         // Pengurus can set to testing
         Sanctum::actingAs($this->pengurus);
         $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/status/testing");
@@ -270,6 +278,86 @@ class UatWorkflowTest extends TestCase
         $responsePm = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/status/testing");
         $responsePm->assertOk();
         $this->assertSame('Testing', $this->proposal->fresh()->status->name);
+    }
+
+    public function test_cannot_set_testing_if_progress_below_100(): void
+    {
+        $activeStatus = ProposalStatus::firstOrCreate(['name' => 'Active']);
+        $this->proposal->update(['status_id' => $activeStatus->id]);
+
+        // 1. Proyek tanpa task -> 422
+        Sanctum::actingAs($this->pengurus);
+        $responseNoTask = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/status/testing");
+        $responseNoTask->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('errors.progress', 0);
+
+        // 2. Proyek dengan task progress < 100% -> 422
+        $task = $this->proposal->tasks()->create([
+            'project_team_id' => $this->team->id,
+            'title' => 'In-progress Task',
+            'status' => 'IN_PROGRESS',
+            'progress_percentage' => 75,
+        ]);
+
+        $responseIncomplete = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/status/testing");
+        $responseIncomplete->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('errors.progress', 75);
+
+        $this->assertNotSame('Testing', $this->proposal->fresh()->status->name);
+    }
+
+    public function test_review_needs_improvement_reverts_proposal_status_to_active_with_progress_preserved(): void
+    {
+        $activeStatus = ProposalStatus::firstOrCreate(['name' => 'Active']);
+
+        // Create initial completed task (100%)
+        $this->proposal->tasks()->create([
+            'project_team_id' => $this->team->id,
+            'title' => 'Feature Development',
+            'status' => 'DONE',
+            'progress_percentage' => 100,
+        ]);
+
+        // Submit UAT with failed item
+        Sanctum::actingAs($this->client);
+        $submitted = $this->postJson("/api/v1/proposals/{$this->proposal->id}/uat", [
+            'client_notes' => 'Pengujian modul sistem.',
+            'items' => [
+                [
+                    'module_name' => 'Modul Autentikasi',
+                    'test_category' => 'Keamanan',
+                    'feature_name' => 'Proteksi Sesi',
+                    'test_scenario' => 'Sesi kedaluwarsa setelah idle',
+                    'result' => 'FAILED',
+                    'bug_description' => 'Sesi tidak otomatis logout.',
+                ],
+            ],
+        ]);
+        $submitted->assertCreated();
+        $uatId = (int) $submitted->json('data.id');
+        $itemId = (int) $submitted->json('data.uat_items.0.id');
+
+        // Review UAT as NEEDS_IMPROVEMENT
+        Sanctum::actingAs($this->pengurus);
+        $reviewResponse = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/uat/{$uatId}/review", [
+            'decision' => 'NEEDS_IMPROVEMENT',
+            'review_notes' => 'Perbaiki proteksi sesi.',
+            'corrections' => [[
+                'item_id' => $itemId,
+                'note' => 'Tambahkan middleware idle session timeout.',
+                'assigned_student_id' => $this->student->id,
+            ]],
+        ]);
+
+        $reviewResponse->assertOk();
+
+        // Verifikasi Poin 4: Status kembali Active
+        $this->assertSame('Active', $this->proposal->fresh()->status->name);
+
+        // Verifikasi Poin 4: Progress task sebelumnya tetap 100% (tidak direset)
+        $this->assertEquals(100.0, (float) $this->proposal->tasks()->where('title', 'Feature Development')->value('progress_percentage'));
     }
 
     public function test_unrelated_dosen_and_student_cannot_set_proposal_status_to_testing(): void
