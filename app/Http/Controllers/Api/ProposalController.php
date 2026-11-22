@@ -385,6 +385,8 @@ class ProposalController extends Controller
                     'warranty_start_date' => $proposal->warranty_start_date?->toDateString(),
                     'warranty_end_date'   => $proposal->warranty_end_date?->toDateString(),
                 ],
+                'warranty_start_date'    => $proposal->warranty_start_date?->toDateString(),
+                'warranty_end_date'      => $proposal->warranty_end_date?->toDateString(),
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
                 'status'                 => $proposal->status?->name,
