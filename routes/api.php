@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ProposalReviewController;
 use App\Http\Controllers\Api\ProposalTeamController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UatController;
+use App\Http\Controllers\Api\WarrantyExtensionController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Support\Facades\Route;
@@ -214,6 +215,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::middleware('role:pengurus_tefa')->group(function () {
             Route::patch('proposals/{id}/maintenance-tickets/{ticketId}', [MaintenanceTicketController::class, 'update'])->whereNumber('id')->whereNumber('ticketId');
             Route::delete('proposals/{id}/maintenance-tickets/{ticketId}', [MaintenanceTicketController::class, 'destroy'])->whereNumber('id')->whereNumber('ticketId');
+            // Daftar semua proposal pasca-handover untuk halaman maintenance pengurus tefa
+            Route::get('maintenance/proposals', [WarrantyExtensionController::class, 'listProposals']);
+        });
+
+        // ── F-08b: Warranty / Maintenance Extension Requests ──
+        Route::middleware('role:klien|pengurus_tefa')->group(function () {
+            Route::get('proposals/{id}/warranty-extensions', [WarrantyExtensionController::class, 'index'])->whereNumber('id');
+            Route::post('proposals/{id}/warranty-extensions', [WarrantyExtensionController::class, 'store'])->whereNumber('id');
+        });
+        Route::middleware('role:pengurus_tefa')->group(function () {
+            Route::patch('proposals/{id}/warranty-extensions/{reqId}/review', [WarrantyExtensionController::class, 'review'])->whereNumber('id')->whereNumber('reqId');
         });
 
         // ── F-09: Pembayaran ────────────────────────────

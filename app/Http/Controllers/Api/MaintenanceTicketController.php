@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\MaintenanceTicket;
 use App\Models\Proposal;
+use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,8 @@ use OpenApi\Attributes as OA;
 final class MaintenanceTicketController extends Controller
 {
     use ApiResponse;
+
+    public function __construct(private readonly NotificationService $notifications) {}
 
     #[OA\Get(
         path: '/proposals/{id}/maintenance-tickets',
@@ -82,6 +85,23 @@ final class MaintenanceTicketController extends Controller
             'priority'     => $validated['priority'] ?? 'medium',
             'status'       => 'open',
         ]);
+
+        $code = $proposal->project_code ?? $proposal->proposal_code;
+
+        if ($request->user()->hasRole('pengurus_tefa')) {
+            // Inisiatif dari TEVARA → notif ke klien
+            $this->notifications->notifyClient($proposal, 'maintenance.ticket_created_by_tefa', [
+                'ticket' => $ticket->title,
+                'code'   => $code,
+            ]);
+        } else {
+            // Laporan dari klien → notif ke semua pengurus_tefa
+            $this->notifications->notifyRole('pengurus_tefa', 'maintenance.ticket_created', [
+                'client' => $request->user()->name,
+                'ticket' => $ticket->title,
+                'code'   => $code,
+            ], $proposal->id);
+        }
 
         return $this->created('Tiket maintenance dibuat.', $ticket->load(['reporter:id,name', 'handler:id,name']));
     }
@@ -164,6 +184,28 @@ final class MaintenanceTicketController extends Controller
             }
             $ticket->save();
         });
+
+        $code = $proposal->project_code ?? $proposal->proposal_code;
+
+        if (isset($validated['status'])) {
+            if ($validated['status'] === 'resolved') {
+                // Notif ke klien bahwa tiket diselesaikan
+                $this->notifications->notifyClient($proposal, 'maintenance.ticket_resolved', [
+                    'ticket' => $ticket->title,
+                    'code'   => $code,
+                ]);
+            } else {
+                $this->notifications->notifyClient($proposal, 'maintenance.ticket_updated', [
+                    'ticket' => $ticket->title,
+                    'code'   => $code,
+                    'status' => match ($validated['status']) {
+                        'in_progress' => 'sedang dikerjakan',
+                        'open'        => 'dibuka kembali',
+                        default       => $validated['status'],
+                    },
+                ]);
+            }
+        }
 
         return $this->ok('Tiket diperbarui.', $ticket->fresh(['reporter:id,name', 'handler:id,name']));
     }

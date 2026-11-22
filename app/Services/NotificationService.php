@@ -103,6 +103,36 @@ final class NotificationService
             'title'   => 'Proyek Siap Diuji Ulang',
             'message' => 'Seluruh tindak lanjut UAT proyek :code - :title telah diverifikasi.',
         ],
+
+        // ── F-08: Maintenance & Warranty ──────────────
+        'maintenance.ticket_created' => [
+            'title'   => 'Laporan Error Baru',
+            'message' => ':client melaporkan error ":ticket" pada proyek :code.',
+        ],
+        'maintenance.ticket_created_by_tefa' => [
+            'title'   => 'Catatan Maintenance Baru',
+            'message' => 'Tim TEVARA menambahkan catatan maintenance ":ticket" pada proyek :code.',
+        ],
+        'maintenance.ticket_updated' => [
+            'title'   => 'Update Tiket Maintenance',
+            'message' => 'Tiket ":ticket" pada proyek :code diperbarui: status menjadi :status.',
+        ],
+        'maintenance.ticket_resolved' => [
+            'title'   => 'Tiket Maintenance Diselesaikan',
+            'message' => 'Tiket ":ticket" pada proyek :code telah diselesaikan oleh tim TEVARA.',
+        ],
+        'maintenance.extension_requested' => [
+            'title'   => 'Permintaan Perpanjangan Masa',
+            'message' => ':client mengajukan perpanjangan :type selama :months bulan untuk proyek :code.',
+        ],
+        'maintenance.extension_approved' => [
+            'title'   => 'Perpanjangan Masa Disetujui',
+            'message' => 'Permintaan perpanjangan :type proyek :code disetujui. Masa baru berakhir :end_date.',
+        ],
+        'maintenance.extension_rejected' => [
+            'title'   => 'Permintaan Perpanjangan Ditolak',
+            'message' => 'Permintaan perpanjangan :type proyek :code ditolak oleh Pengurus TeFa.',
+        ],
     ];
 
     /**
