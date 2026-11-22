@@ -8,6 +8,8 @@ class UatItem extends Model
 {
     protected $fillable = [
         'uat_result_id',
+        'module_name',
+        'test_category',
         'feature_name',
         'test_scenario',
         'result',
