@@ -95,6 +95,7 @@ final class DashboardController extends Controller
                 'proposal.category',
                 'proposal.client.clientPic.clientProfile.user',
                 'proposal.tasks',
+                'proposal.pm',
             ])
             ->get();
 
@@ -155,6 +156,7 @@ final class DashboardController extends Controller
                 'category'      => $proposal->category?->name,
                 'client_name'   => $proposal->client_company_name,
                 'role'          => $team->role?->name ?? '—',
+                'pm_name'       => $proposal->pm?->name ?? '—',
                 'status'        => $proposal->status?->name ?? '—',
                 'progress'      => $progress,
                 'deadline'      => $deadlineToUse?->toDateString(),
