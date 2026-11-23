@@ -395,6 +395,7 @@ final class UatController extends Controller
             'title' => $proposal->title,
         ]);
 
+
         return $this->created('Hasil UAT berhasil dikirim untuk diperiksa.', $this->formatUat($uat));
     }
 
@@ -678,6 +679,7 @@ final class UatController extends Controller
                 }
             }
 
+
             foreach ($corrections as $correction) {
                 $item = $uat->items->firstWhere('id', (int) $correction['item_id']);
                 $item->update(['review_notes' => $correction['note']]);
@@ -936,6 +938,7 @@ final class UatController extends Controller
                 ['progress' => $avgProgress]
             );
         }
+
 
         $testingStatusId = ProposalStatus::where('name', 'Testing')->value('id');
         if (! $testingStatusId) {
