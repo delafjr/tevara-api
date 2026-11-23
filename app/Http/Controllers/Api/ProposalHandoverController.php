@@ -37,7 +37,7 @@ final class ProposalHandoverController extends Controller
             ->whereHas('uatResult', fn ($query) => $query
                 ->where('overall_result', 'PASSED')
                 ->whereNotNull('signed_off_at'))
-            ->with(['status:id,name', 'client.clientPic.clientProfile.user', 'client.clientProfile.user', 'maintenance', 'uatResult'])
+            ->with(['status:id,name', 'client.clientPic.clientProfile.user', 'client.clientProfile.user', 'uatResult'])
             ->latest()
             ->get()
             ->map(function (Proposal $proposal) {
@@ -60,13 +60,13 @@ final class ProposalHandoverController extends Controller
                     'user_manual_url' => $proposal->user_manual_url,
                     'handover_notes' => $proposal->handover_notes,
                     'handover_deliverables' => $proposal->handover_deliverables ?? [],
-                    'client_approved' => $proposal->client_approved,
-                    'maintenance' => $proposal->maintenance ? [
-                        'maintenance_warranty_months' => $proposal->maintenance->maintenance_warranty_months,
-                        'maintenance_start_date' => $proposal->maintenance->maintenance_start_date?->toDateString(),
-                        'maintenance_end_date' => $proposal->maintenance->maintenance_end_date?->toDateString(),
-                        'maintenance_notes' => $proposal->maintenance->maintenance_notes,
-                    ] : null,
+                    'client_approved'  => $proposal->client_approved,
+                    'warranty'         => $proposal->has_warranty ? [
+                        'has_warranty'        => true,
+                        'warranty_months'     => $proposal->warranty_months,
+                        'warranty_start_date' => $proposal->warranty_start_date?->toDateString(),
+                        'warranty_end_date'   => $proposal->warranty_end_date?->toDateString(),
+                    ] : ['has_warranty' => false],
                 ];
             })
             ->values();
@@ -84,7 +84,7 @@ final class ProposalHandoverController extends Controller
     )]
     public function show(Request $request, int|string $id): JsonResponse
     {
-        $proposal = Proposal::with(['status', 'maintenance', 'uatResult'])->findOrFail($id);
+        $proposal = Proposal::with(['status', 'uatResult'])->findOrFail($id);
         $this->authorizeClient($proposal, $request);
         $proposal->makeHidden(['risk_analysis']);
         $latestUat = $this->latestUat($proposal);
@@ -109,15 +109,15 @@ final class ProposalHandoverController extends Controller
             content: new OA\MediaType(
                 mediaType: 'multipart/form-data',
                 schema: new OA\Schema(
-                    required: ['repository_url', 'handover_deliverables', 'maintenance_warranty_months'],
+                    required: ['repository_url', 'handover_deliverables'],
                     properties: [
                         new OA\Property(property: 'repository_url', type: 'string', format: 'uri'),
                         new OA\Property(property: 'documentation_file', type: 'string', format: 'binary', nullable: true, description: 'File lampiran aman: PDF, DOCX, ZIP (maks 10MB)'),
                         new OA\Property(property: 'user_manual_url', type: 'string', format: 'uri', nullable: true),
                         new OA\Property(property: 'handover_notes', type: 'string', nullable: true),
                         new OA\Property(property: 'handover_deliverables', type: 'string', description: 'JSON array berisi nama, jenis, jumlah, satuan, kondisi, dan keterangan setiap hasil/barang yang diserahkan.'),
-                        new OA\Property(property: 'maintenance_warranty_months', type: 'integer', minimum: 0),
-                        new OA\Property(property: 'maintenance_notes', type: 'string', nullable: true),
+                        new OA\Property(property: 'has_warranty', type: 'boolean', example: true, description: 'Apakah proyek memiliki masa garansi'),
+                        new OA\Property(property: 'warranty_months', type: 'integer', minimum: 0, nullable: true, description: 'Wajib diisi jika has_warranty = true'),
                     ]
                 )
             )
@@ -133,7 +133,7 @@ final class ProposalHandoverController extends Controller
             ]);
         }
 
-        $proposal = Proposal::with('maintenance')->findOrFail($id);
+        $proposal = Proposal::findOrFail($id);
         $this->assertUatSignedAndPassed($proposal);
 
         if ($proposal->client_approved) {
@@ -147,28 +147,28 @@ final class ProposalHandoverController extends Controller
         }
 
         $validated = $request->validate([
-            'repository_url' => ['required', 'url', 'max:255'],
-            'documentation_file' => [
+            'repository_url'               => ['required', 'url', 'max:255'],
+            'documentation_file'           => [
                 $proposal->documentation_url ? 'nullable' : 'required',
                 'file',
                 'mimes:pdf,docx,zip,doc',
                 'max:10240',
             ],
-            'user_manual_url' => ['nullable', 'url', 'max:255'],
-            'handover_notes' => ['nullable', 'string'],
-            'handover_deliverables' => ['required', 'array', 'min:1', 'max:50'],
-            'handover_deliverables.*.name' => ['required', 'string', 'max:255'],
-            'handover_deliverables.*.type' => ['required', 'in:physical,digital,document,other'],
-            'handover_deliverables.*.quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
-            'handover_deliverables.*.unit' => ['required', 'string', 'max:50'],
+            'user_manual_url'              => ['nullable', 'url', 'max:255'],
+            'handover_notes'               => ['nullable', 'string'],
+            'handover_deliverables'        => ['required', 'array', 'min:1', 'max:50'],
+            'handover_deliverables.*.name'      => ['required', 'string', 'max:255'],
+            'handover_deliverables.*.type'      => ['required', 'in:physical,digital,document,other'],
+            'handover_deliverables.*.quantity'  => ['required', 'integer', 'min:1', 'max:1000000'],
+            'handover_deliverables.*.unit'      => ['required', 'string', 'max:50'],
             'handover_deliverables.*.condition' => ['required', 'in:new,good,needs_repair,not_applicable'],
-            'handover_deliverables.*.notes' => ['nullable', 'string', 'max:2000'],
-            'maintenance_warranty_months' => ['required', 'integer', 'min:0'],
-            'maintenance_notes' => ['nullable', 'string'],
-            'nomor_bast' => ['prohibited'],
-            'bast_number' => ['prohibited'],
-            'tanggal_serah_terima' => ['prohibited'],
-            'handover_date' => ['prohibited'],
+            'handover_deliverables.*.notes'     => ['nullable', 'string', 'max:2000'],
+            'has_warranty'                 => ['nullable', 'boolean'],
+            'warranty_months'              => ['nullable', 'integer', 'min:1', 'required_if:has_warranty,true'],
+            'nomor_bast'                   => ['prohibited'],
+            'bast_number'                  => ['prohibited'],
+            'tanggal_serah_terima'         => ['prohibited'],
+            'handover_date'                => ['prohibited'],
         ], [
             'documentation_file.mimes' => 'Berkas lampiran dokumentasi API harus berformat aman: .pdf, .docx, atau .zip.',
             'documentation_file.max' => 'Ukuran berkas lampiran dokumentasi API maksimal 10 MB.',
@@ -183,8 +183,8 @@ final class ProposalHandoverController extends Controller
         $oldDocumentationPath = $proposal->documentation_url;
 
         try {
-            $preparedProposal = DB::transaction(function () use ($proposal, $validated, $newDocumentationPath) {
-                $lockedProposal = Proposal::query()->lockForUpdate()->with('maintenance')->findOrFail($proposal->id);
+            $preparedProposal = DB::transaction(function () use ($proposal, $validated, $newDocumentationPath, $request) {
+                $lockedProposal = Proposal::query()->lockForUpdate()->findOrFail($proposal->id);
                 $this->assertUatSignedAndPassed($lockedProposal);
 
                 if ($lockedProposal->client_approved) {
@@ -203,30 +203,29 @@ final class ProposalHandoverController extends Controller
                     $sequence = (int) $matches[1] + 1;
                 }
 
+                $hasWarranty = (bool) ($validated['has_warranty'] ?? ($request->filled('maintenance_warranty_months') && (int) $request->input('maintenance_warranty_months') > 0));
+                $warrantyMonths = $hasWarranty
+                    ? (int) ($validated['warranty_months'] ?? $request->input('maintenance_warranty_months', 0))
+                    : null;
+
                 $lockedProposal->forceFill([
-                    'bast_number' => $lockedProposal->bast_number ?: $prefix.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT),
-                    'repository_url' => $validated['repository_url'],
-                    'documentation_url' => $newDocumentationPath ?? $lockedProposal->documentation_url,
-                    'user_manual_url' => $validated['user_manual_url'] ?? null,
-                    'handover_notes' => $validated['handover_notes'] ?? null,
-                    'handover_deliverables' => $validated['handover_deliverables'],
-                    'handover_date' => null,
-                    'client_signoff_name' => null,
-                    'client_approved' => false,
-                    'bast_approved_at' => null,
+                    'bast_number'          => $lockedProposal->bast_number ?: $prefix.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT),
+                    'repository_url'       => $validated['repository_url'],
+                    'documentation_url'    => $newDocumentationPath ?? $lockedProposal->documentation_url,
+                    'user_manual_url'      => $validated['user_manual_url'] ?? null,
+                    'handover_notes'       => $validated['handover_notes'] ?? null,
+                    'handover_deliverables'=> $validated['handover_deliverables'],
+                    'handover_date'        => null,
+                    'client_signoff_name'  => null,
+                    'client_approved'      => false,
+                    'bast_approved_at'     => null,
+                    'has_warranty'         => $hasWarranty,
+                    'warranty_months'      => $warrantyMonths,
+                    'warranty_start_date'  => null,
+                    'warranty_end_date'    => null,
                 ])->save();
 
-                $lockedProposal->maintenance()->updateOrCreate(
-                    ['proposal_id' => $lockedProposal->id],
-                    [
-                        'maintenance_warranty_months' => $validated['maintenance_warranty_months'],
-                        'maintenance_start_date' => null,
-                        'maintenance_end_date' => null,
-                        'maintenance_notes' => $validated['maintenance_notes'] ?? null,
-                    ]
-                );
-
-                return $lockedProposal->fresh(['status', 'maintenance']);
+                return $lockedProposal->fresh(['status']);
             });
         } catch (\Throwable $exception) {
             if ($newDocumentationPath) {
@@ -274,7 +273,6 @@ final class ProposalHandoverController extends Controller
                 properties: [
                     new OA\Property(property: 'client_signoff_name', type: 'string'),
                     new OA\Property(property: 'client_approved', type: 'boolean', example: true),
-                    new OA\Property(property: 'maintenance_warranty_months', type: 'integer', minimum: 0, nullable: true, description: 'Durasi garansi pilihan klien (bulan)'),
                 ]
             )
         ),
@@ -289,7 +287,7 @@ final class ProposalHandoverController extends Controller
             ]);
         }
 
-        $proposal = Proposal::with(['status', 'maintenance'])->findOrFail($id);
+        $proposal = Proposal::with(['status'])->findOrFail($id);
         $this->authorizeClient($proposal, $request);
 
         if ($proposal->client_approved) {
@@ -305,7 +303,6 @@ final class ProposalHandoverController extends Controller
         $validated = $request->validate([
             'client_signoff_name' => ['required', 'string', 'max:255'],
             'client_approved' => ['required', 'accepted'],
-            'maintenance_warranty_months' => ['nullable', 'integer', 'min:0'],
             'nomor_bast' => ['prohibited'],
             'bast_number' => ['prohibited'],
             'tanggal_serah_terima' => ['prohibited'],
@@ -323,7 +320,7 @@ final class ProposalHandoverController extends Controller
         $maintenanceStartDate = $handoverDate->copy()->addDay();
 
         $approvedProposal = DB::transaction(function () use ($proposal, $validated, $request, $handoverDate, $maintenanceStartDate) {
-            $lockedProposal = Proposal::query()->lockForUpdate()->with('maintenance')->findOrFail($proposal->id);
+            $lockedProposal = Proposal::query()->lockForUpdate()->findOrFail($proposal->id);
             if ($lockedProposal->client_approved) {
                 return null;
             }
@@ -340,42 +337,36 @@ final class ProposalHandoverController extends Controller
                 throw new \RuntimeException('Status proposal Completed belum tersedia.');
             }
 
+            if ($request->filled('maintenance_warranty_months')) {
+                $lockedProposal->has_warranty = true;
+                $lockedProposal->warranty_months = (int) $request->input('maintenance_warranty_months');
+            }
+
+            // Hitung tanggal warranty jika has_warranty = true
+            $warrantyEndDate = null;
+            if ($lockedProposal->has_warranty && $lockedProposal->warranty_months > 0) {
+                $warrantyEndDate = $maintenanceStartDate->copy()->addMonthsNoOverflow($lockedProposal->warranty_months)->toDateString();
+            }
+
             $lockedProposal->forceFill([
-                'handover_date' => $handoverDate->toDateString(),
+                'handover_date'       => $handoverDate->toDateString(),
                 'client_signoff_name' => $validated['client_signoff_name'],
-                'client_approved' => true,
-                'bast_approved_at' => $handoverDate,
-                'status_id' => $completedStatusId,
-            ])->save();
-
-            $maintenance = $lockedProposal->maintenance()->firstOrCreate(
-                ['proposal_id' => $lockedProposal->id],
-                ['maintenance_warranty_months' => 0]
-            );
-
-            // Durasi garansi sesuai pilihan klien jika dikirimkan, atau durasi yang sudah disepakati sebelumnya
-            $warrantyMonths = array_key_exists('maintenance_warranty_months', $validated) && $validated['maintenance_warranty_months'] !== null
-                ? (int) $validated['maintenance_warranty_months']
-                : (int) ($maintenance->maintenance_warranty_months ?? 0);
-
-            // Tanggal akhir garansi: tanggal mulai garansi + durasi garansi
-            $maintenanceEndDate = $maintenanceStartDate
-                ->copy()
-                ->addMonthsNoOverflow($warrantyMonths);
-
-            $maintenance->forceFill([
-                'maintenance_warranty_months' => $warrantyMonths,
-                'maintenance_start_date' => $maintenanceStartDate->toDateString(),
-                'maintenance_end_date' => $maintenanceEndDate->toDateString(),
+                'client_approved'     => true,
+                'bast_approved_at'    => $handoverDate,
+                'status_id'           => $completedStatusId,
+                'has_warranty'        => $lockedProposal->has_warranty,
+                'warranty_months'     => $lockedProposal->warranty_months,
+                'warranty_start_date' => $lockedProposal->has_warranty ? $maintenanceStartDate->toDateString() : null,
+                'warranty_end_date'   => $warrantyEndDate,
             ])->save();
 
             $lockedProposal->statusHistories()->create([
-                'status_id' => $completedStatusId,
-                'note' => 'BAST disetujui klien: '.$lockedProposal->bast_number,
+                'status_id'  => $completedStatusId,
+                'note'       => 'BAST disetujui klien: '.$lockedProposal->bast_number,
                 'changed_by' => $request->user()->id,
             ]);
 
-            return $lockedProposal->fresh(['status', 'maintenance']);
+            return $lockedProposal->fresh(['status']);
         });
 
         if (! $approvedProposal) {

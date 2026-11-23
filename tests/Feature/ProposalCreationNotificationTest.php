@@ -130,4 +130,84 @@ class ProposalCreationNotificationTest extends TestCase
             ->count();
         $this->assertEquals(3, $totalNotifications);
     }
+
+    public function test_client_can_submit_proposal_with_warranty_and_delivery_type(): void
+    {
+        Sanctum::actingAs($this->klien);
+
+        $payload = [
+            'client_id'        => $this->klien->id,
+            'title'            => 'Aplikasi HRIS Cloud',
+            'background'       => 'Sistem pencatatan absensi dan payroll karyawan berbasis cloud untuk kantor pusat dan cabang.',
+            'target_audience'  => 'HR dan seluruh karyawan',
+            'category_id'      => $this->category->id,
+            'delivery_type'    => 'tefa_managed',
+            'has_warranty'     => true,
+            'warranty_months'  => 6,
+            'desired_deadline' => now()->addDays(60)->toDateString(),
+            'estimated_budget' => 30000000,
+            'modules'          => [
+                ['title' => 'Absensi', 'description' => 'Geotagging mobile'],
+            ],
+        ];
+
+        $response = $this->postJson('/api/v1/proposals', $payload);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('proposals', [
+            'id'              => $response->json('id'),
+            'delivery_type'   => 'tefa_managed',
+            'has_warranty'    => true,
+            'warranty_months' => 6,
+        ]);
+    }
+
+    public function test_client_can_choose_source_code_with_maintenance_warranty(): void
+    {
+        Sanctum::actingAs($this->klien);
+
+        // Kasus: Mau dilepas ke klien (source_code) tp tetep bisa ada maintenance 3 bulan
+        $payload = [
+            'client_id'        => $this->klien->id,
+            'title'            => 'Web Company Profile & Source Code',
+            'background'       => 'Website instansi dengan penyerahan source code ke klien dan garansi maintenance 3 bulan.',
+            'category_id'      => $this->category->id,
+            'delivery_type'    => 'source_code',
+            'has_warranty'     => true,
+            'warranty_months'  => 3,
+            'desired_deadline' => now()->addDays(45)->toDateString(),
+            'estimated_budget' => 15000000,
+        ];
+
+        $response = $this->postJson('/api/v1/proposals', $payload);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('proposals', [
+            'id'              => $response->json('id'),
+            'delivery_type'   => 'source_code',
+            'has_warranty'    => true,
+            'warranty_months' => 3,
+        ]);
+    }
+
+    public function test_warranty_requires_months_when_has_warranty_is_true(): void
+    {
+        Sanctum::actingAs($this->klien);
+
+        $payload = [
+            'client_id'        => $this->klien->id,
+            'title'            => 'Uji Validasi Garansi',
+            'background'       => 'Deskripsi uji validasi durasi garansi yang wajib diisi jika has_warranty bernilai true.',
+            'category_id'      => $this->category->id,
+            'delivery_type'    => 'source_code',
+            'has_warranty'     => true,
+            'warranty_months'  => null,
+            'desired_deadline' => now()->addDays(40)->toDateString(),
+        ];
+
+        $response = $this->postJson('/api/v1/proposals', $payload);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['warranty_months']);
+    }
 }

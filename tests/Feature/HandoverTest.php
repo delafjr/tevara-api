@@ -131,12 +131,10 @@ class HandoverTest extends TestCase
             'bast_number' => 'BAST/TEFA/'.now()->format('Y').'/001',
             'client_approved' => true,
             'status_id' => ProposalStatus::where('name', 'Completed')->value('id'),
-        ]);
-        $this->assertDatabaseHas('project_maintenances', [
-            'proposal_id' => $this->proposal->id,
-            'maintenance_warranty_months' => 3,
-            'maintenance_start_date' => now()->addDay()->toDateString().' 00:00:00',
-            'maintenance_end_date' => now()->addDay()->addMonthsNoOverflow(3)->toDateString().' 00:00:00',
+            'has_warranty' => true,
+            'warranty_months' => 3,
+            'warranty_start_date' => now()->addDay()->toDateString().' 00:00:00',
+            'warranty_end_date' => now()->addDay()->addMonthsNoOverflow(3)->toDateString().' 00:00:00',
         ]);
         $this->get("/api/v1/proposals/{$this->proposal->id}/handover/documentation")
             ->assertOk()

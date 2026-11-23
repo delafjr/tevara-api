@@ -14,6 +14,7 @@ class Proposal extends Model
         'background',
         'target_audience',
         'category_id',
+        'delivery_type',
         'desired_deadline',
         'estimated_budget',
         'attachment_url',
@@ -45,6 +46,10 @@ class Proposal extends Model
         'client_signoff_name',
         'client_approved',
         'bast_approved_at',
+        'has_warranty',
+        'warranty_months',
+        'warranty_start_date',
+        'warranty_end_date',
         'status_id',
     ];
 
@@ -59,15 +64,29 @@ class Proposal extends Model
         'bast_approved_at'       => 'datetime',
         'is_signed'              => 'boolean',
         'client_approved'        => 'boolean',
-        'handover_deliverables' => 'array',
+        'handover_deliverables'  => 'array',
         'estimated_budget'       => 'decimal:2',
         'estimated_cost'         => 'decimal:2',
         'total_amount'           => 'decimal:2',
+        'has_warranty'           => 'boolean',
+        'warranty_months'        => 'integer',
+        'warranty_start_date'    => 'date',
+        'warranty_end_date'      => 'date',
     ];
 
     protected $appends = [
         'client_company_name',
+        'maintenance',
     ];
+
+    public function getMaintenanceAttribute(): array
+    {
+        return [
+            'maintenance_warranty_months' => $this->warranty_months,
+            'maintenance_start_date'      => $this->warranty_start_date?->toDateString(),
+            'maintenance_end_date'        => $this->warranty_end_date?->toDateString(),
+        ];
+    }
 
     // ── Relationships ──────────────────────────────────
 
@@ -129,9 +148,9 @@ class Proposal extends Model
         return $this->hasMany(UatResult::class)->orderByDesc('id');
     }
 
-    public function maintenance()
+    public function maintenanceTickets()
     {
-        return $this->hasOne(ProjectMaintenance::class);
+        return $this->hasMany(MaintenanceTicket::class);
     }
 
     public function payments()
