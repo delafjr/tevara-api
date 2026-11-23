@@ -173,7 +173,12 @@ class ProposalContractController extends Controller
             }
 
             // Auto-generate dokumen SPK DOCX dari template
-            $proposal->contract_file_url = $this->documentService->generate($proposal);
+            try {
+                $proposal->contract_file_url = $this->documentService->generate($proposal);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('SPK generation failed: ' . $e->getMessage());
+                $proposal->contract_file_url = null;
+            }
 
             if (!empty($validated['pm_id'])) {
                 $proposal->pm_id = (int) $validated['pm_id'];
