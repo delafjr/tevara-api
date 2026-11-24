@@ -329,9 +329,19 @@ final class TaskController extends Controller
             return $this->error('Status DONE hanya boleh jika progress mencapai 100%.', 422);
         }
 
-        // Progress 100% berarti laporan siap direview, bukan otomatis selesai.
-        if ($progress >= 100) {
-            $status = 'TESTING';
+        // Sinkronisasi kategori (status) dengan progress percentage:
+        // 1. TODO: progress harus 0%
+        // 2. IN_PROGRESS: progress 1% - 99%
+        // 3. TESTING: progress 100% (siap review PM)
+        if ($status === 'TODO' || $progress <= 0) {
+            $status   = 'TODO';
+            $progress = 0;
+        } elseif ($progress >= 100 || $status === 'TESTING') {
+            $status   = 'TESTING';
+            $progress = 100;
+        } else {
+            $status   = 'IN_PROGRESS';
+            $progress = max(1, min(99, $progress));
         }
 
         // Handle file upload
@@ -716,9 +726,15 @@ final class TaskController extends Controller
         }
 
         $tasks = $baseQuery->get();
+        $allProposalTasks = $proposal->tasks()->get();
+
+        $overallProgress = $allProposalTasks->count() > 0
+            ? round((float) $allProposalTasks->avg('progress_percentage'), 2)
+            : 0;
 
         $summary = [
             'total'              => $tasks->count(),
+            'project_total'      => $allProposalTasks->count(),
             'todo'               => $tasks->where('status', 'TODO')->count(),
             'in_progress'        => $tasks->where('status', 'IN_PROGRESS')->count(),
             'testing'            => $tasks->where('status', 'TESTING')->count(),
@@ -726,8 +742,9 @@ final class TaskController extends Controller
             'pending_review'     => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
             'approved'           => $tasks->where('pm_status', 'APPROVED')->count(),
             'needs_improvement'  => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
-            'overall_progress'   => $tasks->count() > 0
-                ? round($tasks->avg('progress_percentage'), 2)
+            'overall_progress'   => $overallProgress,
+            'my_progress'        => $tasks->count() > 0
+                ? round((float) $tasks->avg('progress_percentage'), 2)
                 : 0,
         ];
 
@@ -775,6 +792,7 @@ final class TaskController extends Controller
 
         $summary = [
             'total'             => $tasks->count(),
+            'project_total'     => $tasks->count(),
             'todo'              => $tasks->where('status', 'TODO')->count(),
             'in_progress'       => $tasks->where('status', 'IN_PROGRESS')->count(),
             'testing'           => $tasks->where('status', 'TESTING')->count(),
