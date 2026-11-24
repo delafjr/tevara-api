@@ -139,10 +139,10 @@ final class DashboardController extends Controller
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
             $taskCount = $proposal->tasks->count();
 
-            if ($isCompleted) {
-                $progress = 100;
-            } elseif ($taskCount > 0) {
+            if ($taskCount > 0) {
                 $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } elseif ($isCompleted) {
+                $progress = 100;
             } else {
                 $progress = 0;
             }
@@ -269,10 +269,10 @@ final class DashboardController extends Controller
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
             $taskCount = $proposal->tasks->count();
 
-            if ($isCompleted) {
-                $progress = 100;
-            } elseif ($taskCount > 0) {
+            if ($taskCount > 0) {
                 $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } elseif ($isCompleted) {
+                $progress = 100;
             } else {
                 $progress = 0;
             }
@@ -416,10 +416,10 @@ final class DashboardController extends Controller
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
             $taskCount = $proposal->tasks->count();
 
-            if ($isCompleted) {
-                $progress = 100;
-            } elseif ($taskCount > 0) {
+            if ($taskCount > 0) {
                 $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } elseif ($isCompleted) {
+                $progress = 100;
             } else {
                 $progress = 0;
             }
@@ -632,10 +632,10 @@ final class DashboardController extends Controller
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
             $taskCount = $proposal->tasks->count();
 
-            if ($isCompleted) {
-                $progress = 100;
-            } elseif ($taskCount > 0) {
+            if ($taskCount > 0) {
                 $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } elseif ($isCompleted) {
+                $progress = 100;
             } else {
                 $progress = 0;
             }
