@@ -37,6 +37,7 @@ class Proposal extends Model
         'target_completion_date',
         'actual_completion_date',
         'bast_number',
+        'bast_document_url',
         'repository_url',
         'app_url',
         'access_email',
