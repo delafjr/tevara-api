@@ -604,13 +604,8 @@ class ProposalController extends Controller
             $proposal->makeHidden(['risk_analysis']);
         }
 
-        // Overall progress: sinkron rata-rata progres task, atau 100% saat proyek selesai/handover jika belum ada task.
-        $statusName   = strtolower($proposal->status?->name ?? '');
-        $isCompleted  = in_array($statusName, ['completed', 'handover'], true);
-        $taskProgress = $proposal->tasks()->pluck('progress_percentage');
-        $overallProgress = $taskProgress->count() > 0
-            ? (int) round((float) $taskProgress->avg())
-            : ($isCompleted ? 100 : 0);
+        // Overall progress: ambil dari kolom proposals.overall_progress
+        $overallProgress = (float) ($proposal->overall_progress ?? $proposal->syncOverallProgress());
 
         return response()->json(array_merge($proposal->toArray(), [
             'overall_progress' => $overallProgress,

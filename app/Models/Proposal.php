@@ -90,6 +90,22 @@ class Proposal extends Model
         ];
     }
 
+    public function syncOverallProgress(): float
+    {
+        $avg = $this->tasks()->avg('progress_percentage');
+        if ($avg !== null) {
+            $progress = round((float) $avg, 2);
+        } else {
+            $statusName = strtolower($this->status?->name ?? '');
+            $progress = in_array($statusName, ['completed', 'handover'], true) ? 100.00 : 0.00;
+        }
+
+        $this->updateQuietly(['overall_progress' => $progress]);
+        $this->overall_progress = $progress;
+
+        return $progress;
+    }
+
     // ── Relationships ──────────────────────────────────
 
     public function client()

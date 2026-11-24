@@ -35,11 +35,7 @@ class TaskObserver
             return;
         }
 
-        $avg = Task::where('proposal_id', $proposalId)->avg('progress_percentage');
-        $overallProgress = $avg !== null ? round((float) $avg, 2) : 0.00;
-
-        Proposal::where('id', $proposalId)->update([
-            'overall_progress' => $overallProgress,
-        ]);
+        $proposal = Proposal::with('status')->find($proposalId);
+        $proposal?->syncOverallProgress();
     }
 }

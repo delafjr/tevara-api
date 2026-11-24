@@ -715,9 +715,7 @@ final class TaskController extends Controller
         $tasks = $baseQuery->get();
         $allProposalTasks = $proposal->tasks()->get();
 
-        $overallProgress = $allProposalTasks->count() > 0
-            ? round((float) $allProposalTasks->avg('progress_percentage'), 2)
-            : 0;
+        $overallProgress = (float) ($proposal->overall_progress ?? $proposal->syncOverallProgress());
 
         $summary = [
             'total'              => $tasks->count(),
@@ -777,6 +775,8 @@ final class TaskController extends Controller
             ->orderByDesc('updated_at')
             ->get();
 
+        $overallProgress = (float) ($proposal->overall_progress ?? $proposal->syncOverallProgress());
+
         $summary = [
             'total'             => $tasks->count(),
             'project_total'     => $tasks->count(),
@@ -787,9 +787,7 @@ final class TaskController extends Controller
             'pending_review'    => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
             'approved'          => $tasks->where('pm_status', 'APPROVED')->count(),
             'needs_improvement' => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
-            'overall_progress'  => $tasks->count() > 0
-                ? round($tasks->avg('progress_percentage'), 2)
-                : 0,
+            'overall_progress'  => $overallProgress,
         ];
 
         $teamMembers = $proposal->projectTeams->map(function (ProjectTeam $team) {
@@ -818,6 +816,7 @@ final class TaskController extends Controller
                 'pm_id'                  => $proposal->pm_id,
                 'client_name'            => $proposal->client_company_name,
                 'team_size'              => $teamMembers->count(),
+                'overall_progress'       => $overallProgress,
             ],
             'summary'      => $summary,
             'team_members' => $teamMembers,
