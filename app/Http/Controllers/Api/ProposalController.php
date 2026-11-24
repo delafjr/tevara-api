@@ -343,19 +343,24 @@ class ProposalController extends Controller
         $proposals = Proposal::with([
             'status:id,name',
             'category:id,name',
+            'uatResults' => fn ($query) => $query
+                ->select('id', 'proposal_id', 'session_date', 'overall_result', 'signed_off_at')
+                ->orderByDesc('id'),
             'projectTeams.uatResults' => fn ($query) => $query
-                ->select('id', 'project_team_id', 'session_date', 'overall_result')
-                ->orderByDesc('session_date')
+                ->select('id', 'project_team_id', 'session_date', 'overall_result', 'signed_off_at')
                 ->orderByDesc('id'),
         ])
             ->where('client_id', $request->user()->id)
             ->latest()
             ->get()
             ->map(function (Proposal $proposal) {
-                $latestUat = $proposal->uatResult ?? $proposal->projectTeams
-                    ->flatMap(fn ($team) => $team->uatResults)
-                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
+                $latestUat = $proposal->uatResults
+                    ->concat($proposal->projectTeams->flatMap(fn ($team) => $team->uatResults))
+                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd').str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
                     ->first();
+                $bastEligible = $latestUat?->overall_result === 'PASSED'
+                    && $latestUat?->signed_off_at !== null
+                    && ! $proposal->client_approved;
                 $statusName = strtolower($proposal->status?->name ?? '');
                 $taskCount = $proposal->tasks->count();
                 $progress = $taskCount > 0
@@ -372,6 +377,7 @@ class ProposalController extends Controller
                 'spk_number'             => $proposal->spk_number,
                 'contract_file_url'      => $proposal->contract_file_url,
                 'bast_number'            => $proposal->bast_number,
+                'bast_document_url'      => $proposal->bast_document_url,
                 'handover_date'          => $proposal->handover_date?->toDateString(),
                 'repository_url'         => $proposal->repository_url,
                 'documentation_url'      => $proposal->documentation_url,
@@ -418,8 +424,8 @@ class ProposalController extends Controller
                 ])->values(),
                 'latest_uat_result'      => $latestUat?->overall_result,
                 'uat_signed_off_at'      => $latestUat?->signed_off_at?->toIso8601String(),
-                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && $latestUat?->signed_off_at !== null && !$proposal->client_approved,
-                'bast_prepared'          => filled($proposal->bast_number) && !$proposal->client_approved,
+                'bast_eligible'          => $bastEligible,
+                'bast_prepared'          => filled($proposal->bast_number) && $bastEligible,
                 'client_approved'        => $proposal->client_approved,
                 ];
             });
