@@ -3542,14 +3542,6 @@
                         "schema": {
                             "type": "integer"
                         }
-                    },
-                    {
-                        "name": "category_id",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "integer"
-                        }
                     }
                 ],
                 "responses": {
@@ -3598,10 +3590,6 @@
                                     },
                                     "description": {
                                         "type": "string",
-                                        "nullable": true
-                                    },
-                                    "category_id": {
-                                        "type": "integer",
                                         "nullable": true
                                     },
                                     "assigned_student_id": {
@@ -3656,7 +3644,7 @@
                     "F-05: Tasks & Progress"
                 ],
                 "summary": "Detail satu task",
-                "description": "Mahasiswa hanya bisa akses task miliknya. Include: assignee, category, pm_notes, pm_status.",
+                "description": "Mahasiswa hanya bisa akses task miliknya. Include: assignee, pm_notes, pm_status.",
                 "operationId": "8ad2347a90331cd8c302b01c97d53adc",
                 "parameters": [
                     {
@@ -3730,10 +3718,6 @@
                                     },
                                     "description": {
                                         "type": "string",
-                                        "nullable": true
-                                    },
-                                    "category_id": {
-                                        "type": "integer",
                                         "nullable": true
                                     },
                                     "assigned_student_id": {
@@ -3864,10 +3848,6 @@
                                     },
                                     "description": {
                                         "type": "string",
-                                        "nullable": true
-                                    },
-                                    "category_id": {
-                                        "type": "integer",
                                         "nullable": true
                                     },
                                     "assigned_student_id": {

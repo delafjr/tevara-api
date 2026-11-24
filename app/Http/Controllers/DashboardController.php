@@ -137,14 +137,9 @@ final class DashboardController extends Controller
             }
 
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
-            $taskCount = $proposal->tasks->count();
-
-            if ($taskCount > 0) {
-                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
-            } elseif ($isCompleted) {
+            $progress = (int) round((float) $proposal->overall_progress);
+            if ($progress <= 0 && $isCompleted) {
                 $progress = 100;
-            } else {
-                $progress = 0;
             }
 
             $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
@@ -267,14 +262,9 @@ final class DashboardController extends Controller
 
         $projects = $proposals->map(function ($proposal) {
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
-            $taskCount = $proposal->tasks->count();
-
-            if ($taskCount > 0) {
-                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
-            } elseif ($isCompleted) {
+            $progress = (int) round((float) $proposal->overall_progress);
+            if ($progress <= 0 && $isCompleted) {
                 $progress = 100;
-            } else {
-                $progress = 0;
             }
 
             $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
@@ -414,14 +404,9 @@ final class DashboardController extends Controller
 
         $projects = $proposals->map(function ($proposal) {
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
-            $taskCount = $proposal->tasks->count();
-
-            if ($taskCount > 0) {
-                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
-            } elseif ($isCompleted) {
+            $progress = (int) round((float) $proposal->overall_progress);
+            if ($progress <= 0 && $isCompleted) {
                 $progress = 100;
-            } else {
-                $progress = 0;
             }
 
             $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;
@@ -630,14 +615,9 @@ final class DashboardController extends Controller
 
         $projects = $proposals->map(function ($proposal) {
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
-            $taskCount = $proposal->tasks->count();
-
-            if ($taskCount > 0) {
-                $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
-            } elseif ($isCompleted) {
+            $progress = (int) round((float) $proposal->overall_progress);
+            if ($progress <= 0 && $isCompleted) {
                 $progress = 100;
-            } else {
-                $progress = 0;
             }
 
             $deadlineToUse = $proposal->target_completion_date ?? $proposal->desired_deadline;

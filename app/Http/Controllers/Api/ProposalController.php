@@ -357,10 +357,10 @@ class ProposalController extends Controller
                     ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
                     ->first();
                 $statusName = strtolower($proposal->status?->name ?? '');
-                $taskCount = $proposal->tasks->count();
-                $progress = $taskCount > 0
-                    ? (int) round($proposal->tasks->avg('progress_percentage') ?? 0)
-                    : (in_array($statusName, ['completed', 'handover'], true) ? 100 : 0);
+                $progress = (float) $proposal->overall_progress;
+                if ($progress <= 0 && in_array($statusName, ['completed', 'handover'], true)) {
+                    $progress = 100.00;
+                }
 
                 return [
                 'id'                     => $proposal->id,

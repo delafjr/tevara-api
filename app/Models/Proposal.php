@@ -51,6 +51,7 @@ class Proposal extends Model
         'warranty_start_date',
         'warranty_end_date',
         'status_id',
+        'overall_progress',
     ];
 
     protected $casts = [
@@ -72,6 +73,7 @@ class Proposal extends Model
         'warranty_months'        => 'integer',
         'warranty_start_date'    => 'date',
         'warranty_end_date'      => 'date',
+        'overall_progress'       => 'decimal:2',
     ];
 
     protected $appends = [
