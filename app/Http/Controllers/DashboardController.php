@@ -159,6 +159,7 @@ final class DashboardController extends Controller
                 'pm_name'       => $proposal->pm?->name ?? '—',
                 'status'        => $proposal->status?->name ?? '—',
                 'progress'      => $progress,
+                'overall_progress' => (float) ($proposal->overall_progress ?? $progress),
                 'deadline'      => $deadlineToUse?->toDateString(),
             ];
         })->filter()->values();
@@ -285,6 +286,7 @@ final class DashboardController extends Controller
                 'client_name'   => $proposal->client_company_name,
                 'status'        => $proposal->status?->name ?? '—',
                 'progress'      => $progress,
+                'overall_progress' => (float) ($proposal->overall_progress ?? $progress),
                 'deadline'      => $deadlineToUse?->toDateString(),
                 'category'      => strtolower($proposal->category?->name ?? 'other'),
                 'student_count' => $proposal->projectTeams->count(),
@@ -431,6 +433,7 @@ final class DashboardController extends Controller
                 'title'    => $proposal->title,
                 'status'   => $proposal->status?->name ?? '—',
                 'progress' => $progress,
+                'overall_progress' => (float) ($proposal->overall_progress ?? $progress),
                 'deadline' => $deadlineToUse?->toDateString(),
             ];
         })->values();
@@ -651,6 +654,7 @@ final class DashboardController extends Controller
                 'category'      => strtolower($proposal->category?->name ?? 'other'),
                 'status'        => $proposal->status?->name ?? '—',
                 'progress'      => $progress,
+                'overall_progress' => (float) ($proposal->overall_progress ?? $progress),
                 'deadline'      => $deadlineToUse?->toDateString(),
             ];
         })->values();
