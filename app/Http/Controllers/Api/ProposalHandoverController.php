@@ -71,11 +71,16 @@ final class ProposalHandoverController extends Controller
                     'bast_number' => $proposal->bast_number,
                     'bast_document_url' => $proposal->bast_document_url,
                     'repository_url' => $proposal->repository_url,
+                    'app_url' => $proposal->app_url,
+                    'access_email' => $proposal->access_email,
+                    'access_password' => $proposal->access_password,
                     'documentation_url' => $proposal->documentation_url,
                     'user_manual_url' => $proposal->user_manual_url,
                     'handover_notes' => $proposal->handover_notes,
                     'handover_deliverables' => $proposal->handover_deliverables ?? [],
                     'client_approved'  => $proposal->client_approved,
+                    'warranty_months'  => $proposal->warranty_months,
+                    'maintenance'      => $proposal->maintenance,
                     'warranty'         => $proposal->has_warranty ? [
                         'has_warranty'        => true,
                         'warranty_months'     => $proposal->warranty_months,
@@ -161,8 +166,9 @@ final class ProposalHandoverController extends Controller
             $request->merge(['handover_deliverables' => $deliverables]);
         }
 
-        $validated = $request->validate([
-            'repository_url'               => ['required', 'url', 'max:255'],
+        $isSourceCode = ($proposal->delivery_type ?? 'source_code') === 'source_code';
+
+        $rules = [
             'documentation_file'           => [
                 $proposal->documentation_url ? 'nullable' : 'required',
                 'file',
@@ -182,7 +188,21 @@ final class ProposalHandoverController extends Controller
             'bast_number'                  => ['prohibited'],
             'tanggal_serah_terima'         => ['prohibited'],
             'handover_date'                => ['prohibited'],
-        ], [
+        ];
+
+        if ($isSourceCode) {
+            $rules['repository_url'] = ['required', 'url', 'max:255'];
+            $rules['app_url'] = ['nullable', 'url', 'max:255'];
+            $rules['access_email'] = ['nullable', 'string', 'max:255'];
+            $rules['access_password'] = ['nullable', 'string', 'max:255'];
+        } else {
+            $rules['repository_url'] = ['nullable', 'url', 'max:255'];
+            $rules['app_url'] = ['required', 'url', 'max:255'];
+            $rules['access_email'] = ['nullable', 'string', 'max:255'];
+            $rules['access_password'] = ['nullable', 'string', 'max:255'];
+        }
+
+        $validated = $request->validate($rules, [
             'documentation_file.mimes' => 'Berkas lampiran dokumentasi API harus berformat aman: .pdf, .docx, atau .zip.',
             'documentation_file.max' => 'Ukuran berkas lampiran dokumentasi API maksimal 10 MB.',
             'nomor_bast.prohibited' => 'Nomor BAST tidak boleh dimanipulasi manual.',
@@ -218,7 +238,10 @@ final class ProposalHandoverController extends Controller
 
                 $lockedProposal->forceFill([
                     'bast_number'          => $lockedProposal->bast_number ?: $prefix.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT),
-                    'repository_url'       => $validated['repository_url'],
+                    'repository_url'       => $validated['repository_url'] ?? null,
+                    'app_url'              => $validated['app_url'] ?? null,
+                    'access_email'         => $validated['access_email'] ?? null,
+                    'access_password'      => $validated['access_password'] ?? null,
                     'documentation_url'    => $newDocumentationPath ?? $lockedProposal->documentation_url,
                     'user_manual_url'      => $validated['user_manual_url'] ?? null,
                     'handover_notes'       => $validated['handover_notes'] ?? null,
@@ -299,7 +322,14 @@ final class ProposalHandoverController extends Controller
         if ($proposal->client_approved) {
             return $this->error('BAST proyek ini sudah disetujui.', 409);
         }
-        if (! $proposal->bast_number || ! $proposal->repository_url || ! $proposal->documentation_url || empty($proposal->handover_deliverables)) {
+        $isSourceCode = ($proposal->delivery_type ?? 'source_code') === 'source_code';
+        $missingDeliverable = ! $proposal->bast_number
+            || ! $proposal->documentation_url
+            || empty($proposal->handover_deliverables)
+            || ($isSourceCode && ! $proposal->repository_url)
+            || (! $isSourceCode && ! $proposal->app_url);
+
+        if ($missingDeliverable) {
             throw ValidationException::withMessages([
                 'handover' => ['BAST belum lengkap. Pengurus TeFa harus mencatat hasil atau barang yang diserahkan.'],
             ]);

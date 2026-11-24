@@ -154,6 +154,64 @@ class HandoverTest extends TestCase
             ->assertHeader('content-disposition');
     }
 
+    public function test_tefa_managed_handover_requires_app_url_and_allows_login_credentials_without_repository_url(): void
+    {
+        Storage::fake('public');
+        $this->proposal->update(['delivery_type' => 'tefa_managed']);
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+
+        // Prepare without repository_url but with app_url and access credentials
+        Sanctum::actingAs($this->pengurus);
+        $file = UploadedFile::fake()->create('dokumen-sistem.pdf', 100, 'application/pdf');
+        $prepareRes = $this->postJson("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'app_url' => 'https://aplikasi-klien.tefa.polines.ac.id',
+            'access_email' => 'admin@klien.com',
+            'access_password' => 'Rahasia123!',
+            'documentation_file' => $file,
+            'handover_deliverables' => [
+                [
+                    'name' => 'Akun Administrator & Akses Web Sistem',
+                    'type' => 'digital',
+                    'quantity' => 1,
+                    'unit' => 'sistem',
+                    'condition' => 'good',
+                    'notes' => 'Akses login dashboard operasional TeFa-managed',
+                ],
+            ],
+            'has_warranty' => true,
+            'warranty_months' => 6,
+        ]);
+        $prepareRes->assertOk();
+
+        $this->assertDatabaseHas('proposals', [
+            'id' => $this->proposal->id,
+            'app_url' => 'https://aplikasi-klien.tefa.polines.ac.id',
+            'access_email' => 'admin@klien.com',
+            'access_password' => 'Rahasia123!',
+            'repository_url' => null,
+        ]);
+
+        // Client approves
+        Sanctum::actingAs($this->client);
+        $approveRes = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/handover/approve", [
+            'client_signoff_name' => 'Budi Santoso (Direktur)',
+            'client_approved' => true,
+        ]);
+        $approveRes->assertOk();
+
+        $this->assertDatabaseHas('proposals', [
+            'id' => $this->proposal->id,
+            'client_approved' => true,
+            'status_id' => ProposalStatus::where('name', 'Completed')->value('id'),
+        ]);
+    }
+
     public function test_pengurus_cannot_prepare_bast_until_uat_is_signed_and_passed(): void
     {
         UatResult::create([
