@@ -87,6 +87,7 @@ final class UatController extends Controller
         $data = $proposals->map(function (Proposal $proposal) {
             $uat = $proposal->uatResult;
             $companyName = $proposal->client_company_name;
+            $taskProgress = round((float) ($proposal->tasks()->avg('progress_percentage') ?? 0), 1);
 
             return [
                 'id'                  => $proposal->id,
@@ -98,6 +99,8 @@ final class UatController extends Controller
                 ],
                 'client_name'         => $companyName,
                 'client_company_name' => $companyName,
+                'task_progress'       => $taskProgress,
+                'can_set_testing'     => ($taskProgress >= 100.0),
                 'status_id'           => $proposal->status_id,
                 'status'              => [
                     'id'   => $proposal->status?->id,
@@ -321,6 +324,8 @@ final class UatController extends Controller
         $data = $request->validate([
             'client_notes'              => ['nullable', 'string'],
             'items'                     => ['required', 'array', 'min:1'],
+            'items.*.module_name'       => ['nullable', 'string', 'max:255'],
+            'items.*.test_category'     => ['nullable', 'string', 'max:100'],
             'items.*.feature_name'      => ['required', 'string', 'max:255'],
             'items.*.test_scenario'     => ['nullable', 'string'],
             'items.*.result'            => ['required', Rule::in(['PASSED', 'FAILED', 'BUG_FOUND'])],
@@ -362,6 +367,8 @@ final class UatController extends Controller
 
             foreach ($data['items'] as $item) {
                 $uat->items()->create([
+                    'module_name'     => $item['module_name'] ?? null,
+                    'test_category'   => $item['test_category'] ?? null,
                     'feature_name'    => $item['feature_name'],
                     'test_scenario'   => $item['test_scenario'] ?? null,
                     'result'          => $item['result'],
@@ -379,9 +386,14 @@ final class UatController extends Controller
         }
 
         $this->notifications->notifyRole('pengurus_tefa', 'uat.submitted', [
-            'code' => $proposal->proposal_code,
+            'code'  => $proposal->proposal_code,
             'title' => $proposal->title,
         ], (int) $proposal->id);
+
+        $this->notifications->notifyPm($proposal, 'uat.submitted', [
+            'code'  => $proposal->proposal_code,
+            'title' => $proposal->title,
+        ]);
 
         return $this->created('Hasil UAT berhasil dikirim untuk diperiksa.', $this->formatUat($uat));
     }
@@ -504,6 +516,8 @@ final class UatController extends Controller
         $data = $request->validate([
             'client_notes'              => ['nullable', 'string'],
             'items'                     => ['required', 'array', 'min:1'],
+            'items.*.module_name'       => ['nullable', 'string', 'max:255'],
+            'items.*.test_category'     => ['nullable', 'string', 'max:100'],
             'items.*.feature_name'      => ['required', 'string', 'max:255'],
             'items.*.test_scenario'     => ['nullable', 'string'],
             'items.*.result'            => ['required', Rule::in(['PASSED', 'FAILED', 'BUG_FOUND'])],
@@ -534,6 +548,8 @@ final class UatController extends Controller
 
             foreach ($data['items'] as $item) {
                 $uat->items()->create([
+                    'module_name'     => $item['module_name'] ?? null,
+                    'test_category'   => $item['test_category'] ?? null,
                     'feature_name'    => $item['feature_name'],
                     'test_scenario'   => $item['test_scenario'] ?? null,
                     'result'          => $item['result'],
@@ -649,6 +665,18 @@ final class UatController extends Controller
                 'reviewed_by' => $user->id,
                 'reviewed_at' => now(),
             ]);
+
+            if ($data['decision'] === 'NEEDS_IMPROVEMENT') {
+                $activeStatusId = ProposalStatus::where('name', 'Active')->value('id');
+                if ($activeStatusId) {
+                    $proposal->update(['status_id' => $activeStatusId]);
+                    $proposal->statusHistories()->create([
+                        'status_id'  => $activeStatusId,
+                        'note'       => 'Status proyek dikembalikan ke Active setelah hasil UAT perlu perbaikan. Progress task tidak direset.',
+                        'changed_by' => $user->id,
+                    ]);
+                }
+            }
 
             foreach ($corrections as $correction) {
                 $item = $uat->items->firstWhere('id', (int) $correction['item_id']);
@@ -888,6 +916,27 @@ final class UatController extends Controller
 
         $this->authorizeManage($user, $proposal);
 
+        // Poin 1: Validasi progress task harus 100% sebelum boleh ditandai Testing
+        $taskCount = $proposal->tasks()->count();
+        if ($taskCount === 0) {
+            return $this->error(
+                'Proyek belum memiliki task. Pastikan semua task sudah dibuat sebelum menandai Testing.',
+                422,
+                ['progress' => 0]
+            );
+        }
+        $avgProgress = (float) ($proposal->tasks()->avg('progress_percentage') ?? 0);
+        if ($avgProgress < 100.0) {
+            return $this->error(
+                sprintf(
+                    'Proyek belum 100%% selesai (progress saat ini: %.1f%%). Selesaikan semua task sebelum menandai Testing.',
+                    $avgProgress
+                ),
+                422,
+                ['progress' => $avgProgress]
+            );
+        }
+
         $testingStatusId = ProposalStatus::where('name', 'Testing')->value('id');
         if (! $testingStatusId) {
             return $this->error('Status Testing belum terdaftar pada data master.', 422);
@@ -985,6 +1034,8 @@ final class UatController extends Controller
         return [
             'id'              => $item->id,
             'uat_result_id'   => $item->uat_result_id,
+            'module_name'     => $item->module_name,
+            'test_category'   => $item->test_category,
             'feature_name'    => $item->feature_name,
             'test_scenario'   => $item->test_scenario,
             'result'          => $item->result,

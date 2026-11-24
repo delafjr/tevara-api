@@ -104,9 +104,10 @@ class ContractTest extends TestCase
         $this->assertStringStartsWith('PRJ-', $fresh->project_code);
 
         // Check maintenance warranty
-        $this->assertDatabaseHas('project_maintenances', [
-            'proposal_id'                 => $this->proposal->id,
-            'maintenance_warranty_months' => 6,
+        $this->assertDatabaseHas('proposals', [
+            'id'              => $this->proposal->id,
+            'has_warranty'    => true,
+            'warranty_months' => 6,
         ]);
 
         // Check status histories

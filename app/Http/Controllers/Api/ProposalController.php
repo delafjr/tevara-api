@@ -254,6 +254,9 @@ class ProposalController extends Controller
             'target_audience'  => $proposal->target_audience,
             'category_id'      => $proposal->category_id,
             'category_name'    => $proposal->category?->name,
+            'delivery_type'    => $proposal->delivery_type,
+            'has_warranty'     => (bool) $proposal->has_warranty,
+            'warranty_months'  => $proposal->warranty_months,
             'status'           => $proposal->status?->name,
             'status_id'        => $proposal->status_id,
             'desired_deadline' => $proposal->desired_deadline?->toDateString(),
@@ -340,45 +343,66 @@ class ProposalController extends Controller
         $proposals = Proposal::with([
             'status:id,name',
             'category:id,name',
+            'uatResults' => fn ($query) => $query
+                ->select('id', 'proposal_id', 'session_date', 'overall_result', 'signed_off_at')
+                ->orderByDesc('id'),
             'projectTeams.uatResults' => fn ($query) => $query
-                ->select('id', 'project_team_id', 'session_date', 'overall_result')
-                ->orderByDesc('session_date')
+                ->select('id', 'project_team_id', 'session_date', 'overall_result', 'signed_off_at')
                 ->orderByDesc('id'),
         ])
             ->where('client_id', $request->user()->id)
             ->latest()
             ->get()
             ->map(function (Proposal $proposal) {
-                $latestUat = $proposal->uatResult ?? $proposal->projectTeams
-                    ->flatMap(fn ($team) => $team->uatResults)
-                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
+                $latestUat = $proposal->uatResults
+                    ->concat($proposal->projectTeams->flatMap(fn ($team) => $team->uatResults))
+                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd').str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
                     ->first();
+                $bastEligible = $latestUat?->overall_result === 'PASSED'
+                    && $latestUat?->signed_off_at !== null
+                    && ! $proposal->client_approved;
                 $statusName = strtolower($proposal->status?->name ?? '');
-                $progress = in_array($statusName, ['completed', 'handover'], true)
-                    ? 100
-                    : (int) round($proposal->tasks->avg('progress_percentage') ?? 0);
+                $taskCount = $proposal->tasks->count();
+                $progress = $taskCount > 0
+                    ? (int) round($proposal->tasks->avg('progress_percentage') ?? 0)
+                    : (in_array($statusName, ['completed', 'handover'], true) ? 100 : 0);
 
                 return [
                 'id'                     => $proposal->id,
                 'proposal_code'          => $proposal->proposal_code,
                 'project_code'           => $proposal->project_code,
+                'delivery_type'          => $proposal->delivery_type,
+                'has_warranty'           => (bool) $proposal->has_warranty,
+                'warranty_months'        => $proposal->warranty_months,
                 'spk_number'             => $proposal->spk_number,
                 'contract_file_url'      => $proposal->contract_file_url,
+                'delivery_type'          => $proposal->delivery_type,
                 'bast_number'            => $proposal->bast_number,
+                'bast_document_url'      => $proposal->bast_document_url,
                 'handover_date'          => $proposal->handover_date?->toDateString(),
                 'repository_url'         => $proposal->repository_url,
+                'app_url'                => $proposal->app_url,
+                'access_email'           => $proposal->access_email,
+                'access_password'        => $proposal->access_password,
                 'documentation_url'      => $proposal->documentation_url,
                 'user_manual_url'        => $proposal->user_manual_url,
                 'handover_notes'          => $proposal->handover_notes,
                 'handover_deliverables'   => $proposal->handover_deliverables ?? [],
                 'client_signoff_name'     => $proposal->client_signoff_name,
                 'bast_approved_at'        => $proposal->bast_approved_at?->toDateTimeString(),
-                'maintenance'            => $proposal->maintenance ? [
-                    'maintenance_warranty_months' => $proposal->maintenance->maintenance_warranty_months,
-                    'maintenance_start_date' => $proposal->maintenance->maintenance_start_date?->toDateString(),
-                    'maintenance_end_date' => $proposal->maintenance->maintenance_end_date?->toDateString(),
-                    'maintenance_notes' => $proposal->maintenance->maintenance_notes,
-                ] : null,
+                'maintenance'             => [
+                    'maintenance_warranty_months' => $proposal->warranty_months,
+                    'maintenance_start_date'      => $proposal->warranty_start_date?->toDateString(),
+                    'maintenance_end_date'        => $proposal->warranty_end_date?->toDateString(),
+                ],
+                'warranty'               => [
+                    'has_warranty'        => (bool) $proposal->has_warranty,
+                    'warranty_months'     => $proposal->warranty_months,
+                    'warranty_start_date' => $proposal->warranty_start_date?->toDateString(),
+                    'warranty_end_date'   => $proposal->warranty_end_date?->toDateString(),
+                ],
+                'warranty_start_date'    => $proposal->warranty_start_date?->toDateString(),
+                'warranty_end_date'      => $proposal->warranty_end_date?->toDateString(),
                 'title'                  => $proposal->title,
                 'category'               => $proposal->category?->name,
                 'status'                 => $proposal->status?->name,
@@ -409,8 +433,8 @@ class ProposalController extends Controller
                 ])->values(),
                 'latest_uat_result'      => $latestUat?->overall_result,
                 'uat_signed_off_at'      => $latestUat?->signed_off_at?->toIso8601String(),
-                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && $latestUat?->signed_off_at !== null && !$proposal->client_approved,
-                'bast_prepared'          => filled($proposal->bast_number) && !$proposal->client_approved,
+                'bast_eligible'          => $bastEligible,
+                'bast_prepared'          => filled($proposal->bast_number) && $bastEligible,
                 'client_approved'        => $proposal->client_approved,
                 ];
             });
@@ -436,6 +460,7 @@ class ProposalController extends Controller
                         new OA\Property(property: 'background', type: 'string', description: 'Minimal 100 karakter', example: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.'),
                         new OA\Property(property: 'target_audience', type: 'string', nullable: true, description: 'Target pengguna/sasaran pengguna sistem', example: 'Staff gudang dan admin inventory'),
                         new OA\Property(property: 'category_id', type: 'integer', description: 'ID kategori, harus ada di tabel proposal_categories', example: 1),
+                        new OA\Property(property: 'delivery_type', type: 'string', enum: ['tefa_managed', 'source_code'], default: 'source_code', description: 'tefa_managed = TeFa tetap hosting; source_code = kode diserahkan ke klien'),
                         new OA\Property(property: 'desired_deadline', type: 'string', format: 'date', description: 'Minimal H+30 dari hari ini', example: '2027-02-01'),
                         new OA\Property(property: 'estimated_budget', type: 'number', format: 'float', nullable: true, example: 10000000),
                         new OA\Property(
@@ -475,6 +500,9 @@ class ProposalController extends Controller
             'background'            => ['required', 'string', 'max:500'],
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
+            'delivery_type'         => ['nullable', 'in:tefa_managed,source_code'],
+            'has_warranty'          => ['nullable', 'boolean'],
+            'warranty_months'       => ['nullable', 'integer', 'min:1', 'required_if:has_warranty,true,1'],
             'desired_deadline'      => ['required', 'date', 'after_or_equal:' . now()->addDays(30)->toDateString()],
             'estimated_budget'      => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'modules'               => ['nullable', 'array'],
@@ -488,6 +516,20 @@ class ProposalController extends Controller
             throw ValidationException::withMessages([
                 'client_id' => ['client_id harus user dengan role klien (PIC) atau jurusan.'],
             ]);
+        }
+
+        if (isset($validated['has_warranty'])) {
+            $validated['has_warranty'] = (bool) $validated['has_warranty'];
+            if (! $validated['has_warranty']) {
+                $validated['warranty_months'] = null;
+            }
+        } else {
+            $validated['has_warranty'] = false;
+            $validated['warranty_months'] = null;
+        }
+
+        if (empty($validated['delivery_type'])) {
+            $validated['delivery_type'] = 'source_code';
         }
 
         $modules = $validated['modules'] ?? [];
@@ -577,13 +619,13 @@ class ProposalController extends Controller
             $proposal->makeHidden(['risk_analysis']);
         }
 
-        // Overall progress: 100% saat proyek selesai/handover, selain itu rata-rata progres task.
+        // Overall progress: sinkron rata-rata progres task, atau 100% saat proyek selesai/handover jika belum ada task.
         $statusName   = strtolower($proposal->status?->name ?? '');
         $isCompleted  = in_array($statusName, ['completed', 'handover'], true);
         $taskProgress = $proposal->tasks()->pluck('progress_percentage');
-        $overallProgress = $isCompleted
-            ? 100
-            : ($taskProgress->count() > 0 ? (int) round((float) $taskProgress->avg()) : 0);
+        $overallProgress = $taskProgress->count() > 0
+            ? (int) round((float) $taskProgress->avg())
+            : ($isCompleted ? 100 : 0);
 
         return response()->json(array_merge($proposal->toArray(), [
             'overall_progress' => $overallProgress,
@@ -757,12 +799,22 @@ class ProposalController extends Controller
             'background'            => ['required', 'string', 'max:500'],
             'target_audience'       => ['nullable', 'string'],
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
+            'delivery_type'         => ['nullable', 'in:tefa_managed,source_code'],
+            'has_warranty'          => ['nullable', 'boolean'],
+            'warranty_months'       => ['nullable', 'integer', 'min:1', 'required_if:has_warranty,true,1'],
             'desired_deadline'      => ['required', 'date'],
             'estimated_budget'      => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'modules'               => ['nullable', 'array'],
             'modules.*.title'       => ['required', 'string', 'max:255'],
             'modules.*.description' => ['nullable', 'string'],
         ]);
+
+        if (isset($validated['has_warranty'])) {
+            $validated['has_warranty'] = (bool) $validated['has_warranty'];
+            if (! $validated['has_warranty']) {
+                $validated['warranty_months'] = null;
+            }
+        }
 
         $modules = $validated['modules'] ?? [];
         unset($validated['modules']);

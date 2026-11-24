@@ -56,6 +56,8 @@ class HandoverTest extends TestCase
             'project_code' => 'PRJ-2026/001',
             'category_id' => $category->id,
             'status_id' => $status->id,
+            'has_warranty' => true,
+            'warranty_months' => 3,
         ]);
 
         $this->team = ProjectTeam::create([
@@ -125,22 +127,89 @@ class HandoverTest extends TestCase
             ->assertJsonMissingPath('data.risk_analysis');
         $this->assertSame(now()->toDateString(), substr((string) $response->json('data.handover_date'), 0, 10));
         $this->assertSame(now()->addDay()->toDateString(), substr((string) $response->json('data.maintenance.maintenance_start_date'), 0, 10));
+        $bastPath = $this->proposal->fresh()->bast_document_url;
+        $this->assertNotNull($bastPath);
+        Storage::disk('public')->assertExists($bastPath);
+        $this->get("/api/v1/proposals/{$this->proposal->id}/handover/bast")
+            ->assertOk()
+            ->assertHeader('content-disposition');
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $this->client->id,
+            'proposal_id' => $this->proposal->id,
+            'type' => 'handover.document_generated',
+        ]);
 
         $this->assertDatabaseHas('proposals', [
             'id' => $this->proposal->id,
             'bast_number' => 'BAST/TEFA/'.now()->format('Y').'/001',
             'client_approved' => true,
             'status_id' => ProposalStatus::where('name', 'Completed')->value('id'),
-        ]);
-        $this->assertDatabaseHas('project_maintenances', [
-            'proposal_id' => $this->proposal->id,
-            'maintenance_warranty_months' => 3,
-            'maintenance_start_date' => now()->addDay()->toDateString().' 00:00:00',
-            'maintenance_end_date' => now()->addDay()->addMonthsNoOverflow(3)->toDateString().' 00:00:00',
+            'has_warranty' => true,
+            'warranty_months' => 3,
+            'warranty_start_date' => now()->addDay()->toDateString().' 00:00:00',
+            'warranty_end_date' => now()->addDay()->addMonthsNoOverflow(3)->toDateString().' 00:00:00',
         ]);
         $this->get("/api/v1/proposals/{$this->proposal->id}/handover/documentation")
             ->assertOk()
             ->assertHeader('content-disposition');
+    }
+
+    public function test_tefa_managed_handover_requires_app_url_and_allows_login_credentials_without_repository_url(): void
+    {
+        Storage::fake('public');
+        $this->proposal->update(['delivery_type' => 'tefa_managed']);
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+
+        // Prepare without repository_url but with app_url and access credentials
+        Sanctum::actingAs($this->pengurus);
+        $file = UploadedFile::fake()->create('dokumen-sistem.pdf', 100, 'application/pdf');
+        $prepareRes = $this->postJson("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'app_url' => 'https://aplikasi-klien.tefa.polines.ac.id',
+            'access_email' => 'admin@klien.com',
+            'access_password' => 'Rahasia123!',
+            'documentation_file' => $file,
+            'handover_deliverables' => [
+                [
+                    'name' => 'Akun Administrator & Akses Web Sistem',
+                    'type' => 'digital',
+                    'quantity' => 1,
+                    'unit' => 'sistem',
+                    'condition' => 'good',
+                    'notes' => 'Akses login dashboard operasional TeFa-managed',
+                ],
+            ],
+            'has_warranty' => true,
+            'warranty_months' => 6,
+        ]);
+        $prepareRes->assertOk();
+
+        $this->assertDatabaseHas('proposals', [
+            'id' => $this->proposal->id,
+            'app_url' => 'https://aplikasi-klien.tefa.polines.ac.id',
+            'access_email' => 'admin@klien.com',
+            'access_password' => 'Rahasia123!',
+            'repository_url' => null,
+        ]);
+
+        // Client approves
+        Sanctum::actingAs($this->client);
+        $approveRes = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/handover/approve", [
+            'client_signoff_name' => 'Budi Santoso (Direktur)',
+            'client_approved' => true,
+        ]);
+        $approveRes->assertOk();
+
+        $this->assertDatabaseHas('proposals', [
+            'id' => $this->proposal->id,
+            'client_approved' => true,
+            'status_id' => ProposalStatus::where('name', 'Completed')->value('id'),
+        ]);
     }
 
     public function test_pengurus_cannot_prepare_bast_until_uat_is_signed_and_passed(): void
@@ -171,6 +240,53 @@ class HandoverTest extends TestCase
             'id' => $this->proposal->id,
             'bast_number' => null,
         ]);
+    }
+
+    public function test_latest_uat_report_controls_bast_eligibility_and_approval(): void
+    {
+        Storage::fake('public');
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->addDays(10)->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+        Sanctum::actingAs($this->pengurus);
+        $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
+        ])->assertOk();
+
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->addDays(11)->toDateString(),
+            'overall_result' => 'FAILED',
+        ]);
+
+        $this->getJson('/api/v1/proposals/handover')
+            ->assertOk()
+            ->assertJsonPath('0.latest_uat_result', 'FAILED')
+            ->assertJsonPath('0.bast_eligible', false)
+            ->assertJsonPath('0.bast_prepared', false);
+
+        Sanctum::actingAs($this->client);
+        $this->patchJson("/api/v1/proposals/{$this->proposal->id}/handover/approve", [
+            'client_signoff_name' => 'PIC Klien',
+            'client_approved' => true,
+        ])->assertStatus(422)->assertJsonValidationErrors('uat');
+
+        $this->getJson('/api/v1/proposals/mine')
+            ->assertOk()
+            ->assertJsonPath('0.latest_uat_result', 'FAILED')
+            ->assertJsonPath('0.bast_eligible', false);
     }
 
     public function test_client_cannot_approve_before_pengurus_prepares_bast(): void
@@ -443,7 +559,7 @@ class HandoverTest extends TestCase
         $validDocx->assertOk();
     }
 
-    public function test_kalkulasi_tanggal_mulai_dan_akhir_garansi_sesuai_pilihan_durasi(): void
+    public function test_handover_uses_warranty_duration_stored_on_proposal(): void
     {
         Storage::fake('public');
         UatResult::create([
@@ -468,7 +584,7 @@ class HandoverTest extends TestCase
         ])->assertOk();
 
         Sanctum::actingAs($this->client);
-        // Klien memilih durasi garansi 6 bulan saat approve
+        // A legacy duration value cannot override the duration stored on the proposal.
         $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/handover/approve", [
             'client_signoff_name' => 'PIC Klien',
             'client_approved' => true,
@@ -477,10 +593,10 @@ class HandoverTest extends TestCase
 
         $response->assertOk();
         $expectedStartDate = now()->addDay()->toDateString();
-        $expectedEndDate = now()->addDay()->addMonthsNoOverflow(6)->toDateString();
+        $expectedEndDate = now()->addDay()->addMonthsNoOverflow(3)->toDateString();
 
         $this->assertSame($expectedStartDate, substr((string) $response->json('data.maintenance.maintenance_start_date'), 0, 10));
         $this->assertSame($expectedEndDate, substr((string) $response->json('data.maintenance.maintenance_end_date'), 0, 10));
-        $this->assertSame(6, (int) $response->json('data.maintenance.maintenance_warranty_months'));
+        $this->assertSame(3, (int) $response->json('data.maintenance.maintenance_warranty_months'));
     }
 }

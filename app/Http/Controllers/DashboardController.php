@@ -95,6 +95,7 @@ final class DashboardController extends Controller
                 'proposal.category',
                 'proposal.client.clientPic.clientProfile.user',
                 'proposal.tasks',
+                'proposal.pm',
             ])
             ->get();
 
@@ -138,10 +139,10 @@ final class DashboardController extends Controller
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
             $taskCount = $proposal->tasks->count();
 
-            if ($isCompleted) {
-                $progress = 100;
-            } elseif ($taskCount > 0) {
+            if ($taskCount > 0) {
                 $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } elseif ($isCompleted) {
+                $progress = 100;
             } else {
                 $progress = 0;
             }
@@ -155,8 +156,10 @@ final class DashboardController extends Controller
                 'category'      => $proposal->category?->name,
                 'client_name'   => $proposal->client_company_name,
                 'role'          => $team->role?->name ?? '—',
+                'pm_name'       => $proposal->pm?->name ?? '—',
                 'status'        => $proposal->status?->name ?? '—',
                 'progress'      => $progress,
+                'overall_progress' => (float) ($proposal->overall_progress ?? $progress),
                 'deadline'      => $deadlineToUse?->toDateString(),
             ];
         })->filter()->values();
@@ -267,10 +270,10 @@ final class DashboardController extends Controller
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
             $taskCount = $proposal->tasks->count();
 
-            if ($isCompleted) {
-                $progress = 100;
-            } elseif ($taskCount > 0) {
+            if ($taskCount > 0) {
                 $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } elseif ($isCompleted) {
+                $progress = 100;
             } else {
                 $progress = 0;
             }
@@ -283,6 +286,7 @@ final class DashboardController extends Controller
                 'client_name'   => $proposal->client_company_name,
                 'status'        => $proposal->status?->name ?? '—',
                 'progress'      => $progress,
+                'overall_progress' => (float) ($proposal->overall_progress ?? $progress),
                 'deadline'      => $deadlineToUse?->toDateString(),
                 'category'      => strtolower($proposal->category?->name ?? 'other'),
                 'student_count' => $proposal->projectTeams->count(),
@@ -414,10 +418,10 @@ final class DashboardController extends Controller
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
             $taskCount = $proposal->tasks->count();
 
-            if ($isCompleted) {
-                $progress = 100;
-            } elseif ($taskCount > 0) {
+            if ($taskCount > 0) {
                 $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } elseif ($isCompleted) {
+                $progress = 100;
             } else {
                 $progress = 0;
             }
@@ -429,6 +433,7 @@ final class DashboardController extends Controller
                 'title'    => $proposal->title,
                 'status'   => $proposal->status?->name ?? '—',
                 'progress' => $progress,
+                'overall_progress' => (float) ($proposal->overall_progress ?? $progress),
                 'deadline' => $deadlineToUse?->toDateString(),
             ];
         })->values();
@@ -630,10 +635,10 @@ final class DashboardController extends Controller
             $isCompleted = in_array(strtolower($proposal->status?->name ?? ''), ['completed', 'handover']);
             $taskCount = $proposal->tasks->count();
 
-            if ($isCompleted) {
-                $progress = 100;
-            } elseif ($taskCount > 0) {
+            if ($taskCount > 0) {
                 $progress = (int) round((float) $proposal->tasks->avg('progress_percentage'));
+            } elseif ($isCompleted) {
+                $progress = 100;
             } else {
                 $progress = 0;
             }
@@ -649,6 +654,7 @@ final class DashboardController extends Controller
                 'category'      => strtolower($proposal->category?->name ?? 'other'),
                 'status'        => $proposal->status?->name ?? '—',
                 'progress'      => $progress,
+                'overall_progress' => (float) ($proposal->overall_progress ?? $progress),
                 'deadline'      => $deadlineToUse?->toDateString(),
             ];
         })->values();

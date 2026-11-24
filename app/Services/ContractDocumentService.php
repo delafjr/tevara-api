@@ -23,7 +23,6 @@ class ContractDocumentService
             'client.clientPic.clientProfile',
             'client.clientProfile',
             'payments',
-            'maintenance',
         ]);
 
         $templatePath = storage_path('app/' . self::TEMPLATE);
@@ -62,7 +61,7 @@ class ContractDocumentService
 
         $tp->setValue('SKEMA_TERMIN', $this->buildTerminText($proposal));
         $tp->setValue('HAK_CIPTA', 'Milik Bersama (Shared)');
-        $tp->setValue('GARANSI_BULAN', (string) ($proposal->maintenance?->maintenance_warranty_months ?? 3));
+        $tp->setValue('GARANSI_BULAN', (string) ($proposal->warranty_months ?? 0));
         $tp->setValue('KOTA', 'Semarang');
         $tp->setValue('TANGGAL_TTD', $now->translatedFormat('d F Y'));
 
