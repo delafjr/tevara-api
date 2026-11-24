@@ -357,10 +357,10 @@ class ProposalController extends Controller
                     ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
                     ->first();
                 $statusName = strtolower($proposal->status?->name ?? '');
-                $progress = (float) $proposal->overall_progress;
-                if ($progress <= 0 && in_array($statusName, ['completed', 'handover'], true)) {
-                    $progress = 100.00;
-                }
+                $taskCount = $proposal->tasks->count();
+                $progress = $taskCount > 0
+                    ? (int) round($proposal->tasks->avg('progress_percentage') ?? 0)
+                    : (in_array($statusName, ['completed', 'handover'], true) ? 100 : 0);
 
                 return [
                 'id'                     => $proposal->id,
@@ -604,8 +604,13 @@ class ProposalController extends Controller
             $proposal->makeHidden(['risk_analysis']);
         }
 
-        // Overall progress: ambil dari kolom proposals.overall_progress
-        $overallProgress = (float) ($proposal->overall_progress ?? $proposal->syncOverallProgress());
+        // Overall progress: sinkron rata-rata progres task, atau 100% saat proyek selesai/handover jika belum ada task.
+        $statusName   = strtolower($proposal->status?->name ?? '');
+        $isCompleted  = in_array($statusName, ['completed', 'handover'], true);
+        $taskProgress = $proposal->tasks()->pluck('progress_percentage');
+        $overallProgress = $taskProgress->count() > 0
+            ? (int) round((float) $taskProgress->avg())
+            : ($isCompleted ? 100 : 0);
 
         return response()->json(array_merge($proposal->toArray(), [
             'overall_progress' => $overallProgress,

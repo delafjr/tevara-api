@@ -715,7 +715,9 @@ final class TaskController extends Controller
         $tasks = $baseQuery->get();
         $allProposalTasks = $proposal->tasks()->get();
 
-        $overallProgress = (float) ($proposal->overall_progress ?? $proposal->syncOverallProgress());
+        $overallProgress = $allProposalTasks->count() > 0
+            ? round((float) $allProposalTasks->avg('progress_percentage'), 2)
+            : 0;
 
         $summary = [
             'total'              => $tasks->count(),
