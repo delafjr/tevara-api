@@ -65,6 +65,8 @@ final class ProposalHandoverController extends Controller
                     'handover_notes' => $proposal->handover_notes,
                     'handover_deliverables' => $proposal->handover_deliverables ?? [],
                     'client_approved'  => $proposal->client_approved,
+                    'warranty_months'  => $proposal->warranty_months,
+                    'maintenance'      => $proposal->maintenance,
                     'warranty'         => $proposal->has_warranty ? [
                         'has_warranty'        => true,
                         'warranty_months'     => $proposal->warranty_months,

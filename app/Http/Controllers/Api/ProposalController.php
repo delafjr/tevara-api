@@ -384,6 +384,11 @@ class ProposalController extends Controller
                 'handover_deliverables'   => $proposal->handover_deliverables ?? [],
                 'client_signoff_name'     => $proposal->client_signoff_name,
                 'bast_approved_at'        => $proposal->bast_approved_at?->toDateTimeString(),
+                'maintenance'             => [
+                    'maintenance_warranty_months' => $proposal->warranty_months,
+                    'maintenance_start_date'      => $proposal->warranty_start_date?->toDateString(),
+                    'maintenance_end_date'        => $proposal->warranty_end_date?->toDateString(),
+                ],
                 'warranty'               => [
                     'has_warranty'        => (bool) $proposal->has_warranty,
                     'warranty_months'     => $proposal->warranty_months,
