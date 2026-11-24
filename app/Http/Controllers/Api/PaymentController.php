@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Proposal;
+use App\Services\CloudinaryService;
 use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -21,7 +22,8 @@ final class PaymentController extends Controller
     use ApiResponse;
 
     public function __construct(
-        private readonly NotificationService $notifications
+        private readonly NotificationService $notifications,
+        private readonly CloudinaryService $cloudinary
     ) {}
 
     // ──────────────────────────────────────────────────────
@@ -187,7 +189,7 @@ final class PaymentController extends Controller
                         new OA\Property(property: 'payment_date', type: 'string', format: 'date', example: '2026-11-04'),
                         new OA\Property(property: 'payment_method', type: 'string', enum: ['BANK_TRANSFER', 'VIRTUAL_ACCOUNT', 'CASH', 'OTHER'], example: 'BANK_TRANSFER'),
                         new OA\Property(property: 'transfer_reference', type: 'string', nullable: true, example: 'TRX-123456789'),
-                        new OA\Property(property: 'proof', type: 'string', format: 'binary', description: 'File bukti pembayaran (JPG, PNG, PDF, max 5MB)'),
+                        new OA\Property(property: 'proof', type: 'string', format: 'binary', description: 'File bukti pembayaran (gambar JPG, PNG, WEBP, max 10MB)'),
                     ]
                 )
             )
@@ -280,15 +282,18 @@ final class PaymentController extends Controller
             'payment_date'       => ['required', 'date'],
             'payment_method'     => ['required', Rule::in(['BANK_TRANSFER', 'VIRTUAL_ACCOUNT', 'CASH', 'OTHER'])],
             'transfer_reference' => ['nullable', 'string', 'max:255'],
-            'proof'              => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'], // max 5MB
+            'proof'              => ['required', 'file', 'image', 'max:10240'], // max 10MB gambar
+        ], [
+            'proof.image' => 'File bukti pembayaran harus berupa gambar (JPG, JPEG, PNG, WEBP, dll).',
+            'proof.max'   => 'Ukuran file bukti pembayaran maksimal 10 MB.',
         ]);
 
-        // Hapus file lama jika ada
+        // Hapus file lama jika ada (lokal atau cloudinary)
         if ($payment->proof_url) {
-            Storage::disk('public')->delete($payment->proof_url);
+            $this->cloudinary->delete($payment->proof_url);
         }
 
-        $path = $request->file('proof')->store('payments/proofs', 'public');
+        $path = $this->cloudinary->upload($request->file('proof'), CloudinaryService::FOLDER_PEMBAYARAN, 'proof');
 
         $payment->update([
             'payment_date'       => $request->input('payment_date'),
@@ -612,7 +617,9 @@ final class PaymentController extends Controller
             'payment_method'     => $payment->payment_method,
             'transfer_reference' => $payment->transfer_reference,
             'proof_url'          => $payment->proof_url
-                ? asset('storage/' . $payment->proof_url)
+                ? (str_starts_with($payment->proof_url, 'http://') || str_starts_with($payment->proof_url, 'https://')
+                    ? $payment->proof_url
+                    : asset('storage/' . $payment->proof_url))
                 : null,
             'status'             => $payment->status,
             'verification_notes' => $payment->verification_notes,

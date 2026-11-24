@@ -1025,7 +1025,7 @@
                                         "nullable": true
                                     },
                                     "proof": {
-                                        "description": "File bukti pembayaran (JPG, PNG, PDF, max 5MB)",
+                                        "description": "File bukti pembayaran (gambar JPG, PNG, WEBP, max 10MB)",
                                         "type": "string",
                                         "format": "binary"
                                     }
@@ -3958,7 +3958,7 @@
                                         ]
                                     },
                                     "report_attachment": {
-                                        "description": "File lampiran opsional.",
+                                        "description": "File lampiran gambar opsional (JPG, JPEG, PNG, WEBP, maks 10MB).",
                                         "type": "string",
                                         "format": "binary"
                                     },
@@ -4054,7 +4054,7 @@
                                         ]
                                     },
                                     "report_attachment": {
-                                        "description": "File lampiran opsional.",
+                                        "description": "File lampiran gambar opsional (JPG, JPEG, PNG, WEBP, maks 10MB).",
                                         "type": "string",
                                         "format": "binary"
                                     },
