@@ -54,6 +54,7 @@ class ProposalContractController extends Controller
                         new OA\Property(property: 'maintenance_warranty_months', type: 'integer', nullable: true, minimum: 0, example: 3, default: 3),
                         new OA\Property(property: 'start_date', type: 'string', format: 'date', example: '2026-11-01'),
                         new OA\Property(property: 'target_completion_date', type: 'string', format: 'date', example: '2027-02-28'),
+                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'File SPK/Kontrak (PDF, DOC, atau DOCX, max 10 MB).'),
                         new OA\Property(property: 'pm_id', type: 'integer', nullable: true, description: 'ID user dosen yang menjadi PM.'),
                         new OA\Property(property: 'terms', type: 'string', nullable: true, description: 'Array termin dalam JSON string; setiap item berisi amount dan opsional term_sequence, payment_date, name/notes.'),
                         new OA\Property(property: 'members', type: 'string', nullable: true, description: 'Array anggota dalam JSON string; setiap item berisi student_id (atau user_id), role_id, dan opsional joined_at.'),
@@ -101,6 +102,7 @@ class ProposalContractController extends Controller
                         new OA\Property(property: 'maintenance_warranty_months', type: 'integer', nullable: true, minimum: 0),
                         new OA\Property(property: 'start_date', type: 'string', format: 'date'),
                         new OA\Property(property: 'target_completion_date', type: 'string', format: 'date'),
+                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'PDF, DOC, atau DOCX; max 10 MB.'),
                         new OA\Property(property: 'pm_id', type: 'integer', nullable: true),
                         new OA\Property(property: 'terms', type: 'string', nullable: true, description: 'Array termin dalam JSON string; item berisi amount dan opsional term_sequence, payment_date, name/notes.'),
                         new OA\Property(property: 'members', type: 'string', nullable: true, description: 'Array anggota dalam JSON string; item berisi student_id (atau user_id), role_id, dan opsional joined_at.'),
@@ -182,7 +184,12 @@ class ProposalContractController extends Controller
             }
 
             // Generate SPK after warranty is set so the document reflects the agreed duration.
-            $proposal->contract_file_url = $this->documentService->generate($proposal);
+            try {
+                $proposal->contract_file_url = $this->documentService->generate($proposal);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('SPK generation failed: ' . $e->getMessage());
+                $proposal->contract_file_url = null;
+            }
 
             $proposal->scope_of_work             = $validated['scope_of_work'];
             $proposal->total_amount              = $validated['total_amount'];
@@ -201,12 +208,15 @@ class ProposalContractController extends Controller
                 $proposal->payments()->delete();
                 foreach ($terms as $idx => $t) {
                     if (isset($t['amount']) && (float) $t['amount'] > 0) {
-                        $proposal->payments()->create([
+                        $payment = $proposal->payments()->create([
                             'term_sequence'      => (int) ($t['term_sequence'] ?? ($idx + 1)),
                             'amount'             => (float) $t['amount'],
                             'payment_date'       => !empty($t['payment_date']) ? $t['payment_date'] : null,
                             'verification_notes' => $t['name'] ?? $t['notes'] ?? ('Termin ' . ($idx + 1)),
                             'status'             => 'PENDING',
+                        ]);
+                        $payment->update([
+                            'invoice_number' => sprintf('INV/%s/%06d', now()->format('Y'), $payment->id),
                         ]);
                         $termsCreated++;
                     }
@@ -311,12 +321,23 @@ class ProposalContractController extends Controller
     #[OA\Post(
         path: '/proposals/{id}/contract/sign',
         summary: 'Tandai kontrak telah ditandatangani (Pengurus TeFa)',
-        description: 'Kompatibilitas. Menjalankan proses yang sama dengan PATCH pada endpoint ini.',
+        description: 'Kompatibilitas untuk pengiriman form multipart. Menjalankan validasi dan proses yang sama dengan PATCH pada endpoint ini.',
         security: [['bearerAuth' => []]],
         tags: ['F-03: SPK & Kontrak'],
         parameters: [
             new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID Proposal', schema: new OA\Schema(type: 'integer', example: 1)),
         ],
+        requestBody: new OA\RequestBody(
+            required: false,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    properties: [
+                        new OA\Property(property: 'contract_file', type: 'string', format: 'binary', description: 'PDF yang sudah ditandatangani, max 10 MB.'),
+                    ]
+                )
+            )
+        ),
         responses: [
             new OA\Response(response: 200, description: 'Kontrak berhasil ditandatangani'),
             new OA\Response(response: 401, description: 'Unauthenticated'),

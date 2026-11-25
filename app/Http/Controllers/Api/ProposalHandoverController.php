@@ -59,6 +59,7 @@ final class ProposalHandoverController extends Controller
                     'id' => $proposal->id,
                     'project_code' => $proposal->project_code,
                     'title' => $proposal->title,
+                    'delivery_type' => $proposal->delivery_type ?? 'source_code',
                     'client_name' => $proposal->client_company_name,
                     'status' => $proposal->status?->name,
                     'latest_uat_result' => $uat?->overall_result,
@@ -175,7 +176,7 @@ final class ProposalHandoverController extends Controller
                 'mimes:pdf,docx,zip,doc',
                 'max:10240',
             ],
-            'user_manual_url'              => ['nullable', 'url', 'max:255'],
+            'user_manual_url'              => ['required', 'url', 'max:255'],
             'handover_notes'               => ['nullable', 'string'],
             'handover_deliverables'        => ['required', 'array', 'min:1', 'max:50'],
             'handover_deliverables.*.name'      => ['required', 'string', 'max:255'],
@@ -190,16 +191,14 @@ final class ProposalHandoverController extends Controller
             'handover_date'                => ['prohibited'],
         ];
 
+        $rules['repository_url'] = ['nullable', 'url', 'max:255'];
+        $rules['access_email'] = ['nullable', 'string', 'max:255'];
+        $rules['access_password'] = ['nullable', 'string', 'max:255'];
+
         if ($isSourceCode) {
-            $rules['repository_url'] = ['required', 'url', 'max:255'];
             $rules['app_url'] = ['nullable', 'url', 'max:255'];
-            $rules['access_email'] = ['nullable', 'string', 'max:255'];
-            $rules['access_password'] = ['nullable', 'string', 'max:255'];
         } else {
-            $rules['repository_url'] = ['nullable', 'url', 'max:255'];
             $rules['app_url'] = ['required', 'url', 'max:255'];
-            $rules['access_email'] = ['nullable', 'string', 'max:255'];
-            $rules['access_password'] = ['nullable', 'string', 'max:255'];
         }
 
         $validated = $request->validate($rules, [
@@ -322,14 +321,7 @@ final class ProposalHandoverController extends Controller
         if ($proposal->client_approved) {
             return $this->error('BAST proyek ini sudah disetujui.', 409);
         }
-        $isSourceCode = ($proposal->delivery_type ?? 'source_code') === 'source_code';
-        $missingDeliverable = ! $proposal->bast_number
-            || ! $proposal->documentation_url
-            || empty($proposal->handover_deliverables)
-            || ($isSourceCode && ! $proposal->repository_url)
-            || (! $isSourceCode && ! $proposal->app_url);
-
-        if ($missingDeliverable) {
+        if ($this->hasIncompleteBast($proposal)) {
             throw ValidationException::withMessages([
                 'handover' => ['BAST belum lengkap. Pengurus TeFa harus mencatat hasil atau barang yang diserahkan.'],
             ]);
@@ -364,7 +356,7 @@ final class ProposalHandoverController extends Controller
                 }
 
                 $this->assertUatSignedAndPassed($lockedProposal);
-                if (! $lockedProposal->bast_number || ! $lockedProposal->repository_url || ! $lockedProposal->documentation_url || empty($lockedProposal->handover_deliverables)) {
+                if ($this->hasIncompleteBast($lockedProposal)) {
                     throw ValidationException::withMessages([
                         'handover' => ['BAST belum lengkap. Pengurus TeFa harus mencatat hasil atau barang yang diserahkan.'],
                     ]);
@@ -480,6 +472,16 @@ final class ProposalHandoverController extends Controller
         );
 
         return Storage::disk('public')->download($path);
+    }
+
+    private function hasIncompleteBast(Proposal $proposal): bool
+    {
+        $isSourceCode = ($proposal->delivery_type ?? 'source_code') === 'source_code';
+
+        return ! $proposal->bast_number
+            || ! $proposal->documentation_url
+            || empty($proposal->handover_deliverables)
+            || (! $isSourceCode && ! $proposal->app_url);
     }
 
     private function authorizeClient(Proposal $proposal, Request $request): void
