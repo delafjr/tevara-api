@@ -34,10 +34,17 @@
             <tbody>
                 <tr><th>Nama proyek</th><td>{{ $proposal->title }}</td></tr>
                 <tr><th>Kode proyek</th><td>{{ $proposal->project_code ?? $proposal->proposal_code }}</td></tr>
+                @if($proposal->spk_number)
+                    <tr><th>Nomor SPK</th><td>{{ $proposal->spk_number }}</td></tr>
+                @endif
+                <tr><th>Skema penyerahan</th><td>{{ ($proposal->delivery_type ?? 'source_code') === 'tefa_managed' ? 'Dikelola Penuh oleh TEVARA' : 'Diserahkan ke Klien (Source Code)' }}</td></tr>
                 <tr><th>Klien</th><td>{{ $proposal->client_company_name }}</td></tr>
                 <tr><th>Perwakilan klien</th><td>{{ $proposal->client_signoff_name }}</td></tr>
-                <tr><th>Repository</th><td>{{ $proposal->repository_url }}</td></tr>
-                <tr><th>Panduan pengguna</th><td>{{ $proposal->user_manual_url ?? '-' }}</td></tr>
+                @if($proposal->app_url)
+                    <tr><th>URL akses aplikasi</th><td>{{ $proposal->app_url }}</td></tr>
+                @endif
+                <tr><th>Repository</th><td>{{ $proposal->repository_url ?: '-' }}</td></tr>
+                <tr><th>Panduan pengguna</th><td>{{ $proposal->user_manual_url ?: '-' }}</td></tr>
             </tbody>
         </table>
     </div>
