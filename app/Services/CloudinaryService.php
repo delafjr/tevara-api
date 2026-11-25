@@ -88,6 +88,25 @@ class CloudinaryService
     }
 
     /**
+     * Dapatkan URL publik gambar siap saji untuk frontend.
+     * Mendukung URL Cloudinary, URL eksternal (http/https), path lokal legacy, atau null.
+     */
+    public function getUrl(?string $pathOrUrl): ?string
+    {
+        if (empty($pathOrUrl)) {
+            return null;
+        }
+
+        // Jika sudah berupa URL absolut (Cloudinary https://res.cloudinary.com/... atau URL eksternal lain)
+        if (str_starts_with($pathOrUrl, 'http://') || str_starts_with($pathOrUrl, 'https://')) {
+            return $pathOrUrl;
+        }
+
+        // Jika masih berupa path lokal relatif (legacy data)
+        return asset('storage/' . ltrim($pathOrUrl, '/'));
+    }
+
+    /**
      * Hapus gambar dari Cloudinary atau disk lokal (jika legacy).
      */
     public function delete(?string $url): bool

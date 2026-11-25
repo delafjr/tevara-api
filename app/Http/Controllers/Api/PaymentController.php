@@ -468,7 +468,7 @@ final class PaymentController extends Controller
                                     new OA\Property(property: 'payment_date', type: 'string', format: 'date', example: '2026-11-04'),
                                     new OA\Property(property: 'payment_method', type: 'string', example: 'BANK_TRANSFER'),
                                     new OA\Property(property: 'transfer_reference', type: 'string', example: 'TRX-123456'),
-                                    new OA\Property(property: 'proof_url', type: 'string', example: 'http://localhost:8000/storage/payments/proofs/abc.jpg'),
+                                    new OA\Property(property: 'proof_url', type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1/tevara/pembayaran/proof.jpg'),
                                     new OA\Property(property: 'status', type: 'string', example: 'PENDING'),
                                     new OA\Property(
                                         property: 'proposal',
@@ -616,11 +616,7 @@ final class PaymentController extends Controller
             'payment_date'       => $payment->payment_date?->toDateString(),
             'payment_method'     => $payment->payment_method,
             'transfer_reference' => $payment->transfer_reference,
-            'proof_url'          => $payment->proof_url
-                ? (str_starts_with($payment->proof_url, 'http://') || str_starts_with($payment->proof_url, 'https://')
-                    ? $payment->proof_url
-                    : asset('storage/' . $payment->proof_url))
-                : null,
+            'proof_url'          => $this->cloudinary->getUrl($payment->proof_url),
             'status'             => $payment->status,
             'verification_notes' => $payment->verification_notes,
             'verified_by'        => $payment->verifier ? [
