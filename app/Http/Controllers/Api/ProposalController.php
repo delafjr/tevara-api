@@ -524,8 +524,12 @@ class ProposalController extends Controller
                 $validated['warranty_months'] = null;
             }
         } else {
-            $validated['has_warranty'] = false;
-            $validated['warranty_months'] = null;
+            $validated['has_warranty'] = true;
+            $validated['warranty_months'] = 3;
+        }
+
+        if ($validated['has_warranty'] && empty($validated['warranty_months'])) {
+            $validated['warranty_months'] = 3;
         }
 
         if (empty($validated['delivery_type'])) {
@@ -814,6 +818,13 @@ class ProposalController extends Controller
             if (! $validated['has_warranty']) {
                 $validated['warranty_months'] = null;
             }
+        } else {
+            $validated['has_warranty'] = true;
+            $validated['warranty_months'] = 3;
+        }
+
+        if ($validated['has_warranty'] && empty($validated['warranty_months'])) {
+            $validated['warranty_months'] = 3;
         }
 
         $modules = $validated['modules'] ?? [];
