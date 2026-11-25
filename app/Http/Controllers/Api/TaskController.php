@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProjectTeam;
 use App\Models\Proposal;
 use App\Models\Task;
+use App\Services\CloudinaryService;
 use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +22,8 @@ final class TaskController extends Controller
     use ApiResponse;
 
     public function __construct(
-        private readonly NotificationService $notifications
+        private readonly NotificationService $notifications,
+        private readonly CloudinaryService $cloudinary
     ) {}
 
     // ──────────────────────────────────────────────────────
@@ -239,7 +241,7 @@ final class TaskController extends Controller
                         new OA\Property(property: 'blockers_summary', type: 'string', nullable: true, description: 'Kendala / blocker'),
                         new OA\Property(property: 'progress_percentage', type: 'number', description: '0.00 - 100.00'),
                         new OA\Property(property: 'status', type: 'string', enum: ['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'], description: 'DONE hanya valid jika progress 100%; server tetap mengubahnya menjadi TESTING sampai review PM.'),
-                        new OA\Property(property: 'report_attachment', type: 'string', format: 'binary', description: 'File lampiran opsional.'),
+                        new OA\Property(property: 'report_attachment', type: 'string', format: 'binary', description: 'File lampiran gambar opsional (JPG, JPEG, PNG, WEBP, maks 10MB).'),
                         new OA\Property(property: 'report_attachment_url', type: 'string', nullable: true, maxLength: 500, description: 'URL lampiran opsional sebagai alternatif upload file.'),
                     ]
                 )
@@ -273,7 +275,7 @@ final class TaskController extends Controller
                         new OA\Property(property: 'blockers_summary', type: 'string', nullable: true, description: 'Kendala / blocker'),
                         new OA\Property(property: 'progress_percentage', type: 'number', minimum: 0, maximum: 100),
                         new OA\Property(property: 'status', type: 'string', enum: ['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'], description: 'DONE hanya valid jika progress 100%; server tetap mengubahnya menjadi TESTING sampai review PM.'),
-                        new OA\Property(property: 'report_attachment', type: 'string', format: 'binary', description: 'File lampiran opsional.'),
+                        new OA\Property(property: 'report_attachment', type: 'string', format: 'binary', description: 'File lampiran gambar opsional (JPG, JPEG, PNG, WEBP, maks 10MB).'),
                         new OA\Property(property: 'report_attachment_url', type: 'string', nullable: true, maxLength: 500, description: 'URL lampiran opsional sebagai alternatif upload file.'),
                     ]
                 )
@@ -304,13 +306,22 @@ final class TaskController extends Controller
             abort(403, 'Akses ditolak: Anda hanya bisa mengupdate task milik Anda.');
         }
 
-        $validated = $request->validate([
+        $rules = [
             'achieved_summary'      => ['required', 'string'],
             'blockers_summary'      => ['nullable', 'string'],
             'progress_percentage'   => ['required', 'numeric', 'min:0', 'max:100'],
             'status'                => ['required', 'string', Rule::in(['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'])],
             'report_attachment'     => ['nullable'], // File atau string URL (GitHub, GitLab, dsb)
             'report_attachment_url' => ['nullable', 'string', 'max:500'],
+        ];
+
+        if ($request->hasFile('report_attachment')) {
+            $rules['report_attachment'] = ['nullable', 'file', 'image', 'max:10240'];
+        }
+
+        $validated = $request->validate($rules, [
+            'report_attachment.image' => 'File lampiran harus berupa gambar (JPG, JPEG, PNG, WEBP, dll).',
+            'report_attachment.max'   => 'Ukuran file lampiran maksimal 10 MB.',
         ]);
 
         $progress = (float) $validated['progress_percentage'];
@@ -340,12 +351,15 @@ final class TaskController extends Controller
         // Handle file upload
         $attachmentUrl = $task->report_attachment_url;
         if ($request->hasFile('report_attachment')) {
-            // Hapus file lama jika ada di storage lokal
-            if ($attachmentUrl && !str_starts_with($attachmentUrl, 'http') && Storage::disk('public')->exists($attachmentUrl)) {
-                Storage::disk('public')->delete($attachmentUrl);
+            // Hapus file lama jika ada (lokal atau cloudinary)
+            if ($attachmentUrl) {
+                $this->cloudinary->delete($attachmentUrl);
             }
-            $attachmentUrl = $request->file('report_attachment')
-                ->store('task-attachments/' . $proposal->id, 'public');
+            $attachmentUrl = $this->cloudinary->upload(
+                $request->file('report_attachment'),
+                CloudinaryService::FOLDER_TASK,
+                'report_attachment'
+            );
         } elseif ($request->filled('report_attachment_url')) {
             $attachmentUrl = $request->input('report_attachment_url');
         } elseif (is_string($request->input('report_attachment')) && filled($request->input('report_attachment'))) {
@@ -670,8 +684,8 @@ final class TaskController extends Controller
         }
 
         // Hapus file attachment jika ada
-        if ($task->report_attachment_url && Storage::disk('public')->exists($task->report_attachment_url)) {
-            Storage::disk('public')->delete($task->report_attachment_url);
+        if ($task->report_attachment_url) {
+            $this->cloudinary->delete($task->report_attachment_url);
         }
 
         $task->delete();
@@ -894,11 +908,7 @@ final class TaskController extends Controller
             'progress_percentage'   => (float) $task->progress_percentage,
             'achieved_summary'      => $task->achieved_summary,
             'blockers_summary'      => $task->blockers_summary,
-            'report_attachment_url' => $task->report_attachment_url
-                ? (str_starts_with($task->report_attachment_url, 'http://') || str_starts_with($task->report_attachment_url, 'https://')
-                    ? $task->report_attachment_url
-                    : asset('storage/' . $task->report_attachment_url))
-                : null,
+            'report_attachment_url' => $this->cloudinary->getUrl($task->report_attachment_url),
             'pm_notes'              => $task->pm_notes,
             'pm_status'             => $task->pm_status,
             'pm_reviewed_at'        => $task->pm_reviewed_at?->toIso8601String(),

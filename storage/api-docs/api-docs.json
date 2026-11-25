@@ -791,7 +791,7 @@
                                         "nullable": true
                                     },
                                     "proof": {
-                                        "description": "File bukti pembayaran (JPG, PNG, PDF, max 5MB)",
+                                        "description": "File bukti pembayaran (gambar JPG, PNG, WEBP, max 10MB)",
                                         "type": "string",
                                         "format": "binary"
                                     }
@@ -1138,7 +1138,7 @@
                                                     },
                                                     "proof_url": {
                                                         "type": "string",
-                                                        "example": "http://localhost:8000/storage/payments/proofs/abc.jpg"
+                                                        "example": "https://res.cloudinary.com/demo/image/upload/v1/tevara/pembayaran/proof.jpg"
                                                     },
                                                     "status": {
                                                         "type": "string",
@@ -2386,7 +2386,7 @@
                 "tags": [
                     "F-07: BAST"
                 ],
-                "summary": "Daftar proyek dengan UAT lulus dan sudah ditandatangani klien",
+                "summary": "Daftar proyek dan kelayakan BAST berdasarkan UAT terakhir",
                 "operationId": "453550b0dd86b637ea89cfc4b1e309ca",
                 "responses": {
                     "200": {
@@ -2435,7 +2435,7 @@
                     "F-07: BAST"
                 ],
                 "summary": "Siapkan BAST oleh Pengurus TeFa",
-                "description": "Hanya dapat disiapkan setelah UAT terakhir lulus dan telah ditandatangani klien. Nomor BAST dan tanggal serah terima tidak boleh dimanipulasi manual.",
+                "description": "Hanya dapat disiapkan setelah UAT terakhir lulus dan telah ditandatangani klien. Masa garansi mengikuti data proposal/kontrak. Nomor BAST dan tanggal serah terima tidak boleh dimanipulasi manual.",
                 "operationId": "70936820cd601b3a186c156ea249a64d",
                 "parameters": [
                     {
@@ -2513,7 +2513,7 @@
                     "F-07: BAST"
                 ],
                 "summary": "Setujui BAST oleh PIC Klien",
-                "description": "Mencatat persetujuan PIC, tanggal serah terima resmi yang di-generate server, status Completed, dan awal masa garansi adalah tanggal_serah_terima + 1 hari (addDay()), serta tanggal_akhir_garansi dihitung berdasarkan durasi garansi.",
+                "description": "Mencatat persetujuan PIC, membuat PDF BAST otomatis, mengirim notifikasi kepada klien, dan mengubah status menjadi Completed. Durasi garansi diambil dari data proposal/kontrak.",
                 "operationId": "5a612fa10583b3c06ff3a1b0d63db836",
                 "parameters": [
                     {
@@ -2586,6 +2586,35 @@
                 "responses": {
                     "200": {
                         "description": "Dokumentasi API"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/proposals/{id}/handover/bast": {
+            "get": {
+                "tags": [
+                    "F-07: BAST"
+                ],
+                "summary": "Unduh PDF BAST yang telah disetujui",
+                "operationId": "eea0e66ad0742c9ddd8ee28c090e1b59",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF BAST"
                     }
                 },
                 "security": [
@@ -3734,7 +3763,7 @@
                                         ]
                                     },
                                     "report_attachment": {
-                                        "description": "File lampiran opsional.",
+                                        "description": "File lampiran gambar opsional (JPG, JPEG, PNG, WEBP, maks 10MB).",
                                         "type": "string",
                                         "format": "binary"
                                     },
@@ -3830,7 +3859,7 @@
                                         ]
                                     },
                                     "report_attachment": {
-                                        "description": "File lampiran opsional.",
+                                        "description": "File lampiran gambar opsional (JPG, JPEG, PNG, WEBP, maks 10MB).",
                                         "type": "string",
                                         "format": "binary"
                                     },
