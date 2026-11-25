@@ -170,6 +170,12 @@ class UatWorkflowTest extends TestCase
             ->assertJsonPath('data.review_status', 'APPROVED');
 
         $this->assertSame(ProposalStatus::where('name', 'Handover')->value('id'), $this->proposal->fresh()->status_id);
+
+        $this->assertDatabaseHas('notifications', [
+            'type'        => 'handover.ready_to_prepare',
+            'proposal_id' => $this->proposal->id,
+            'user_id'     => $this->pengurus->id,
+        ]);
     }
 
     public function test_retest_is_blocked_until_each_failed_feature_has_a_correction_task(): void
