@@ -906,11 +906,7 @@ final class TaskController extends Controller
             'progress_percentage'   => (float) $task->progress_percentage,
             'achieved_summary'      => $task->achieved_summary,
             'blockers_summary'      => $task->blockers_summary,
-            'report_attachment_url' => $task->report_attachment_url
-                ? (str_starts_with($task->report_attachment_url, 'http://') || str_starts_with($task->report_attachment_url, 'https://')
-                    ? $task->report_attachment_url
-                    : asset('storage/' . $task->report_attachment_url))
-                : null,
+            'report_attachment_url' => $this->cloudinary->getUrl($task->report_attachment_url),
             'pm_notes'              => $task->pm_notes,
             'pm_status'             => $task->pm_status,
             'pm_reviewed_at'        => $task->pm_reviewed_at?->toIso8601String(),

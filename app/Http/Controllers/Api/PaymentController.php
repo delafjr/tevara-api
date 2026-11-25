@@ -468,7 +468,7 @@ final class PaymentController extends Controller
                                     new OA\Property(property: 'payment_date', type: 'string', format: 'date', example: '2026-11-04'),
                                     new OA\Property(property: 'payment_method', type: 'string', example: 'BANK_TRANSFER'),
                                     new OA\Property(property: 'transfer_reference', type: 'string', example: 'TRX-123456'),
-                                    new OA\Property(property: 'proof_url', type: 'string', example: 'http://localhost:8000/storage/payments/proofs/abc.jpg'),
+                                    new OA\Property(property: 'proof_url', type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1/tevara/pembayaran/proof.jpg'),
                                     new OA\Property(property: 'status', type: 'string', example: 'PENDING'),
                                     new OA\Property(
                                         property: 'proposal',
