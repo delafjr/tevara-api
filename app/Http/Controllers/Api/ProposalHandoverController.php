@@ -137,7 +137,6 @@ final class ProposalHandoverController extends Controller
                     properties: [
                         new OA\Property(property: 'repository_url', type: 'string', format: 'uri'),
                         new OA\Property(property: 'documentation_file', type: 'string', format: 'binary', nullable: true, description: 'File lampiran aman: PDF, DOCX, ZIP (maks 10MB)'),
-                        new OA\Property(property: 'user_manual_url', type: 'string', format: 'uri', nullable: true),
                         new OA\Property(property: 'user_manual_file', type: 'string', format: 'binary', nullable: true, description: 'File dokumen panduan pengguna (PDF, DOC, DOCX, ZIP maks 10MB)'),
                         new OA\Property(property: 'handover_notes', type: 'string', nullable: true),
                         new OA\Property(property: 'handover_deliverables', type: 'string', description: 'JSON array berisi nama, jenis, jumlah, satuan, kondisi, dan keterangan setiap hasil/barang yang diserahkan.'),
@@ -178,8 +177,12 @@ final class ProposalHandoverController extends Controller
                 'mimes:pdf,docx,zip,doc',
                 'max:10240',
             ],
-            'user_manual_url'              => ['nullable', 'url', 'max:255'],
-            'user_manual_file'             => ['nullable', 'file', 'mimes:pdf,docx,doc,zip', 'max:10240'],
+            'user_manual_file'             => [
+                ($proposal->user_manual_file_url || $proposal->user_manual_url) ? 'nullable' : 'required',
+                'file',
+                'mimes:pdf,docx,doc,zip',
+                'max:10240',
+            ],
             'handover_notes'               => ['nullable', 'string'],
             'handover_deliverables'        => ['required', 'array', 'min:1', 'max:50'],
             'handover_deliverables.*.name'      => ['required', 'string', 'max:255'],
@@ -209,17 +212,12 @@ final class ProposalHandoverController extends Controller
             'documentation_file.max' => 'Ukuran berkas lampiran dokumentasi API maksimal 10 MB.',
             'user_manual_file.mimes' => 'Berkas panduan pengguna harus berformat aman: .pdf, .docx, .doc, atau .zip.',
             'user_manual_file.max' => 'Ukuran berkas panduan pengguna maksimal 10 MB.',
+            'user_manual_file.required' => 'Berkas fisik panduan pengguna wajib diunggah.',
             'nomor_bast.prohibited' => 'Nomor BAST tidak boleh dimanipulasi manual.',
             'bast_number.prohibited' => 'Nomor BAST tidak boleh dimanipulasi manual.',
             'tanggal_serah_terima.prohibited' => 'Tanggal serah terima tidak boleh dimanipulasi manual.',
             'handover_date.prohibited' => 'Tanggal serah terima tidak boleh dimanipulasi manual.',
         ]);
-
-        if (! $request->hasFile('user_manual_file') && blank($validated['user_manual_url'] ?? null) && blank($proposal->user_manual_url) && blank($proposal->user_manual_file_url)) {
-            throw ValidationException::withMessages([
-                'user_manual_url' => ['Panduan pengguna wajib diisi (tautan URL atau file dokumen).'],
-            ]);
-        }
 
         $wasPrepared = filled($proposal->bast_number);
         $newDocumentationPath = $request->file('documentation_file')?->store('handover-documents', 'public');
@@ -255,8 +253,7 @@ final class ProposalHandoverController extends Controller
                     'access_email'         => $validated['access_email'] ?? null,
                     'access_password'      => $validated['access_password'] ?? null,
                     'documentation_url'    => $newDocumentationPath ?? $lockedProposal->documentation_url,
-                    'user_manual_url'      => array_key_exists('user_manual_url', $validated) ? $validated['user_manual_url'] : $lockedProposal->user_manual_url,
-                    'user_manual_file_url' => $newUserManualPath ?? $lockedProposal->user_manual_file_url,
+                    'user_manual_file_url' => $newUserManualPath ?? ($lockedProposal->user_manual_file_url ?: $lockedProposal->user_manual_url),
                     'handover_notes'       => $validated['handover_notes'] ?? null,
                     'handover_deliverables'=> $validated['handover_deliverables'],
                     'handover_date'        => null,
