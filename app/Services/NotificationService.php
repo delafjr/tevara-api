@@ -71,6 +71,10 @@ final class NotificationService
             'title'   => 'BAST Disetujui Klien',
             'message' => 'BAST proyek :code - :title telah disetujui oleh PIC Klien.',
         ],
+        'handover.document_generated' => [
+            'title'   => 'BAST Siap Diunduh',
+            'message' => 'BAST proyek :code - :title telah disetujui. PDF tersedia di halaman serah terima proyek.',
+        ],
         'project.team_assigned' => [
             'title'   => 'Anda Ditambahkan ke Proyek',
             'message' => 'Anda ditambahkan ke tim proyek :code - :title sebagai :role.',

@@ -172,12 +172,17 @@ class ProposalContractController extends Controller
                 $proposal->project_code = $prefixPrj . str_pad((string) $seqPrj, 3, '0', STR_PAD_LEFT);
             }
 
-            // Auto-generate dokumen SPK DOCX dari template
-            $proposal->contract_file_url = $this->documentService->generate($proposal);
-
             if (!empty($validated['pm_id'])) {
                 $proposal->pm_id = (int) $validated['pm_id'];
             }
+
+            if (!empty($validated['maintenance_warranty_months'])) {
+                $proposal->has_warranty    = true;
+                $proposal->warranty_months = (int) $validated['maintenance_warranty_months'];
+            }
+
+            // Generate SPK after warranty is set so the document reflects the agreed duration.
+            $proposal->contract_file_url = $this->documentService->generate($proposal);
 
             $proposal->scope_of_work             = $validated['scope_of_work'];
             $proposal->total_amount              = $validated['total_amount'];
@@ -186,13 +191,6 @@ class ProposalContractController extends Controller
             $proposal->target_completion_date    = $validated['target_completion_date'];
             $proposal->status_id                 = 7; // Active (id=7)
             $proposal->save();
-
-            // Set atau update masa garansi — hanya kalau dikirim dan > 0
-            if (!empty($validated['maintenance_warranty_months'])) {
-                $proposal->has_warranty    = true;
-                $proposal->warranty_months = (int) $validated['maintenance_warranty_months'];
-                $proposal->save();
-            }
 
             // Simpan termin pembayaran jika ada
             $terms = $request->input('terms');
