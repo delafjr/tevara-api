@@ -56,4 +56,11 @@ class ProposalObserver
             'changed_by' => $proposal->client_id,
         ]);
     }
+
+    public function updated(Proposal $proposal)
+    {
+        if ($proposal->wasChanged('status_id')) {
+            $proposal->syncOverallProgress();
+        }
+    }
 }

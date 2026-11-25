@@ -37,7 +37,6 @@ final class TaskController extends Controller
             new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'status', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['TODO', 'IN_PROGRESS', 'TESTING', 'DONE'])),
             new OA\Parameter(name: 'assigned_to', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'category_id', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Daftar task'),
@@ -52,7 +51,7 @@ final class TaskController extends Controller
 
         $this->authorizeAccess($proposal, $user);
 
-        $query = $proposal->tasks()->with(['projectTeam.user.studentProfile', 'category']);
+        $query = $proposal->tasks()->with(['projectTeam.user.studentProfile']);
 
         // Mahasiswa: auto-scope ke task miliknya saja
         if ($user->hasRole('mahasiswa') && !$user->hasRole('pengurus_tefa') && !$user->hasRole('dosen')) {
@@ -71,9 +70,6 @@ final class TaskController extends Controller
                 ->where('user_id', (int) $request->input('assigned_to'))
                 ->pluck('id');
             $query->whereIn('project_team_id', $teamIds);
-        }
-        if ($request->filled('category_id')) {
-            $query->where('category_id', (int) $request->input('category_id'));
         }
 
         $tasks = $query->orderByDesc('updated_at')->get();
@@ -99,7 +95,6 @@ final class TaskController extends Controller
                 properties: [
                     new OA\Property(property: 'title', type: 'string', example: 'Implementasi Payment Gateway'),
                     new OA\Property(property: 'description', type: 'string', nullable: true),
-                    new OA\Property(property: 'category_id', type: 'integer', nullable: true),
                     new OA\Property(property: 'assigned_student_id', type: 'integer', nullable: true, description: 'User ID mahasiswa (harus anggota tim)'),
                     new OA\Property(property: 'priority', type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
                     new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true),
@@ -133,7 +128,6 @@ final class TaskController extends Controller
         $validated = $request->validate([
             'title'               => ['required', 'string', 'max:255'],
             'description'         => ['nullable', 'string'],
-            'category_id'         => ['nullable', 'integer', 'exists:task_categories,id'],
             'assigned_student_id' => ['nullable', 'integer', 'exists:users,id'],
             'priority'            => ['nullable', 'string', Rule::in(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])],
             'due_date'            => ['nullable', 'date'],
@@ -158,7 +152,6 @@ final class TaskController extends Controller
         $task = Task::create([
             'proposal_id'         => $proposal->id,
             'project_team_id'     => $projectTeamId,
-            'category_id'         => $validated['category_id'] ?? null,
             'title'               => $validated['title'],
             'description'         => $validated['description'] ?? null,
             'priority'            => $validated['priority'] ?? 'MEDIUM',
@@ -168,7 +161,7 @@ final class TaskController extends Controller
             'pm_status'           => 'PENDING',
         ]);
 
-        $task->load(['projectTeam.user.studentProfile', 'category']);
+        $task->load(['projectTeam.user.studentProfile']);
 
         if ($task->projectTeam?->user_id) {
             $this->notifications->notify((int) $task->projectTeam->user_id, 'task.assigned', [
@@ -186,7 +179,7 @@ final class TaskController extends Controller
     #[OA\Get(
         path: '/proposals/{id}/tasks/{taskId}',
         summary: 'Detail satu task',
-        description: 'Mahasiswa hanya bisa akses task miliknya. Include: assignee, category, pm_notes, pm_status.',
+        description: 'Mahasiswa hanya bisa akses task miliknya. Include: assignee, pm_notes, pm_status.',
         security: [['bearerAuth' => []]],
         tags: ['F-05: Tasks & Progress'],
         parameters: [
@@ -207,7 +200,7 @@ final class TaskController extends Controller
         $this->authorizeAccess($proposal, $user);
 
         $task = Task::where('proposal_id', $proposal->id)
-            ->with(['projectTeam.user.studentProfile', 'category'])
+            ->with(['projectTeam.user.studentProfile'])
             ->findOrFail($taskId);
 
         // Mahasiswa: hanya bisa akses task miliknya
@@ -329,9 +322,19 @@ final class TaskController extends Controller
             return $this->error('Status DONE hanya boleh jika progress mencapai 100%.', 422);
         }
 
-        // Progress 100% berarti laporan siap direview, bukan otomatis selesai.
-        if ($progress >= 100) {
-            $status = 'TESTING';
+        // Sinkronisasi kategori (status) dengan progress percentage:
+        // 1. TODO: progress harus 0%
+        // 2. IN_PROGRESS: progress 1% - 99%
+        // 3. TESTING: progress 100% (siap review PM)
+        if ($status === 'TODO' || $progress <= 0) {
+            $status   = 'TODO';
+            $progress = 0;
+        } elseif ($progress >= 100 || $status === 'TESTING') {
+            $status   = 'TESTING';
+            $progress = 100;
+        } else {
+            $status   = 'IN_PROGRESS';
+            $progress = max(1, min(99, $progress));
         }
 
         // Handle file upload
@@ -359,7 +362,7 @@ final class TaskController extends Controller
             'pm_reviewed_at'        => null,      // Laporan baru belum direview
         ]);
 
-        $task->load(['projectTeam.user.studentProfile', 'category']);
+        $task->load(['projectTeam.user.studentProfile']);
 
         $this->notifications->notifyPm($proposal, 'task.progress_submitted', [
             'student'  => $user->name,
@@ -446,7 +449,7 @@ final class TaskController extends Controller
 
         $task->update($updateData);
 
-        $task->load(['projectTeam.user.studentProfile', 'category', 'uatItem.uatResult']);
+        $task->load(['projectTeam.user.studentProfile', 'uatItem.uatResult']);
 
         if ($task->projectTeam?->user_id) {
             $this->notifications->notify((int) $task->projectTeam->user_id, 'task.reviewed', [
@@ -494,7 +497,6 @@ final class TaskController extends Controller
                 properties: [
                     new OA\Property(property: 'title', type: 'string', nullable: true),
                     new OA\Property(property: 'description', type: 'string', nullable: true),
-                    new OA\Property(property: 'category_id', type: 'integer', nullable: true),
                     new OA\Property(property: 'assigned_student_id', type: 'integer', nullable: true, description: 'User ID mahasiswa yang merupakan anggota tim proposal.'),
                     new OA\Property(property: 'priority', type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
                     new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true),
@@ -524,7 +526,6 @@ final class TaskController extends Controller
                 properties: [
                     new OA\Property(property: 'title', type: 'string', nullable: true, maxLength: 255),
                     new OA\Property(property: 'description', type: 'string', nullable: true),
-                    new OA\Property(property: 'category_id', type: 'integer', nullable: true),
                     new OA\Property(property: 'assigned_student_id', type: 'integer', nullable: true, description: 'User ID mahasiswa yang merupakan anggota tim proposal.'),
                     new OA\Property(property: 'priority', type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
                     new OA\Property(property: 'due_date', type: 'string', format: 'date', nullable: true),
@@ -562,7 +563,6 @@ final class TaskController extends Controller
         $validated = $request->validate([
             'title'               => ['nullable', 'string', 'max:255'],
             'description'         => ['nullable', 'string'],
-            'category_id'         => ['nullable', 'integer', 'exists:task_categories,id'],
             'assigned_student_id' => ['nullable', 'integer', 'exists:users,id'],
             'priority'            => ['nullable', 'string', Rule::in(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])],
             'due_date'            => ['nullable', 'date'],
@@ -575,9 +575,6 @@ final class TaskController extends Controller
         }
         if (array_key_exists('description', $validated)) {
             $updateData['description'] = $validated['description'];
-        }
-        if (array_key_exists('category_id', $validated)) {
-            $updateData['category_id'] = $validated['category_id'];
         }
         if (array_key_exists('priority', $validated) && $validated['priority'] !== null) {
             $updateData['priority'] = $validated['priority'];
@@ -716,9 +713,15 @@ final class TaskController extends Controller
         }
 
         $tasks = $baseQuery->get();
+        $allProposalTasks = $proposal->tasks()->get();
+
+        $overallProgress = $allProposalTasks->count() > 0
+            ? round((float) $allProposalTasks->avg('progress_percentage'), 2)
+            : 0;
 
         $summary = [
             'total'              => $tasks->count(),
+            'project_total'      => $allProposalTasks->count(),
             'todo'               => $tasks->where('status', 'TODO')->count(),
             'in_progress'        => $tasks->where('status', 'IN_PROGRESS')->count(),
             'testing'            => $tasks->where('status', 'TESTING')->count(),
@@ -726,8 +729,9 @@ final class TaskController extends Controller
             'pending_review'     => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
             'approved'           => $tasks->where('pm_status', 'APPROVED')->count(),
             'needs_improvement'  => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
-            'overall_progress'   => $tasks->count() > 0
-                ? round($tasks->avg('progress_percentage'), 2)
+            'overall_progress'   => $overallProgress,
+            'my_progress'        => $tasks->count() > 0
+                ? round((float) $tasks->avg('progress_percentage'), 2)
                 : 0,
         ];
 
@@ -768,13 +772,16 @@ final class TaskController extends Controller
         }
 
         $tasks = $proposal->tasks()
-            ->with(['projectTeam.user.studentProfile', 'category'])
+            ->with(['projectTeam.user.studentProfile'])
             ->orderBy('due_date')
             ->orderByDesc('updated_at')
             ->get();
 
+        $overallProgress = (float) ($proposal->overall_progress ?? $proposal->syncOverallProgress());
+
         $summary = [
             'total'             => $tasks->count(),
+            'project_total'     => $tasks->count(),
             'todo'              => $tasks->where('status', 'TODO')->count(),
             'in_progress'       => $tasks->where('status', 'IN_PROGRESS')->count(),
             'testing'           => $tasks->where('status', 'TESTING')->count(),
@@ -782,9 +789,7 @@ final class TaskController extends Controller
             'pending_review'    => $tasks->filter(fn ($t) => $t->pm_status === 'PENDING' && $t->hasSubmittedReport())->count(),
             'approved'          => $tasks->where('pm_status', 'APPROVED')->count(),
             'needs_improvement' => $tasks->where('pm_status', 'NEEDS_IMPROVEMENT')->count(),
-            'overall_progress'  => $tasks->count() > 0
-                ? round($tasks->avg('progress_percentage'), 2)
-                : 0,
+            'overall_progress'  => $overallProgress,
         ];
 
         $teamMembers = $proposal->projectTeams->map(function (ProjectTeam $team) {
@@ -813,6 +818,7 @@ final class TaskController extends Controller
                 'pm_id'                  => $proposal->pm_id,
                 'client_name'            => $proposal->client_company_name,
                 'team_size'              => $teamMembers->count(),
+                'overall_progress'       => $overallProgress,
             ],
             'summary'      => $summary,
             'team_members' => $teamMembers,
@@ -894,10 +900,6 @@ final class TaskController extends Controller
             'pm_notes'              => $task->pm_notes,
             'pm_status'             => $task->pm_status,
             'pm_reviewed_at'        => $task->pm_reviewed_at?->toIso8601String(),
-            'category'              => $task->category ? [
-                'id'   => $task->category->id,
-                'name' => $task->category->name,
-            ] : null,
             'assignee'              => $assignee,
             'created_at'            => $task->created_at?->toIso8601String(),
             'updated_at'            => $task->updated_at?->toIso8601String(),

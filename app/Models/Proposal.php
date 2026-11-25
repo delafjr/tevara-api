@@ -37,7 +37,11 @@ class Proposal extends Model
         'target_completion_date',
         'actual_completion_date',
         'bast_number',
+        'bast_document_url',
         'repository_url',
+        'app_url',
+        'access_email',
+        'access_password',
         'documentation_url',
         'user_manual_url',
         'handover_notes',
@@ -51,6 +55,7 @@ class Proposal extends Model
         'warranty_start_date',
         'warranty_end_date',
         'status_id',
+        'overall_progress',
     ];
 
     protected $casts = [
@@ -72,6 +77,7 @@ class Proposal extends Model
         'warranty_months'        => 'integer',
         'warranty_start_date'    => 'date',
         'warranty_end_date'      => 'date',
+        'overall_progress'       => 'decimal:2',
     ];
 
     protected $appends = [
@@ -86,6 +92,22 @@ class Proposal extends Model
             'maintenance_start_date'      => $this->warranty_start_date?->toDateString(),
             'maintenance_end_date'        => $this->warranty_end_date?->toDateString(),
         ];
+    }
+
+    public function syncOverallProgress(): float
+    {
+        $avg = $this->tasks()->avg('progress_percentage');
+        if ($avg !== null) {
+            $progress = round((float) $avg, 2);
+        } else {
+            $statusName = strtolower($this->status?->name ?? '');
+            $progress = in_array($statusName, ['completed', 'handover'], true) ? 100.00 : 0.00;
+        }
+
+        $this->updateQuietly(['overall_progress' => $progress]);
+        $this->overall_progress = $progress;
+
+        return $progress;
     }
 
     // ── Relationships ──────────────────────────────────

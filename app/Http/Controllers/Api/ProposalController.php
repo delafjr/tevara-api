@@ -343,23 +343,29 @@ class ProposalController extends Controller
         $proposals = Proposal::with([
             'status:id,name',
             'category:id,name',
+            'uatResults' => fn ($query) => $query
+                ->select('id', 'proposal_id', 'session_date', 'overall_result', 'signed_off_at')
+                ->orderByDesc('id'),
             'projectTeams.uatResults' => fn ($query) => $query
-                ->select('id', 'project_team_id', 'session_date', 'overall_result')
-                ->orderByDesc('session_date')
+                ->select('id', 'project_team_id', 'session_date', 'overall_result', 'signed_off_at')
                 ->orderByDesc('id'),
         ])
             ->where('client_id', $request->user()->id)
             ->latest()
             ->get()
             ->map(function (Proposal $proposal) {
-                $latestUat = $proposal->uatResult ?? $proposal->projectTeams
-                    ->flatMap(fn ($team) => $team->uatResults)
-                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd') . str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
+                $latestUat = $proposal->uatResults
+                    ->concat($proposal->projectTeams->flatMap(fn ($team) => $team->uatResults))
+                    ->sortByDesc(fn ($result) => $result->session_date->format('Ymd').str_pad((string) $result->id, 12, '0', STR_PAD_LEFT))
                     ->first();
+                $bastEligible = $latestUat?->overall_result === 'PASSED'
+                    && $latestUat?->signed_off_at !== null
+                    && ! $proposal->client_approved;
                 $statusName = strtolower($proposal->status?->name ?? '');
-                $progress = in_array($statusName, ['completed', 'handover'], true)
-                    ? 100
-                    : (int) round($proposal->tasks->avg('progress_percentage') ?? 0);
+                $taskCount = $proposal->tasks->count();
+                $progress = $taskCount > 0
+                    ? (int) round($proposal->tasks->avg('progress_percentage') ?? 0)
+                    : (in_array($statusName, ['completed', 'handover'], true) ? 100 : 0);
 
                 return [
                 'id'                     => $proposal->id,
@@ -370,15 +376,25 @@ class ProposalController extends Controller
                 'warranty_months'        => $proposal->warranty_months,
                 'spk_number'             => $proposal->spk_number,
                 'contract_file_url'      => $proposal->contract_file_url,
+                'delivery_type'          => $proposal->delivery_type,
                 'bast_number'            => $proposal->bast_number,
+                'bast_document_url'      => $proposal->bast_document_url,
                 'handover_date'          => $proposal->handover_date?->toDateString(),
                 'repository_url'         => $proposal->repository_url,
+                'app_url'                => $proposal->app_url,
+                'access_email'           => $proposal->access_email,
+                'access_password'        => $proposal->access_password,
                 'documentation_url'      => $proposal->documentation_url,
                 'user_manual_url'        => $proposal->user_manual_url,
                 'handover_notes'          => $proposal->handover_notes,
                 'handover_deliverables'   => $proposal->handover_deliverables ?? [],
                 'client_signoff_name'     => $proposal->client_signoff_name,
                 'bast_approved_at'        => $proposal->bast_approved_at?->toDateTimeString(),
+                'maintenance'             => [
+                    'maintenance_warranty_months' => $proposal->warranty_months,
+                    'maintenance_start_date'      => $proposal->warranty_start_date?->toDateString(),
+                    'maintenance_end_date'        => $proposal->warranty_end_date?->toDateString(),
+                ],
                 'warranty'               => [
                     'has_warranty'        => (bool) $proposal->has_warranty,
                     'warranty_months'     => $proposal->warranty_months,
@@ -417,8 +433,8 @@ class ProposalController extends Controller
                 ])->values(),
                 'latest_uat_result'      => $latestUat?->overall_result,
                 'uat_signed_off_at'      => $latestUat?->signed_off_at?->toIso8601String(),
-                'bast_eligible'          => $latestUat?->overall_result === 'PASSED' && $latestUat?->signed_off_at !== null && !$proposal->client_approved,
-                'bast_prepared'          => filled($proposal->bast_number) && !$proposal->client_approved,
+                'bast_eligible'          => $bastEligible,
+                'bast_prepared'          => filled($proposal->bast_number) && $bastEligible,
                 'client_approved'        => $proposal->client_approved,
                 ];
             });
@@ -603,13 +619,13 @@ class ProposalController extends Controller
             $proposal->makeHidden(['risk_analysis']);
         }
 
-        // Overall progress: 100% saat proyek selesai/handover, selain itu rata-rata progres task.
+        // Overall progress: sinkron rata-rata progres task, atau 100% saat proyek selesai/handover jika belum ada task.
         $statusName   = strtolower($proposal->status?->name ?? '');
         $isCompleted  = in_array($statusName, ['completed', 'handover'], true);
         $taskProgress = $proposal->tasks()->pluck('progress_percentage');
-        $overallProgress = $isCompleted
-            ? 100
-            : ($taskProgress->count() > 0 ? (int) round((float) $taskProgress->avg()) : 0);
+        $overallProgress = $taskProgress->count() > 0
+            ? (int) round((float) $taskProgress->avg())
+            : ($isCompleted ? 100 : 0);
 
         return response()->json(array_merge($proposal->toArray(), [
             'overall_progress' => $overallProgress,

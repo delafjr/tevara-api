@@ -10,7 +10,6 @@ class Task extends Model
         'proposal_id',
         'uat_item_id',
         'project_team_id',
-        'category_id',
         'title',
         'description',
         'priority',
@@ -44,11 +43,6 @@ class Task extends Model
     public function projectTeam()
     {
         return $this->belongsTo(ProjectTeam::class);
-    }
-
-    public function category()
-    {
-        return $this->belongsTo(TaskCategory::class, 'category_id');
     }
 
     /**
