@@ -103,6 +103,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         Route::middleware('role:klien|pengurus_tefa')->group(function () {
             Route::get('proposals/{id}/handover/documentation', [ProposalHandoverController::class, 'downloadDocumentation'])->whereNumber('id');
+            Route::get('proposals/{id}/handover/user-manual', [ProposalHandoverController::class, 'downloadUserManual'])->whereNumber('id');
             Route::get('proposals/{id}/handover/bast', [ProposalHandoverController::class, 'downloadBast'])->whereNumber('id');
         });
 
