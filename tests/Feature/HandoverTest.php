@@ -90,6 +90,7 @@ class HandoverTest extends TestCase
 
         $prepared = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'user_manual_url' => 'https://example.test/user-manual',
             'handover_notes' => 'Seluruh produk diserahkan.',
@@ -171,6 +172,7 @@ class HandoverTest extends TestCase
         $file = UploadedFile::fake()->create('dokumen-sistem.pdf', 100, 'application/pdf');
         $prepareRes = $this->postJson("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'app_url' => 'https://aplikasi-klien.tefa.polines.ac.id',
+            'user_manual_url' => 'https://example.test/user-manual',
             'access_email' => 'admin@klien.com',
             'access_password' => 'Rahasia123!',
             'documentation_file' => $file,
@@ -223,6 +225,7 @@ class HandoverTest extends TestCase
 
         $response = $this->postJson("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'handover_deliverables' => [[
                 'name' => 'Aplikasi inventaris',
@@ -255,6 +258,7 @@ class HandoverTest extends TestCase
         Sanctum::actingAs($this->pengurus);
         $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'handover_deliverables' => [[
                 'name' => 'Aplikasi inventaris',
@@ -319,6 +323,7 @@ class HandoverTest extends TestCase
         Sanctum::actingAs($this->pengurus);
         $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'handover_deliverables' => [[
                 'name' => 'Aplikasi inventaris',
@@ -383,6 +388,7 @@ class HandoverTest extends TestCase
         Sanctum::actingAs($this->pengurus);
         $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'handover_deliverables' => [[
                 'name' => 'Aplikasi inventaris',
@@ -459,6 +465,7 @@ class HandoverTest extends TestCase
         Sanctum::actingAs($this->pengurus);
         $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'handover_deliverables' => [[
                 'name' => 'Aplikasi inventaris',
@@ -501,6 +508,7 @@ class HandoverTest extends TestCase
         // Ekstensi tidak aman (.php / .exe)
         $invalidExtension = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('exploit.php', 20, 'text/x-php'),
             'handover_deliverables' => json_encode([[
                 'name' => 'Aplikasi',
@@ -516,6 +524,7 @@ class HandoverTest extends TestCase
         // Ukuran melebihi 10MB (10241 KB)
         $oversizedFile = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('large-docs.zip', 11000, 'application/zip'),
             'handover_deliverables' => json_encode([[
                 'name' => 'Aplikasi',
@@ -531,6 +540,7 @@ class HandoverTest extends TestCase
         // Ekstensi aman .zip diperbolehkan
         $validZip = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('docs.zip', 1000, 'application/zip'),
             'handover_deliverables' => json_encode([[
                 'name' => 'Aplikasi',
@@ -546,6 +556,7 @@ class HandoverTest extends TestCase
         // Ekstensi aman .docx diperbolehkan
         $validDocx = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('docs.docx', 1000, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
             'handover_deliverables' => json_encode([[
                 'name' => 'Aplikasi',
@@ -572,6 +583,7 @@ class HandoverTest extends TestCase
         Sanctum::actingAs($this->pengurus);
         $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
             'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/user-manual',
             'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
             'handover_deliverables' => [[
                 'name' => 'Aplikasi inventaris',

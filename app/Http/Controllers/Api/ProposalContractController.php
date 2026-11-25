@@ -208,12 +208,15 @@ class ProposalContractController extends Controller
                 $proposal->payments()->delete();
                 foreach ($terms as $idx => $t) {
                     if (isset($t['amount']) && (float) $t['amount'] > 0) {
-                        $proposal->payments()->create([
+                        $payment = $proposal->payments()->create([
                             'term_sequence'      => (int) ($t['term_sequence'] ?? ($idx + 1)),
                             'amount'             => (float) $t['amount'],
                             'payment_date'       => !empty($t['payment_date']) ? $t['payment_date'] : null,
                             'verification_notes' => $t['name'] ?? $t['notes'] ?? ('Termin ' . ($idx + 1)),
                             'status'             => 'PENDING',
+                        ]);
+                        $payment->update([
+                            'invoice_number' => sprintf('INV/%s/%06d', now()->format('Y'), $payment->id),
                         ]);
                         $termsCreated++;
                     }

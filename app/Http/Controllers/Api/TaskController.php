@@ -408,17 +408,19 @@ final class TaskController extends Controller
         $proposal = Proposal::findOrFail($id);
         $user     = $request->user();
 
-        $isPengurus = $user->hasRole('pengurus_tefa');
-        if (! $isPengurus && ! $user->hasRole('dosen')) {
+        $isProjectPm = $user->hasRole('dosen') && (int) $proposal->pm_id === (int) $user->id;
+        $isPengurus  = $user->hasRole('pengurus_tefa');
+
+        if (! $isProjectPm && ! $isPengurus) {
+            if ($user->hasRole('dosen')) {
+                abort(403, 'Akses ditolak: Anda bukan PM untuk proyek ini.');
+            }
+
             abort(403, 'Akses ditolak: Hanya Dosen PM atau Pengurus TeFa yang bisa mereview task.');
         }
 
-        if (! $isPengurus && (int) $proposal->pm_id !== (int) $user->id) {
-            abort(403, 'Akses ditolak: Anda bukan PM untuk proyek ini.');
-        }
-
         $task = Task::where('proposal_id', $proposal->id)->findOrFail($taskId);
-        if ($isPengurus && ! $task->uat_item_id) {
+        if (! $isProjectPm && $isPengurus && ! $task->uat_item_id) {
             abort(403, 'Pengurus TeFa hanya dapat memverifikasi task tindak lanjut UAT.');
         }
 

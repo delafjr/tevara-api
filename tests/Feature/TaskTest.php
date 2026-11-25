@@ -644,4 +644,30 @@ class TaskTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_dual_role_pm_and_pengurus_can_approve_regular_task(): void
+    {
+        $this->dosenPm->syncRoles(['dosen', 'pengurus_tefa']);
+
+        $task = Task::create([
+            'proposal_id'         => $this->proposal->id,
+            'project_team_id'     => $this->team1->id,
+            'title'               => 'Task Reguler Dual Role PM',
+            'status'              => 'TESTING',
+            'progress_percentage' => 100,
+            'achieved_summary'    => 'Sudah selesai dikerjakan.',
+            'pm_status'           => 'PENDING',
+        ]);
+
+        Sanctum::actingAs($this->dosenPm);
+
+        $response = $this->patchJson("/api/v1/proposals/{$this->proposal->id}/tasks/{$task->id}/review", [
+            'pm_status' => 'APPROVED',
+            'pm_notes'  => 'Disetujui oleh PM yang juga memiliki role pengurus.',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'DONE')
+            ->assertJsonPath('data.pm_status', 'APPROVED');
+    }
 }

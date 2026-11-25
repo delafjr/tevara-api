@@ -587,13 +587,28 @@ final class PaymentController extends Controller
 
         abort_unless($clientIds->contains($payment->proposal->client_id), 403, 'Akses ditolak untuk invoice ini.');
 
+        $channels = [
+            'bca'       => ['group' => 'Transfer Bank', 'label' => 'Bank BCA', 'account' => '1234 5678 9012', 'holder' => 'TEFA Polines / TEVARA'],
+            'mandiri'   => ['group' => 'Transfer Bank', 'label' => 'Bank Mandiri', 'account' => '1350 0987 6543 2', 'holder' => 'TEFA Polines / TEVARA'],
+            'bni'       => ['group' => 'Transfer Bank', 'label' => 'Bank BNI', 'account' => '0889 1122 3344', 'holder' => 'TEFA Polines / TEVARA'],
+            'bri'       => ['group' => 'Transfer Bank', 'label' => 'Bank BRI', 'account' => '0022 0100 4455 501', 'holder' => 'TEFA Polines / TEVARA'],
+            'gopay'     => ['group' => 'E-Wallet', 'label' => 'GoPay', 'account' => '0811 2345 6789', 'holder' => 'TEVARA Polines'],
+            'ovo'       => ['group' => 'E-Wallet', 'label' => 'OVO', 'account' => '0811 2345 6789', 'holder' => 'TEVARA Polines'],
+            'dana'      => ['group' => 'E-Wallet', 'label' => 'DANA', 'account' => '0811 2345 6789', 'holder' => 'TEVARA Polines'],
+            'shopeepay' => ['group' => 'E-Wallet', 'label' => 'ShopeePay', 'account' => '0811 2345 6789', 'holder' => 'TEVARA Polines'],
+        ];
+        $channelKey = (string) $request->query('channel', '');
+        $selectedChannel = $channels[$channelKey] ?? null;
+
         $invoiceNumber = $payment->invoice_number
             ?? sprintf('INV/%s/%06d', $payment->created_at?->format('Y') ?? now()->format('Y'), $payment->id);
         $filename = str_replace('/', '-', $invoiceNumber) . '.pdf';
         $pdf = Pdf::loadView('documents.invoice', [
-            'payment' => $payment,
-            'proposal' => $payment->proposal,
-            'invoiceNumber' => $invoiceNumber,
+            'payment'         => $payment,
+            'proposal'        => $payment->proposal,
+            'invoiceNumber'   => $invoiceNumber,
+            'selectedChannel' => $selectedChannel,
+            'channels'        => $channels,
         ])->setPaper('a4');
 
         return $pdf->download($filename);
