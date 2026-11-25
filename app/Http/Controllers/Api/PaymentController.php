@@ -282,18 +282,19 @@ final class PaymentController extends Controller
             'payment_date'       => ['required', 'date'],
             'payment_method'     => ['required', Rule::in(['BANK_TRANSFER', 'VIRTUAL_ACCOUNT', 'CASH', 'OTHER'])],
             'transfer_reference' => ['nullable', 'string', 'max:255'],
-            'proof'              => ['required', 'file', 'image', 'max:10240'], // max 10MB gambar
+            'proof'              => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'], // max 5MB
         ], [
-            'proof.image' => 'File bukti pembayaran harus berupa gambar (JPG, JPEG, PNG, WEBP, dll).',
-            'proof.max'   => 'Ukuran file bukti pembayaran maksimal 10 MB.',
+            'proof.required' => 'Berkas bukti pembayaran wajib diunggah.',
+            'proof.mimes'    => 'Format berkas harus JPG, PNG, atau PDF.',
+            'proof.max'      => 'Ukuran berkas maksimal 5 MB.',
         ]);
 
-        // Hapus file lama jika ada (lokal atau cloudinary)
+        // Hapus file lama jika ada
         if ($payment->proof_url) {
             $this->cloudinary->delete($payment->proof_url);
         }
 
-        $path = $this->cloudinary->upload($request->file('proof'), CloudinaryService::FOLDER_PEMBAYARAN, 'proof');
+        $path = $this->cloudinary->uploadProofFile($request->file('proof'), CloudinaryService::FOLDER_PEMBAYARAN, 'proof');
 
         $payment->update([
             'payment_date'       => $request->input('payment_date'),

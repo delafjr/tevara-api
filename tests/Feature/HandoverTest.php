@@ -611,4 +611,47 @@ class HandoverTest extends TestCase
         $this->assertSame($expectedEndDate, substr((string) $response->json('data.maintenance.maintenance_end_date'), 0, 10));
         $this->assertSame(3, (int) $response->json('data.maintenance.maintenance_warranty_months'));
     }
+
+    public function test_pengurus_dapat_mengunggah_pdf_panduan_pengguna_dan_mengunduhnya(): void
+    {
+        Storage::fake('public');
+        UatResult::create([
+            'proposal_id' => $this->proposal->id,
+            'session_date' => now()->toDateString(),
+            'overall_result' => 'PASSED',
+            'client_signoff_name' => 'Klien Tevara',
+            'signed_off_at' => now(),
+        ]);
+
+        Sanctum::actingAs($this->pengurus);
+        $prepareRes = $this->post("/api/v1/proposals/{$this->proposal->id}/handover/prepare", [
+            'repository_url' => 'https://example.test/repository',
+            'user_manual_url' => 'https://example.test/docs-web',
+            'documentation_file' => UploadedFile::fake()->create('api-documentation.pdf', 20, 'application/pdf'),
+            'user_manual_file' => UploadedFile::fake()->create('panduan-pengguna.pdf', 50, 'application/pdf'),
+            'handover_deliverables' => [[
+                'name' => 'Aplikasi inventaris',
+                'type' => 'digital',
+                'quantity' => 1,
+                'unit' => 'aplikasi',
+                'condition' => 'not_applicable',
+            ]],
+            'maintenance_warranty_months' => 3,
+        ]);
+
+        $prepareRes->assertOk();
+        $fresh = $this->proposal->fresh();
+        $this->assertSame('https://example.test/docs-web', $fresh->user_manual_url);
+        $storedManualPath = $fresh->user_manual_file_url;
+        $this->assertNotNull($storedManualPath);
+        $this->assertStringStartsWith('handover-manuals/', $storedManualPath);
+        Storage::disk('public')->assertExists($storedManualPath);
+
+        $this->get("/api/v1/proposals/{$this->proposal->id}/handover/user-manual")
+            ->assertOk();
+
+        Sanctum::actingAs($this->client);
+        $this->get("/api/v1/proposals/{$this->proposal->id}/handover/user-manual")
+            ->assertOk();
+    }
 }

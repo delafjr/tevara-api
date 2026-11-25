@@ -18,6 +18,8 @@ class CloudinaryService
 
     private const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
     private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'];
+    private const ALLOWED_PROOF_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+    private const MAX_PROOF_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
     private string $cloudName;
     private string $apiKey;
@@ -82,6 +84,74 @@ class CloudinaryService
                 'error'  => $errorMsg,
             ]);
             throw new RuntimeException('Gagal mengunggah gambar ke Cloudinary: ' . $errorMsg);
+        }
+
+        return (string) $response->json('secure_url');
+    }
+
+    /**
+     * Upload file (gambar ATAU PDF) ke Cloudinary.
+     * Gambar diunggah via /image/upload, PDF via /raw/upload.
+     *
+     * @param UploadedFile $file
+     * @param string $folder
+     * @param string $fieldName Nama field untuk pesan error validasi
+     * @return string URL publik file (secure_url)
+     *
+     * @throws ValidationException
+     * @throws RuntimeException
+     */
+    public function uploadProofFile(UploadedFile $file, string $folder, string $fieldName = 'proof'): string
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        // Validasi khusus bukti pembayaran: jpg/jpeg/png/webp/pdf, max 5MB
+        if (! $file->isValid()) {
+            throw ValidationException::withMessages([$fieldName => ['Berkas yang diunggah tidak valid atau rusak.']]);
+        }
+        if ($file->getSize() > self::MAX_PROOF_SIZE_BYTES) {
+            throw ValidationException::withMessages([$fieldName => ['Ukuran berkas maksimal 5 MB.']]);
+        }
+        if (! in_array($ext, self::ALLOWED_PROOF_EXTENSIONS, true)) {
+            throw ValidationException::withMessages([$fieldName => ['Format berkas harus JPG, PNG, atau PDF.']]);
+        }
+
+        if (empty($this->cloudName) || empty($this->apiKey) || empty($this->apiSecret)) {
+            throw new RuntimeException('Cloudinary credentials belum lengkap di .env.');
+        }
+
+        $isPdf      = $ext === 'pdf';
+        $uploadType = $isPdf ? 'raw' : 'image'; // endpoint Cloudinary berbeda untuk PDF
+
+        $targetFolder = str_starts_with($folder, 'tevara/') ? $folder : 'tevara/' . ltrim($folder, '/');
+        $timestamp    = time();
+        $paramsToSign = ['folder' => $targetFolder, 'timestamp' => $timestamp];
+        if ($isPdf) {
+            $paramsToSign['resource_type'] = 'raw';
+        }
+        ksort($paramsToSign);
+
+        $signParts = [];
+        foreach ($paramsToSign as $k => $v) {
+            $signParts[] = "{$k}={$v}";
+        }
+        $signature = sha1(implode('&', $signParts) . $this->apiSecret);
+
+        $postData = [
+            'api_key'   => $this->apiKey,
+            'timestamp' => $timestamp,
+            'folder'    => $targetFolder,
+            'signature' => $signature,
+        ];
+
+        $response = Http::timeout(60)
+            ->attach('file', fopen($file->getRealPath(), 'r'), $file->getClientOriginalName())
+            ->post("https://api.cloudinary.com/v1_1/{$this->cloudName}/{$uploadType}/upload", $postData);
+
+        if (! $response->successful()) {
+            $errorMsg = $response->json('error.message') ?? $response->body();
+            Log::error('Cloudinary uploadProofFile gagal', ['status' => $response->status(), 'error' => $errorMsg]);
+            throw new RuntimeException('Gagal mengunggah berkas ke Cloudinary: ' . $errorMsg);
         }
 
         return (string) $response->json('secure_url');

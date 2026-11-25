@@ -44,6 +44,7 @@ class Proposal extends Model
         'access_password',
         'documentation_url',
         'user_manual_url',
+        'user_manual_file_url',
         'handover_notes',
         'handover_deliverables',
         'handover_date',
