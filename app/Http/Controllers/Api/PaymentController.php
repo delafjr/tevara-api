@@ -665,9 +665,10 @@ final class PaymentController extends Controller
             'title'        => $payment->proposal->title,
             'status'       => $payment->proposal->status?->name ?? null,
             'client'       => $payment->proposal->client ? [
-                'id'    => $payment->proposal->client->id,
-                'name'  => $payment->proposal->client->name,
-                'email' => $payment->proposal->client->email,
+                'id'           => $payment->proposal->client->id,
+                'name'         => $payment->proposal->client->name,
+                'email'        => $payment->proposal->client->email,
+                'company_name' => $payment->proposal->client_company_name,
             ] : null,
         ] : null;
 
