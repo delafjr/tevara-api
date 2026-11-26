@@ -63,6 +63,10 @@ final class NotificationService
             'title'   => 'Anda Ditugaskan sebagai PM',
             'message' => 'Anda ditugaskan sebagai Project Manager untuk proposal :code - :title.',
         ],
+        'handover.ready_to_prepare' => [
+            'title'   => 'Siapkan BAST Proyek',
+            'message' => 'Klien (:signer) telah menyetujui hasil UAT proyek :code - :title. Mohon segera siapkan dokumen BAST.',
+        ],
         'handover.prepared' => [
             'title'   => 'BAST Menunggu Persetujuan',
             'message' => 'BAST proyek :code - :title telah disiapkan dan menunggu persetujuan Anda.',
@@ -106,6 +110,10 @@ final class NotificationService
         'uat.retest_ready' => [
             'title'   => 'Proyek Siap Diuji Ulang',
             'message' => 'Seluruh tindak lanjut UAT proyek :code - :title telah diverifikasi.',
+        ],
+        'uat.signed_off' => [
+            'title'   => 'Hasil UAT Disahkan Klien',
+            'message' => 'Klien (:signer) telah menyetujui hasil UAT proyek :code - :title. Silakan siapkan dokumen BAST.',
         ],
 
         // ── F-08: Maintenance & Warranty ──────────────

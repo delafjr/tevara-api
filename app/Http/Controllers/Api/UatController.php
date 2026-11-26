@@ -846,6 +846,20 @@ final class UatController extends Controller
             }
         });
 
+        // Kirim notifikasi ke Pengurus TeFa untuk menyiapkan dokumen BAST
+        $this->notifications->notifyRole('pengurus_tefa', 'handover.ready_to_prepare', [
+            'code'   => $proposal->project_code ?: $proposal->proposal_code,
+            'title'  => $proposal->title,
+            'signer' => $data['client_signoff_name'],
+        ], (int) $proposal->id);
+
+        // Kirim juga notifikasi ke Dosen PM
+        $this->notifications->notifyPm($proposal, 'handover.ready_to_prepare', [
+            'code'   => $proposal->project_code ?: $proposal->proposal_code,
+            'title'  => $proposal->title,
+            'signer' => $data['client_signoff_name'],
+        ]);
+
         $uat->load('items');
 
         return $this->ok('Sign-off UAT berhasil.', $this->formatUat($uat));
