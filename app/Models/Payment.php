@@ -29,6 +29,19 @@ class Payment extends Model
         'amount'       => 'decimal:2',
     ];
 
+    public function getProofUrlAttribute(?string $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+            return $value;
+        }
+
+        return asset('storage/' . ltrim($value, '/'));
+    }
+
     public function proposal()
     {
         return $this->belongsTo(Proposal::class);
