@@ -30,6 +30,19 @@ class Task extends Model
         'progress_percentage' => 'decimal:2',
     ];
 
+    public function getReportAttachmentUrlAttribute(?string $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+            return $value;
+        }
+
+        return asset('storage/' . ltrim($value, '/'));
+    }
+
     public function proposal()
     {
         return $this->belongsTo(Proposal::class);

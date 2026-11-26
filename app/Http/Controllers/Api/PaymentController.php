@@ -638,11 +638,7 @@ final class PaymentController extends Controller
             'payment_date'       => $payment->payment_date?->toDateString(),
             'payment_method'     => $payment->payment_method,
             'transfer_reference' => $payment->transfer_reference,
-            'proof_url'          => $payment->proof_url
-                ? (str_starts_with($payment->proof_url, 'http://') || str_starts_with($payment->proof_url, 'https://')
-                    ? $payment->proof_url
-                    : asset('storage/' . $payment->proof_url))
-                : null,
+            'proof_url'          => $this->cloudinary->getUrl($payment->proof_url),
             'status'             => $payment->status,
             'verification_notes' => $payment->verification_notes,
             'verified_by'        => $payment->verifier ? [
@@ -665,9 +661,10 @@ final class PaymentController extends Controller
             'title'        => $payment->proposal->title,
             'status'       => $payment->proposal->status?->name ?? null,
             'client'       => $payment->proposal->client ? [
-                'id'    => $payment->proposal->client->id,
-                'name'  => $payment->proposal->client->name,
-                'email' => $payment->proposal->client->email,
+                'id'           => $payment->proposal->client->id,
+                'name'         => $payment->proposal->client->name,
+                'email'        => $payment->proposal->client->email,
+                'company_name' => $payment->proposal->client_company_name,
             ] : null,
         ] : null;
 
