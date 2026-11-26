@@ -304,12 +304,18 @@ final class PaymentController extends Controller
             'status'             => 'PENDING', // kembali ke PENDING setelah re-upload
         ]);
 
-        $this->notifications->notifyPm($proposal, 'payment.proof_uploaded', [
+        $notificationPayload = [
             'client' => $proposal->client_company_name,
             'term'   => $payment->term_sequence,
             'amount' => $this->rupiah($payment->amount),
             'code'   => $proposal->proposal_code,
-        ]);
+        ];
+
+        // Notifikasi ke dosen PM jika ada
+        $this->notifications->notifyPm($proposal, 'payment.proof_uploaded', $notificationPayload);
+
+        // Notifikasi ke seluruh Pengurus TeFa
+        $this->notifications->notifyRole('pengurus_tefa', 'payment.proof_uploaded', $notificationPayload, (int) $proposal->id);
 
         return $this->ok('Bukti pembayaran berhasil diupload.', $this->formatPayment($payment));
     }
