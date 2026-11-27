@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProjectMaintenance;
 use App\Models\Proposal;
 use App\Models\ProposalStatus;
 use App\Models\UatResult;
@@ -409,6 +410,32 @@ final class ProposalHandoverController extends Controller
                     'warranty_start_date' => $lockedProposal->has_warranty ? $maintenanceStartDate->toDateString() : null,
                     'warranty_end_date'   => $warrantyEndDate,
                 ])->save();
+
+                if ($lockedProposal->has_warranty && $lockedProposal->warranty_months > 0) {
+                    ProjectMaintenance::updateOrCreate(
+                        ['proposal_id' => $lockedProposal->id, 'type' => 'warranty'],
+                        [
+                            'duration_months' => $lockedProposal->warranty_months,
+                            'start_date'      => $maintenanceStartDate->toDateString(),
+                            'end_date'        => $warrantyEndDate,
+                            'status'          => 'active',
+                            'notes'           => 'Garansi cacat produk bawaan BAST aktif',
+                        ]
+                    );
+                }
+
+                if ($lockedProposal->maintenance_months > 0) {
+                    ProjectMaintenance::updateOrCreate(
+                        ['proposal_id' => $lockedProposal->id, 'type' => 'maintenance'],
+                        [
+                            'duration_months' => $lockedProposal->maintenance_months,
+                            'start_date'      => $maintenanceStartDate->toDateString(),
+                            'end_date'        => $maintenanceStartDate->copy()->addMonthsNoOverflow($lockedProposal->maintenance_months)->toDateString(),
+                            'status'          => 'active',
+                            'notes'           => 'Layanan pemeliharaan sistem berkala aktif',
+                        ]
+                    );
+                }
 
                 $lockedProposal->load(['status', 'client.clientPic.clientProfile.user', 'client.clientProfile.user']);
                 $safeNumber = preg_replace('/[^A-Za-z0-9._-]+/', '-', (string) $lockedProposal->bast_number);

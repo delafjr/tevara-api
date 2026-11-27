@@ -160,13 +160,19 @@ class ProposalCreationNotificationTest extends TestCase
             'has_warranty'    => true,
             'warranty_months' => 6,
         ]);
+        $this->assertDatabaseHas('project_maintenances', [
+            'proposal_id'     => $response->json('id'),
+            'type'            => 'warranty',
+            'duration_months' => 6,
+            'status'          => 'pending',
+        ]);
     }
 
     public function test_client_can_choose_source_code_with_maintenance_warranty(): void
     {
         Sanctum::actingAs($this->klien);
 
-        // Kasus: Mau dilepas ke klien (source_code) tp tetep bisa ada maintenance 3 bulan
+        // Kasus: Mau dilepas ke klien (source_code) tp tetep bisa ada garansi cacat 3 bulan
         $payload = [
             'client_id'        => $this->klien->id,
             'title'            => 'Web Company Profile & Source Code',
@@ -187,6 +193,52 @@ class ProposalCreationNotificationTest extends TestCase
             'delivery_type'   => 'source_code',
             'has_warranty'    => true,
             'warranty_months' => 3,
+        ]);
+        $this->assertDatabaseHas('project_maintenances', [
+            'proposal_id'     => $response->json('id'),
+            'type'            => 'warranty',
+            'duration_months' => 3,
+            'status'          => 'pending',
+        ]);
+    }
+
+    public function test_client_can_specify_dynamic_maintenance_up_to_36_months_regardless_of_delivery_type(): void
+    {
+        Sanctum::actingAs($this->klien);
+
+        $payload = [
+            'client_id'          => $this->klien->id,
+            'title'              => 'Enterprise Portal with 36 Months Maintenance',
+            'background'         => 'Portal enterprise dengan serah terima source code dan kontrak maintenance 36 bulan.',
+            'category_id'        => $this->category->id,
+            'delivery_type'      => 'source_code',
+            'has_warranty'       => true,
+            'warranty_months'    => 6,
+            'maintenance_months' => 36,
+            'desired_deadline'   => now()->addDays(60)->toDateString(),
+            'estimated_budget'   => 80000000,
+        ];
+
+        $response = $this->postJson('/api/v1/proposals', $payload);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('proposals', [
+            'id'                 => $response->json('id'),
+            'delivery_type'      => 'source_code',
+            'has_warranty'       => true,
+            'warranty_months'    => 6,
+            'maintenance_months' => 36,
+        ]);
+        $this->assertDatabaseHas('project_maintenances', [
+            'proposal_id'     => $response->json('id'),
+            'type'            => 'warranty',
+            'duration_months' => 6,
+        ]);
+        $this->assertDatabaseHas('project_maintenances', [
+            'proposal_id'     => $response->json('id'),
+            'type'            => 'maintenance',
+            'duration_months' => 36,
+            'status'          => 'pending',
         ]);
     }
 

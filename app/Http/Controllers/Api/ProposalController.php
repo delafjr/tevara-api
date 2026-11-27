@@ -394,6 +394,7 @@ class ProposalController extends Controller
                 'bast_approved_at'        => $proposal->bast_approved_at?->toDateTimeString(),
                 'maintenance'             => [
                     'maintenance_warranty_months' => $proposal->warranty_months,
+                    'maintenance_months'          => (int) ($proposal->maintenance_months ?? 0),
                     'maintenance_start_date'      => $proposal->warranty_start_date?->toDateString(),
                     'maintenance_end_date'        => $proposal->warranty_end_date?->toDateString(),
                 ],
@@ -403,6 +404,15 @@ class ProposalController extends Controller
                     'warranty_start_date' => $proposal->warranty_start_date?->toDateString(),
                     'warranty_end_date'   => $proposal->warranty_end_date?->toDateString(),
                 ],
+                'project_maintenances'   => $proposal->projectMaintenances->map(fn ($pm) => [
+                    'id'              => $pm->id,
+                    'type'            => $pm->type,
+                    'duration_months' => $pm->duration_months,
+                    'start_date'      => $pm->start_date?->toDateString(),
+                    'end_date'        => $pm->end_date?->toDateString(),
+                    'status'          => $pm->status,
+                    'notes'           => $pm->notes,
+                ]),
                 'warranty_start_date'    => $proposal->warranty_start_date?->toDateString(),
                 'warranty_end_date'      => $proposal->warranty_end_date?->toDateString(),
                 'title'                  => $proposal->title,
@@ -504,7 +514,8 @@ class ProposalController extends Controller
             'category_id'           => ['required', 'integer', 'exists:proposal_categories,id'],
             'delivery_type'         => ['nullable', 'in:tefa_managed,source_code'],
             'has_warranty'          => ['nullable', 'boolean'],
-            'warranty_months'       => ['nullable', 'integer', 'min:1', 'required_if:has_warranty,true,1'],
+            'warranty_months'       => ['nullable', 'integer', 'min:1', 'max:36', 'required_if:has_warranty,true,1'],
+            'maintenance_months'    => ['nullable', 'integer', 'min:0', 'max:36'],
             'desired_deadline'      => ['required', 'date', 'after_or_equal:' . now()->addDays(30)->toDateString()],
             'estimated_budget'      => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'modules'               => ['nullable', 'array'],
@@ -538,6 +549,8 @@ class ProposalController extends Controller
             $validated['delivery_type'] = 'source_code';
         }
 
+        $validated['maintenance_months'] = (int) ($validated['maintenance_months'] ?? 0);
+
         $modules = $validated['modules'] ?? [];
         unset($validated['modules']);
 
@@ -546,6 +559,24 @@ class ProposalController extends Controller
 
             if (! empty($modules)) {
                 $proposal->modules()->createMany($modules);
+            }
+
+            if ($proposal->has_warranty && $proposal->warranty_months > 0) {
+                $proposal->projectMaintenances()->create([
+                    'type'            => 'warranty',
+                    'duration_months' => $proposal->warranty_months,
+                    'status'          => 'pending',
+                    'notes'           => 'Garansi cacat produk bawaan BAST',
+                ]);
+            }
+
+            if ($proposal->maintenance_months > 0) {
+                $proposal->projectMaintenances()->create([
+                    'type'            => 'maintenance',
+                    'duration_months' => $proposal->maintenance_months,
+                    'status'          => 'pending',
+                    'notes'           => 'Layanan pemeliharaan sistem berkala',
+                ]);
             }
 
             return $proposal;
