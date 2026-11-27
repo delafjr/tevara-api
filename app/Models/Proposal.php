@@ -53,6 +53,7 @@ class Proposal extends Model
         'bast_approved_at',
         'has_warranty',
         'warranty_months',
+        'maintenance_months',
         'warranty_start_date',
         'warranty_end_date',
         'status_id',
@@ -76,6 +77,7 @@ class Proposal extends Model
         'total_amount'           => 'decimal:2',
         'has_warranty'           => 'boolean',
         'warranty_months'        => 'integer',
+        'maintenance_months'     => 'integer',
         'warranty_start_date'    => 'date',
         'warranty_end_date'      => 'date',
         'overall_progress'       => 'decimal:2',
@@ -90,6 +92,7 @@ class Proposal extends Model
     {
         return [
             'maintenance_warranty_months' => $this->warranty_months,
+            'maintenance_months'          => (int) ($this->maintenance_months ?? 0),
             'maintenance_start_date'      => $this->warranty_start_date?->toDateString(),
             'maintenance_end_date'        => $this->warranty_end_date?->toDateString(),
         ];
@@ -149,6 +152,21 @@ class Proposal extends Model
     public function modules()
     {
         return $this->hasMany(Module::class);
+    }
+
+    public function projectMaintenances()
+    {
+        return $this->hasMany(ProjectMaintenance::class, 'proposal_id');
+    }
+
+    public function warranties()
+    {
+        return $this->hasMany(ProjectMaintenance::class, 'proposal_id')->where('type', 'warranty');
+    }
+
+    public function maintenances()
+    {
+        return $this->hasMany(ProjectMaintenance::class, 'proposal_id')->where('type', 'maintenance');
     }
 
     public function projectTeams()
