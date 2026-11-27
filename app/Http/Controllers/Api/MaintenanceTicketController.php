@@ -9,6 +9,7 @@ use App\Models\MaintenanceTicket;
 use App\Models\Proposal;
 use App\Services\NotificationService;
 use App\Traits\ApiResponse;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -75,7 +76,16 @@ final class MaintenanceTicketController extends Controller
             'priority'    => ['nullable', 'in:low,medium,high'],
         ]);
 
-        abort_unless($proposal->has_warranty, 422, 'Proyek ini tidak memiliki garansi aktif. Tiket maintenance tidak dapat dibuat.');
+        // Proyek dapat menerima tiket jika garansi bawaan masih aktif ATAU memiliki layanan maintenance berbayar yang aktif
+        $today = Carbon::today();
+        $isWarrantyActive = $proposal->has_warranty && $proposal->warranty_end_date && $proposal->warranty_end_date->gte($today);
+        $isMaintenanceActive = $proposal->projectMaintenances()
+            ->where('type', 'maintenance')
+            ->where('status', 'active')
+            ->where('end_date', '>=', $today->toDateString())
+            ->exists();
+
+        abort_unless($isWarrantyActive || $isMaintenanceActive, 422, 'Proyek ini tidak memiliki garansi atau layanan maintenance aktif. Tiket maintenance tidak dapat dibuat.');
 
         $ticket = MaintenanceTicket::create([
             'proposal_id'  => $proposal->id,
