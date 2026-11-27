@@ -83,7 +83,9 @@
                         Kode: {{ $proposal->project_code ?? $proposal->proposal_code }}
                         @if($proposal->spk_number) · SPK: {{ $proposal->spk_number }} @endif
                     </div>
-                    <div class="muted">Termin ke-{{ $payment->term_sequence ?? 1 }}</div>
+                    <div class="muted">
+                        {{ ($payment->payment_type ?? '') === 'maintenance' ? 'Layanan Maintenance' : ('Termin ke-' . ($payment->term_sequence ?? 1)) }}
+                    </div>
                 </td>
             </tr>
         </table>
@@ -92,7 +94,7 @@
     <table class="items">
         <thead>
             <tr>
-                <th style="width: 52%;">Uraian &amp; Keterangan Termin</th>
+                <th style="width: 52%;">Uraian &amp; Keterangan Tagihan</th>
                 <th style="width: 23%;">Jatuh Tempo</th>
                 <th style="width: 25%; text-align: right;">Nominal Tagihan</th>
             </tr>
@@ -100,8 +102,8 @@
         <tbody>
             <tr>
                 <td>
-                    <strong>Termin {{ $payment->term_sequence ?? 1 }}</strong><br>
-                    <span>{{ $termNote }}</span><br>
+                    <strong>{{ ($payment->payment_type ?? '') === 'maintenance' ? 'Layanan Maintenance' : ('Termin ' . ($payment->term_sequence ?? 1)) }}</strong><br>
+                    <span>{{ $payment->description ?? $termNote }}</span><br>
                     <span class="muted">Proyek: {{ $proposal->title }}</span>
                 </td>
                 <td>{{ $dueDateText }}</td>
