@@ -10,6 +10,8 @@ class Payment extends Model
         'proposal_id',
         'invoice_number',
         'term_sequence',
+        'payment_type',
+        'description',
         'amount',
         'due_date',
         'payment_date',
