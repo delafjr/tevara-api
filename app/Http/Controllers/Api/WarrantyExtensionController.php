@@ -311,8 +311,19 @@ final class WarrantyExtensionController extends Controller
     {
         $today      = Carbon::today();
         $warrantyEnd = $p->warranty_end_date;
-        $isActive   = $p->has_warranty && $warrantyEnd && $warrantyEnd->gte($today);
-        $daysLeft   = $warrantyEnd ? $today->diffInDays($warrantyEnd, false) : null;
+        $isWarrantyActive = $p->has_warranty && $warrantyEnd && $warrantyEnd->gte($today);
+
+        // Cari active paid maintenance jika ada
+        $activeMaintenance = $p->projectMaintenances
+            ->where('type', 'maintenance')
+            ->where('status', 'active')
+            ->filter(fn ($m) => $m->end_date && Carbon::parse($m->end_date)->gte($today))
+            ->sortByDesc('end_date')
+            ->first();
+
+        $isActive = $isWarrantyActive || !empty($activeMaintenance);
+        $effectiveEndDate = $activeMaintenance?->end_date ?? $warrantyEnd;
+        $daysLeft = $effectiveEndDate ? $today->diffInDays($effectiveEndDate, false) : null;
 
         return [
             'id'                   => $p->id,
@@ -327,6 +338,8 @@ final class WarrantyExtensionController extends Controller
             'warranty_end_date'    => $warrantyEnd?->toDateString(),
             'warranty_active'      => $isActive,
             'warranty_days_left'   => $daysLeft,
+            'has_active_maintenance' => !empty($activeMaintenance),
+            'maintenance_end_date' => $activeMaintenance?->end_date?->toDateString(),
             'maintenance_tickets_count' => $p->maintenance_tickets_count,
             'client'               => $p->client ? ['id' => $p->client->id, 'name' => $p->client->name, 'email' => $p->client->email] : null,
             'status'               => $p->status ? ['id' => $p->status->id, 'name' => $p->status->name] : null,

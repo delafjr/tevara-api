@@ -629,6 +629,7 @@ class ProposalController extends Controller
             'projectTeams.user.studentProfile', 'projectTeams.role',
             'modules', 'statusHistories.changedBy',
             'payments' => fn ($query) => $query->orderBy('term_sequence'),
+            'projectMaintenances',
         ])->findOrFail($id);
 
         $user = $request->user();
