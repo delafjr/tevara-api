@@ -226,6 +226,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('proposals/{id}/warranty-extensions', [WarrantyExtensionController::class, 'index'])->whereNumber('id');
             Route::post('proposals/{id}/warranty-extensions', [WarrantyExtensionController::class, 'store'])->whereNumber('id');
         });
+        Route::middleware('role:klien')->group(function () {
+            Route::patch('proposals/{id}/warranty-extensions/{reqId}/respond', [WarrantyExtensionController::class, 'respond'])->whereNumber('id')->whereNumber('reqId');
+        });
         Route::middleware('role:pengurus_tefa')->group(function () {
             Route::patch('proposals/{id}/warranty-extensions/{reqId}/review', [WarrantyExtensionController::class, 'review'])->whereNumber('id')->whereNumber('reqId');
         });

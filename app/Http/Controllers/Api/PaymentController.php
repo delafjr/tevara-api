@@ -6,11 +6,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Models\ProjectMaintenance;
 use App\Models\Proposal;
+use App\Models\WarrantyExtensionRequest;
 use App\Services\CloudinaryService;
 use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -432,6 +435,40 @@ final class PaymentController extends Controller
             'verified_at'        => now(),
         ]);
 
+        // Jika pembayaran maintenance diverifikasi, aktifkan masa pemeliharaan
+        if ($data['status'] === 'VERIFIED' && $payment->payment_type === 'maintenance') {
+            $extReq = WarrantyExtensionRequest::where('payment_id', $payment->id)->first();
+            if ($extReq) {
+                $extReq->update(['status' => 'approved']);
+
+                $latestMaintenance = ProjectMaintenance::where('proposal_id', $proposal->id)
+                    ->where('type', 'maintenance')
+                    ->where('status', 'active')
+                    ->whereNotNull('end_date')
+                    ->orderByDesc('end_date')
+                    ->first();
+
+                $baseDate = $latestMaintenance && $latestMaintenance->end_date && $latestMaintenance->end_date->isFuture()
+                    ? $latestMaintenance->end_date->copy()
+                    : Carbon::today();
+
+                $newEnd = $baseDate->copy()->addMonthsNoOverflow($extReq->months);
+
+                ProjectMaintenance::create([
+                    'proposal_id'     => $proposal->id,
+                    'type'            => 'maintenance',
+                    'duration_months' => $extReq->months,
+                    'start_date'      => $baseDate->toDateString(),
+                    'end_date'        => $newEnd->toDateString(),
+                    'status'          => 'active',
+                    'notes'           => "Perpanjangan maintenance {$extReq->months} bulan lunas (Invoice: {$payment->invoice_number})",
+                ]);
+
+                $proposal->maintenance_months = (int) ($proposal->maintenance_months ?? 0) + $extReq->months;
+                $proposal->save();
+            }
+        }
+
         $this->notifications->notifyClient(
             $proposal,
             $data['status'] === 'VERIFIED' ? 'payment.verified' : 'payment.rejected',
@@ -633,6 +670,8 @@ final class PaymentController extends Controller
             'proposal_id'        => $payment->proposal_id,
             'invoice_number'     => $payment->invoice_number,
             'term_sequence'      => $payment->term_sequence,
+            'payment_type'       => $payment->payment_type ?? 'project',
+            'description'        => $payment->description,
             'amount'             => (float) $payment->amount,
             'due_date'           => $payment->due_date?->toDateString(),
             'payment_date'       => $payment->payment_date?->toDateString(),

@@ -15,6 +15,9 @@ class WarrantyExtensionRequest extends Model
         'reviewed_by',
         'type',
         'months',
+        'price',
+        'payment_deadline',
+        'payment_id',
         'notes',
         'status',
         'reviewer_notes',
@@ -22,7 +25,9 @@ class WarrantyExtensionRequest extends Model
     ];
 
     protected $casts = [
-        'reviewed_at' => 'datetime',
+        'price'            => 'decimal:2',
+        'payment_deadline' => 'datetime',
+        'reviewed_at'      => 'datetime',
     ];
 
     public function proposal(): BelongsTo
@@ -38,5 +43,10 @@ class WarrantyExtensionRequest extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function payment(): BelongsTo
+    {
+        return $this->belongsTo(Payment::class);
     }
 }

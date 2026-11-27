@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\ProjectMaintenance;
 use App\Models\Proposal;
 use App\Models\WarrantyExtensionRequest;
@@ -66,14 +67,14 @@ final class WarrantyExtensionController extends Controller
             return $this->error('Garansi cacat bawaan bersifat tetap dan tidak dapat diperpanjang. Silakan ajukan layanan maintenance.', 422);
         }
 
-        // Tolak jika masih ada request pending untuk tipe yang sama
+        // Tolak jika masih ada request aktif (pending/offered/waiting_payment) untuk tipe yang sama
         $hasPending = WarrantyExtensionRequest::where('proposal_id', $proposal->id)
             ->where('type', $validated['type'])
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'offered', 'waiting_payment'])
             ->exists();
 
         if ($hasPending) {
-            return $this->error('Masih ada permintaan perpanjangan ' . $validated['type'] . ' yang menggantung. Tunggu keputusan Pengurus TeFa.', 422);
+            return $this->error('Masih ada permintaan perpanjangan yang sedang diproses atau menunggu persetujuan/pembayaran.', 422);
         }
 
         $extensionReq = WarrantyExtensionRequest::create([
@@ -99,7 +100,7 @@ final class WarrantyExtensionController extends Controller
 
     /**
      * PATCH /proposals/{id}/warranty-extensions/{reqId}/review
-     * Pengurus TeFa: approve / reject.
+     * Pengurus TeFa: berikan penawaran harga & batas waktu bayar, atau tolak.
      */
     public function review(Request $request, int $id, int $reqId): JsonResponse
     {
@@ -111,44 +112,126 @@ final class WarrantyExtensionController extends Controller
         abort_unless($extensionReq->status === 'pending', 422, 'Permintaan ini sudah diproses sebelumnya.');
 
         $validated = $request->validate([
-            'decision'       => ['required', 'in:approved,rejected'],
-            'reviewer_notes' => ['nullable', 'string', 'max:1000'],
+            'decision'               => ['required', 'in:approved,rejected'],
+            'price'                  => ['nullable', 'numeric', 'min:0'],
+            'payment_deadline_hours' => ['nullable', 'integer', 'min:1', 'max:720'],
+            'reviewer_notes'         => ['nullable', 'string', 'max:1000'],
         ]);
 
-        DB::transaction(function () use ($extensionReq, $validated, $request, $proposal) {
-            $extensionReq->status         = $validated['decision'];
-            $extensionReq->reviewer_notes = $validated['reviewer_notes'] ?? null;
-            $extensionReq->reviewed_by    = $request->user()->id;
-            $extensionReq->reviewed_at    = now();
-            $extensionReq->save();
-
-            if ($validated['decision'] === 'approved') {
-                // Update proposal: extend warranty or set maintenance end date
-                $this->applyExtension($proposal, $extensionReq->type, $extensionReq->months);
-            }
-        });
-
-        $typeLabel = $extensionReq->type === 'warranty' ? 'garansi' : 'maintenance';
-        $code      = $proposal->project_code ?? $proposal->proposal_code;
+        $code = $proposal->project_code ?? $proposal->proposal_code;
 
         if ($validated['decision'] === 'approved') {
-            $endDate = $extensionReq->type === 'warranty'
-                ? $proposal->fresh()->warranty_end_date?->translatedFormat('d M Y')
-                : 'diperbarui';
+            $price = (float) ($validated['price'] ?? 0);
+            $hours = (int) ($validated['payment_deadline_hours'] ?? 24);
+            $deadline = now()->addHours($hours);
 
-            $this->notifications->notifyClient($proposal, 'maintenance.extension_approved', [
-                'type'     => $typeLabel,
+            $extensionReq->forceFill([
+                'status'           => 'offered',
+                'price'            => $price,
+                'payment_deadline' => $deadline,
+                'reviewer_notes'   => $validated['reviewer_notes'] ?? null,
+                'reviewed_by'      => $request->user()->id,
+                'reviewed_at'      => now(),
+            ])->save();
+
+            $this->notifications->notifyClient($proposal, 'maintenance.extension_offered', [
+                'type'     => 'maintenance',
+                'months'   => $extensionReq->months,
+                'price'    => number_format($price, 0, ',', '.'),
+                'deadline' => $deadline->translatedFormat('d M Y H:i'),
                 'code'     => $code,
-                'end_date' => $endDate ?? '-',
             ]);
-        } else {
-            $this->notifications->notifyClient($proposal, 'maintenance.extension_rejected', [
-                'type' => $typeLabel,
-                'code' => $code,
-            ]);
+
+            return $this->ok('Penawaran harga berhasil dikirim ke klien.', $extensionReq->fresh(['requester:id,name', 'reviewer:id,name']));
         }
 
-        return $this->ok('Permintaan perpanjangan telah ' . ($validated['decision'] === 'approved' ? 'disetujui' : 'ditolak') . '.', $extensionReq->fresh(['requester:id,name', 'reviewer:id,name']));
+        $extensionReq->forceFill([
+            'status'         => 'rejected',
+            'reviewer_notes' => $validated['reviewer_notes'] ?? null,
+            'reviewed_by'    => $request->user()->id,
+            'reviewed_at'    => now(),
+        ])->save();
+
+        $this->notifications->notifyClient($proposal, 'maintenance.extension_rejected', [
+            'type' => 'maintenance',
+            'code' => $code,
+        ]);
+
+        return $this->ok('Permintaan perpanjangan telah ditolak.', $extensionReq->fresh(['requester:id,name', 'reviewer:id,name']));
+    }
+
+    /**
+     * PATCH /proposals/{id}/warranty-extensions/{reqId}/respond
+     * Klien menyetujui penawaran harga (terbit tagihan) atau menolak.
+     */
+    public function respond(Request $request, int $id, int $reqId): JsonResponse
+    {
+        abort_unless($request->user()->hasRole('klien'), 403, 'Hanya klien yang dapat merespons penawaran.');
+
+        $proposal = Proposal::findOrFail($id);
+        abort_unless($proposal->client_id === $request->user()->id, 403, 'Akses ditolak.');
+
+        $extensionReq = WarrantyExtensionRequest::where('proposal_id', $proposal->id)->findOrFail($reqId);
+        abort_unless($extensionReq->status === 'offered', 422, 'Permintaan ini belum memiliki penawaran harga aktif.');
+
+        if ($extensionReq->payment_deadline && $extensionReq->payment_deadline->isPast()) {
+            return $this->error('Batas waktu pembayaran penawaran telah kadaluarsa. Silakan ajukan perpanjangan baru.', 422);
+        }
+
+        $validated = $request->validate([
+            'response' => ['required', 'in:accept,reject'],
+        ]);
+
+        $code = $proposal->project_code ?? $proposal->proposal_code;
+
+        if ($validated['response'] === 'reject') {
+            $extensionReq->update(['status' => 'rejected']);
+            $this->notifications->notifyRole('pengurus_tefa', 'maintenance.extension_declined', [
+                'client' => $request->user()->name,
+                'code'   => $code,
+            ], $proposal->id);
+
+            return $this->ok('Penawaran perpanjangan maintenance telah ditolak.', $extensionReq);
+        }
+
+        // Klien accept -> Generate termin payment baru bertipe maintenance
+        $payment = DB::transaction(function () use ($proposal, $extensionReq) {
+            $maxSeq = Payment::where('proposal_id', $proposal->id)->max('term_sequence') ?? 0;
+            $nextSeq = $maxSeq + 1;
+
+            $year = date('Y');
+            $count = Payment::count() + 1;
+            $invoiceNumber = sprintf('INV/%s/%06d', $year, $count);
+
+            $payment = Payment::create([
+                'proposal_id'   => $proposal->id,
+                'term_sequence' => $nextSeq,
+                'payment_type'  => 'maintenance',
+                'description'   => "Perpanjangan Layanan Maintenance {$extensionReq->months} Bulan",
+                'amount'        => $extensionReq->price ?? 0,
+                'due_date'      => $extensionReq->payment_deadline?->toDateString(),
+                'invoice_number'=> $invoiceNumber,
+                'status'        => 'PENDING',
+            ]);
+
+            $extensionReq->update([
+                'status'     => 'waiting_payment',
+                'payment_id' => $payment->id,
+            ]);
+
+            return $payment;
+        });
+
+        $this->notifications->notifyRole('pengurus_tefa', 'maintenance.extension_accepted', [
+            'client' => $request->user()->name,
+            'code'   => $code,
+            'amount' => number_format((float) ($extensionReq->price ?? 0), 0, ',', '.'),
+        ], $proposal->id);
+
+        return $this->ok('Penawaran disetujui. Tagihan telah diterbitkan ke menu Tagihan & Pembayaran.', [
+            'extension' => $extensionReq->fresh(['payment']),
+            'payment'   => $payment,
+        ]);
     }
 
     /**
