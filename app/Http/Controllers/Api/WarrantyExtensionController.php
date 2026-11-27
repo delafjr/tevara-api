@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProjectMaintenance;
 use App\Models\Proposal;
 use App\Models\WarrantyExtensionRequest;
 use App\Services\NotificationService;
@@ -57,13 +58,12 @@ final class WarrantyExtensionController extends Controller
 
         $validated = $request->validate([
             'type'   => ['required', 'in:warranty,maintenance'],
-            'months' => ['required', 'integer', 'in:1,3,6,12'],
+            'months' => ['required', 'integer', 'in:1,3,6,12,24,36'],
             'notes'  => ['nullable', 'string', 'max:1000'],
         ]);
 
-        // source_code hanya boleh warranty
-        if ($proposal->delivery_type === 'source_code' && $validated['type'] === 'maintenance') {
-            return $this->error('Proyek dengan skema penyerahan source code hanya dapat mengajukan perpanjangan garansi, bukan maintenance.', 422);
+        if ($validated['type'] === 'warranty') {
+            return $this->error('Garansi cacat bawaan bersifat tetap dan tidak dapat diperpanjang. Silakan ajukan layanan maintenance.', 422);
         }
 
         // Tolak jika masih ada request pending untuk tipe yang sama
@@ -176,20 +176,50 @@ final class WarrantyExtensionController extends Controller
 
         if ($type === 'warranty') {
             $baseDate = $proposal->warranty_end_date && $proposal->warranty_end_date->isFuture()
-                ? $proposal->warranty_end_date
+                ? $proposal->warranty_end_date->copy()
                 : Carbon::today();
-            $proposal->warranty_end_date = $baseDate->addMonths($months);
+            $newEnd = $baseDate->copy()->addMonthsNoOverflow($months);
+            $proposal->warranty_end_date = $newEnd;
             $proposal->has_warranty      = true;
+            $proposal->warranty_months   = (int) ($proposal->warranty_months ?? 0) + $months;
             $proposal->save();
+
+            ProjectMaintenance::create([
+                'proposal_id'     => $proposal->id,
+                'type'            => 'warranty',
+                'duration_months' => $months,
+                'start_date'      => $baseDate->toDateString(),
+                'end_date'        => $newEnd->toDateString(),
+                'status'          => 'active',
+                'notes'           => 'Perpanjangan garansi cacat produk disetujui Pengurus TeFa',
+            ]);
         }
-        // type=maintenance: untuk tefa_managed, kita perpanjang warranty_end_date juga
-        // karena tefa_managed = TEVARA yang manage, warranty mencakup maintenance
+
         if ($type === 'maintenance') {
-            $baseDate = $proposal->warranty_end_date && $proposal->warranty_end_date->isFuture()
-                ? $proposal->warranty_end_date
+            $latestMaintenance = ProjectMaintenance::where('proposal_id', $proposal->id)
+                ->where('type', 'maintenance')
+                ->where('status', 'active')
+                ->whereNotNull('end_date')
+                ->orderByDesc('end_date')
+                ->first();
+
+            $baseDate = $latestMaintenance && $latestMaintenance->end_date && $latestMaintenance->end_date->isFuture()
+                ? $latestMaintenance->end_date->copy()
                 : Carbon::today();
-            $proposal->warranty_end_date = $baseDate->addMonths($months);
-            $proposal->has_warranty      = true;
+
+            $newEnd = $baseDate->copy()->addMonthsNoOverflow($months);
+
+            ProjectMaintenance::create([
+                'proposal_id'     => $proposal->id,
+                'type'            => 'maintenance',
+                'duration_months' => $months,
+                'start_date'      => $baseDate->toDateString(),
+                'end_date'        => $newEnd->toDateString(),
+                'status'          => 'active',
+                'notes'           => 'Perpanjangan layanan maintenance disetujui Pengurus TeFa',
+            ]);
+
+            $proposal->maintenance_months = (int) ($proposal->maintenance_months ?? 0) + $months;
             $proposal->save();
         }
     }
