@@ -15,9 +15,11 @@ class MaintenanceTicket extends Model
         'handled_by',
         'title',
         'description',
+        'image_url',
         'status',
         'priority',
         'resolution_notes',
+        'resolution_image_url',
         'resolved_at',
     ];
 

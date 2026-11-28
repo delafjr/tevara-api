@@ -15,6 +15,7 @@ class CloudinaryService
 {
     public const FOLDER_TASK = 'tevara/task';
     public const FOLDER_PEMBAYARAN = 'tevara/pembayaran';
+    public const FOLDER_MAINTENANCE = 'tevara/maintenance';
 
     private const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
     private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'];
