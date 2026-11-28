@@ -194,7 +194,7 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::put('proposals/{id}/uat', [UatController::class, 'update'])->whereNumber('id');
         });
 
-        Route::middleware('role:pengurus_tefa')->patch('proposals/{id}/uat/{uatId}/review', [UatController::class, 'review'])
+        Route::middleware('role:dosen|pengurus_tefa')->patch('proposals/{id}/uat/{uatId}/review', [UatController::class, 'review'])
             ->whereNumber('id')
             ->whereNumber('uatId');
 

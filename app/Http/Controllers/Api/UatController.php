@@ -713,6 +713,9 @@ final class UatController extends Controller
                 ], (int) $proposal->id);
             }
 
+            // Hitung ulang overall progress proposal setelah penambahan task baru
+            $proposal->syncOverallProgress();
+
             return $uat->load(['items.tasks.projectTeam.user', 'reviewer']);
         });
 
