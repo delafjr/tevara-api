@@ -78,24 +78,9 @@ final class MaintenanceTicketController extends Controller
             'title'       => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'priority'    => ['nullable', 'in:low,medium,high'],
-            'image'       => ['nullable', 'image', 'max:10240'],
         ]);
 
-        $imageUrl = null;
-        if ($request->hasFile('image')) {
-            $imageUrl = $this->cloudinary->upload($request->file('image'), CloudinaryService::FOLDER_MAINTENANCE, 'image');
-        }
-
-        // Proyek dapat menerima tiket jika garansi bawaan masih aktif ATAU memiliki layanan maintenance berbayar yang aktif
-        $today = Carbon::today();
-        $isWarrantyActive = $proposal->has_warranty && $proposal->warranty_end_date && $proposal->warranty_end_date->gte($today);
-        $isMaintenanceActive = $proposal->projectMaintenances()
-            ->where('type', 'maintenance')
-            ->where('status', 'active')
-            ->where('end_date', '>=', $today->toDateString())
-            ->exists();
-
-        abort_unless($isWarrantyActive || $isMaintenanceActive, 422, 'Proyek ini tidak memiliki garansi atau layanan maintenance aktif. Tiket maintenance tidak dapat dibuat.');
+        abort_unless($proposal->has_warranty, 422, 'Proyek ini tidak memiliki garansi aktif. Tiket maintenance tidak dapat dibuat.');
 
         $ticket = MaintenanceTicket::create([
             'proposal_id'  => $proposal->id,
