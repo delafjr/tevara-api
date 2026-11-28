@@ -84,32 +84,43 @@ final class UatController extends Controller
             ->latest('updated_at')
             ->get();
 
-        $data = $proposals->map(function (Proposal $proposal) {
-            $uat = $proposal->uatResult;
-            $companyName = $proposal->client_company_name;
-            $taskProgress = round((float) ($proposal->tasks()->avg('progress_percentage') ?? 0), 1);
+        $data = $proposals
+            ->filter(function (Proposal $proposal) {
+                $statusName = strtolower($proposal->status?->name ?? '');
+                $taskProgress = round((float) ($proposal->tasks()->avg('progress_percentage') ?? 0), 1);
+                $overallProgress = (float) ($proposal->overall_progress ?? 0);
 
-            return [
-                'id'                  => $proposal->id,
-                'proposal_code'       => $proposal->proposal_code,
-                'title'               => $proposal->title,
-                'client'              => [
-                    'name'         => $proposal->client?->name ?? '—',
-                    'company_name' => $companyName,
-                ],
-                'client_name'         => $companyName,
-                'client_company_name' => $companyName,
-                'task_progress'       => $taskProgress,
-                'can_set_testing'     => ($taskProgress >= 100.0),
-                'status_id'           => $proposal->status_id,
-                'status'              => [
-                    'id'   => $proposal->status?->id,
-                    'name' => $proposal->status?->name ?? '—',
-                ],
-                'status_name'         => $proposal->status?->name ?? '—',
-                'uat'                 => $uat ? $this->formatUat($uat) : null,
-            ];
-        })->values();
+                // Proyek layak UAT jika sudah masuk tahap testing/handover/completed atau progres telah mencapai 100%
+                return in_array($statusName, ['testing', 'handover', 'completed'], true)
+                    || $taskProgress >= 100.0
+                    || $overallProgress >= 100.0;
+            })
+            ->map(function (Proposal $proposal) {
+                $uat = $proposal->uatResult;
+                $companyName = $proposal->client_company_name;
+                $taskProgress = round((float) ($proposal->tasks()->avg('progress_percentage') ?? 0), 1);
+
+                return [
+                    'id'                  => $proposal->id,
+                    'proposal_code'       => $proposal->proposal_code,
+                    'title'               => $proposal->title,
+                    'client'              => [
+                        'name'         => $proposal->client?->name ?? '—',
+                        'company_name' => $companyName,
+                    ],
+                    'client_name'         => $companyName,
+                    'client_company_name' => $companyName,
+                    'task_progress'       => $taskProgress,
+                    'can_set_testing'     => ($taskProgress >= 100.0),
+                    'status_id'           => $proposal->status_id,
+                    'status'              => [
+                        'id'   => $proposal->status?->id,
+                        'name' => $proposal->status?->name ?? '—',
+                    ],
+                    'status_name'         => $proposal->status?->name ?? '—',
+                    'uat'                 => $uat ? $this->formatUat($uat) : null,
+                ];
+            })->values();
 
         return $this->ok('Daftar proyek UAT', $data);
     }
