@@ -638,7 +638,10 @@ final class UatController extends Controller
             'corrections.*.item_id' => ['required', 'integer', 'distinct'],
             'corrections.*.note' => ['required', 'string', 'max:5000'],
             'corrections.*.assigned_student_id' => ['required', 'integer', 'exists:users,id'],
-            'corrections.*.due_date' => ['nullable', 'date'],
+            'corrections.*.due_date' => ['required', 'date', 'after_or_equal:today'],
+        ], [
+            'corrections.*.due_date.required' => 'Tenggat waktu (deadline) task perbaikan wajib diisi.',
+            'corrections.*.due_date.after_or_equal' => 'Deadline task tidak boleh kurang dari hari ini.',
         ]);
 
         if ($data['decision'] === 'APPROVED'
@@ -980,6 +983,20 @@ final class UatController extends Controller
             'note'       => 'Proyek masuk tahap pengujian UAT (Testing)',
             'changed_by' => $user->id,
         ]);
+
+        // Push notifikasi ke klien bahwa proyek siap diuji (atau diuji ulang)
+        $latestUat = UatResult::where('proposal_id', $proposal->id)->latest('id')->first();
+        if ($latestUat && $latestUat->review_status === 'READY_FOR_RETEST') {
+            $this->notifications->notifyClient($proposal, 'uat.retest_ready', [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+            ]);
+        } else {
+            $this->notifications->notifyClient($proposal, 'uat.retest_ready', [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+            ]);
+        }
 
         return $this->ok('Status proyek berhasil diperbarui ke Testing.', [
             'id'        => $proposal->id,
