@@ -51,20 +51,24 @@ final class MaintenanceTicketController extends Controller
 
     #[OA\Post(
         path: '/proposals/{id}/maintenance-tickets',
-        summary: 'Buat tiket maintenance baru',
-        description: 'Klien bisa lapor bug. Pengurus TeFa bisa buat tiket inisiatif. `reported_by` otomatis dari token.',
+        summary: 'Buat tiket maintenance / laporan bug baru (Hanya Klien)',
+        description: 'Hanya klien pemilik proyek yang dapat melaporkan bug / error maintenance. `reported_by` otomatis dari user login klien.',
         security: [['bearerAuth' => []]],
         tags: ['F-08: Maintenance'],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
         requestBody: new OA\RequestBody(
             required: true,
-            content: new OA\JsonContent(
-                required: ['title'],
-                properties: [
-                    new OA\Property(property: 'title', type: 'string', maxLength: 255),
-                    new OA\Property(property: 'description', type: 'string', nullable: true),
-                    new OA\Property(property: 'priority', type: 'string', enum: ['low', 'medium', 'high'], example: 'medium'),
-                ]
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['title'],
+                    properties: [
+                        new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                        new OA\Property(property: 'description', type: 'string', nullable: true),
+                        new OA\Property(property: 'priority', type: 'string', enum: ['low', 'medium', 'high'], example: 'medium'),
+                        new OA\Property(property: 'image', type: 'string', format: 'binary', nullable: true),
+                    ]
+                )
             )
         ),
         responses: [new OA\Response(response: 201, description: 'Tiket dibuat')]
@@ -74,13 +78,31 @@ final class MaintenanceTicketController extends Controller
         $proposal = Proposal::findOrFail($id);
         $this->authorizeAccess($proposal, $request);
 
+        // Hanya klien yang dapat membuka tiket / melaporkan bug
+        abort_unless($request->user()->hasRole('klien'), 403, 'Hanya klien yang dapat membuat laporan error / tiket maintenance.');
+
         $validated = $request->validate([
             'title'       => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'priority'    => ['nullable', 'in:low,medium,high'],
+            'image'       => ['nullable', 'image', 'max:10240'],
         ]);
 
-        abort_unless($proposal->has_warranty, 422, 'Proyek ini tidak memiliki garansi aktif. Tiket maintenance tidak dapat dibuat.');
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $imageUrl = $this->cloudinary->upload($request->file('image'), CloudinaryService::FOLDER_MAINTENANCE, 'image');
+        }
+
+        // Proyek dapat menerima tiket jika garansi bawaan masih aktif ATAU memiliki layanan maintenance berbayar yang aktif
+        $today = Carbon::today();
+        $isWarrantyActive = $proposal->has_warranty && $proposal->warranty_end_date && $proposal->warranty_end_date->gte($today);
+        $isMaintenanceActive = $proposal->projectMaintenances()
+            ->where('type', 'maintenance')
+            ->where('status', 'active')
+            ->where('end_date', '>=', $today->toDateString())
+            ->exists();
+
+        abort_unless($isWarrantyActive || $isMaintenanceActive, 422, 'Proyek ini tidak memiliki garansi atau layanan maintenance aktif. Tiket maintenance tidak dapat dibuat.');
 
         $ticket = MaintenanceTicket::create([
             'proposal_id'  => $proposal->id,
@@ -94,20 +116,12 @@ final class MaintenanceTicketController extends Controller
 
         $code = $proposal->project_code ?? $proposal->proposal_code;
 
-        if ($request->user()->hasRole('pengurus_tefa')) {
-            // Inisiatif dari TEVARA → notif ke klien
-            $this->notifications->notifyClient($proposal, 'maintenance.ticket_created_by_tefa', [
-                'ticket' => $ticket->title,
-                'code'   => $code,
-            ]);
-        } else {
-            // Laporan dari klien → notif ke semua pengurus_tefa
-            $this->notifications->notifyRole('pengurus_tefa', 'maintenance.ticket_created', [
-                'client' => $request->user()->name,
-                'ticket' => $ticket->title,
-                'code'   => $code,
-            ], $proposal->id);
-        }
+        // Laporan dari klien → notif ke seluruh pengurus_tefa
+        $this->notifications->notifyRole('pengurus_tefa', 'maintenance.ticket_created', [
+            'client' => $request->user()->name,
+            'ticket' => $ticket->title,
+            'code'   => $code,
+        ], $proposal->id);
 
         return $this->created('Tiket maintenance dibuat.', $ticket->load(['reporter:id,name', 'handler:id,name']));
     }

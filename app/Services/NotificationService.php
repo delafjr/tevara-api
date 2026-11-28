@@ -121,10 +121,6 @@ final class NotificationService
             'title'   => 'Laporan Error Baru',
             'message' => ':client melaporkan error ":ticket" pada proyek :code.',
         ],
-        'maintenance.ticket_created_by_tefa' => [
-            'title'   => 'Catatan Maintenance Baru',
-            'message' => 'Tim TEVARA menambahkan catatan maintenance ":ticket" pada proyek :code.',
-        ],
         'maintenance.ticket_updated' => [
             'title'   => 'Update Tiket Maintenance',
             'message' => 'Tiket ":ticket" pada proyek :code diperbarui: status menjadi :status.',
