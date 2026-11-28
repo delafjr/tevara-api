@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\MaintenanceTicket;
 use App\Models\Proposal;
+use App\Services\CloudinaryService;
 use App\Services\NotificationService;
 use App\Traits\ApiResponse;
 use Carbon\Carbon;
@@ -19,7 +20,10 @@ final class MaintenanceTicketController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly CloudinaryService $cloudinary
+    ) {}
 
     #[OA\Get(
         path: '/proposals/{id}/maintenance-tickets',
@@ -76,22 +80,14 @@ final class MaintenanceTicketController extends Controller
             'priority'    => ['nullable', 'in:low,medium,high'],
         ]);
 
-        // Proyek dapat menerima tiket jika garansi bawaan masih aktif ATAU memiliki layanan maintenance berbayar yang aktif
-        $today = Carbon::today();
-        $isWarrantyActive = $proposal->has_warranty && $proposal->warranty_end_date && $proposal->warranty_end_date->gte($today);
-        $isMaintenanceActive = $proposal->projectMaintenances()
-            ->where('type', 'maintenance')
-            ->where('status', 'active')
-            ->where('end_date', '>=', $today->toDateString())
-            ->exists();
-
-        abort_unless($isWarrantyActive || $isMaintenanceActive, 422, 'Proyek ini tidak memiliki garansi atau layanan maintenance aktif. Tiket maintenance tidak dapat dibuat.');
+        abort_unless($proposal->has_warranty, 422, 'Proyek ini tidak memiliki garansi aktif. Tiket maintenance tidak dapat dibuat.');
 
         $ticket = MaintenanceTicket::create([
             'proposal_id'  => $proposal->id,
             'reported_by'  => $request->user()->id,
             'title'        => $validated['title'],
             'description'  => $validated['description'] ?? null,
+            'image_url'    => $imageUrl,
             'priority'     => $validated['priority'] ?? 'medium',
             'status'       => 'open',
         ]);
@@ -172,9 +168,15 @@ final class MaintenanceTicketController extends Controller
             'handled_by'       => ['nullable', 'integer', 'exists:users,id'],
             'resolution_notes' => ['nullable', 'string'],
             'priority'         => ['nullable', 'in:low,medium,high'],
+            'resolution_image' => ['nullable', 'image', 'max:10240'],
         ]);
 
-        DB::transaction(function () use ($ticket, $validated) {
+        $resolutionImageUrl = null;
+        if ($request->hasFile('resolution_image')) {
+            $resolutionImageUrl = $this->cloudinary->upload($request->file('resolution_image'), CloudinaryService::FOLDER_MAINTENANCE, 'resolution_image');
+        }
+
+        DB::transaction(function () use ($ticket, $validated, $resolutionImageUrl) {
             if (isset($validated['status'])) {
                 $ticket->status = $validated['status'];
                 if ($validated['status'] === 'resolved' && ! $ticket->resolved_at) {
@@ -188,6 +190,9 @@ final class MaintenanceTicketController extends Controller
             }
             if (array_key_exists('resolution_notes', $validated)) {
                 $ticket->resolution_notes = $validated['resolution_notes'];
+            }
+            if ($resolutionImageUrl !== null) {
+                $ticket->resolution_image_url = $resolutionImageUrl;
             }
             if (isset($validated['priority'])) {
                 $ticket->priority = $validated['priority'];
