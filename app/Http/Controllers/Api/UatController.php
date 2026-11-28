@@ -981,6 +981,20 @@ final class UatController extends Controller
             'changed_by' => $user->id,
         ]);
 
+        // Push notifikasi ke klien bahwa proyek siap diuji (atau diuji ulang)
+        $latestUat = UatResult::where('proposal_id', $proposal->id)->latest('id')->first();
+        if ($latestUat && $latestUat->review_status === 'READY_FOR_RETEST') {
+            $this->notifications->notifyClient($proposal, 'uat.retest_ready', [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+            ]);
+        } else {
+            $this->notifications->notifyClient($proposal, 'uat.retest_ready', [
+                'code'  => $proposal->proposal_code,
+                'title' => $proposal->title,
+            ]);
+        }
+
         return $this->ok('Status proyek berhasil diperbarui ke Testing.', [
             'id'        => $proposal->id,
             'status_id' => $proposal->status_id,
